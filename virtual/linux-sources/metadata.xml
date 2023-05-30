@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="project">
+		<email>szowisz.gentoo@gmail.com</email>
+		<name>Jakub Wroński</name>
+	</maintainer>
+	<use>
+		<flag name="firmware">Install linux kernel firmware</flag>
+	</use>
+	<stabilize-allarches/>
+</pkgmetadata>

@@ -1,0 +1,14 @@
+BDEPEND=>=dev-util/meson-0.62.2 >=dev-util/ninja-1.8.2 dev-util/meson-format-array virtual/pkgconfig
+DEFINED_PHASES=compile configure install setup test
+DEPEND=sys-libs/libcap-ng sys-process/procps:=
+DESCRIPTION=Userspace KSM helper daemon
+EAPI=8
+HOMEPAGE=https://github.com/CachyOS/uksmd
+INHERIT=linux-info meson systemd
+KEYWORDS=~amd64 ~x86
+LICENSE=GPL-3
+RDEPEND=sys-libs/libcap-ng sys-process/procps:=
+SLOT=0
+SRC_URI=https://github.com/CachyOS/uksmd/archive/0dac870c328b7d050dc20e8ee1496b1945fc9cdb.tar.gz -> uksmd-0_pre20230529.tar.gz
+_eclasses_=toolchain-funcs	14a8ae365191b518fad51caad7a08f3e	multilib	104e1332efb829e2f7cbf89307a474f1	linux-info	c4f1201b96a8a2c1f3b86cc8b2c71c91	multiprocessing	b4e253ab22cef7b1085e9b67c7a3b730	ninja-utils	76050953ad5b70d7e09a6ca55558db92	python-utils-r1	d676fb844e9408f4290d20bc7312f8bb	meson	915ec7c25e08d7886558215e6809ca1e	systemd	5f4bb0758df2e483babf68cd517078ca
+_md5_=766c610e5d2dea5a8fdc65db6abae41b

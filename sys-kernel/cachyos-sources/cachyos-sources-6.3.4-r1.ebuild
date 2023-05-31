@@ -133,22 +133,6 @@ scripts/config -d DEFAULT_FQ_CODEL
 scripts/config -e DEFAULT_FQ
 scripts/config --set-str DEFAULT_NET_SCH fq
 
-# Disable DEBUG
-scripts/config -d DEBUG_INFO
-scripts/config -d DEBUG_INFO_BTF
-scripts/config -d DEBUG_INFO_DWARF4
-scripts/config -d DEBUG_INFO_DWARF5
-scripts/config -d PAHOLE_HAS_SPLIT_BTF
-scripts/config -d DEBUG_INFO_BTF_MODULES
-scripts/config -d SLUB_DEBUG
-scripts/config -d PM_DEBUG
-scripts/config -d PM_ADVANCED_DEBUG
-scripts/config -d PM_SLEEP_DEBUG
-scripts/config -d ACPI_DEBUG
-scripts/config -d SCHED_DEBUG
-scripts/config -d LATENCYTOP
-scripts/config -d DEBUG_PREEMPT
-
 # Set performance governor
 scripts/config -d CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
 scripts/config -e CPU_FREQ_DEFAULT_GOV_PERFORMANCE

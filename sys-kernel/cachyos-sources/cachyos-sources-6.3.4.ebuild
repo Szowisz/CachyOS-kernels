@@ -126,6 +126,13 @@ scripts/config -e TCP_CONG_BBR2
 scripts/config -e DEFAULT_BBR2
 scripts/config --set-str DEFAULT_TCP_CONG bbr2
 
+# Switch into FQ - bbr2 doesn't work properly with FQ_CODEL
+scripts/config -m NET_SCH_FQ_CODEL
+scripts/config -e NET_SCH_FQ
+scripts/config -d DEFAULT_FQ_CODEL
+scripts/config -e DEFAULT_FQ
+scripts/config --set-str DEFAULT_NET_SCH fq
+
 # Disable DEBUG
 scripts/config -d DEBUG_INFO
 scripts/config -d DEBUG_INFO_BTF

@@ -105,10 +105,10 @@ scripts/config -d HZ_300
                 scripts/config --set-val HZ 1000
         fi
 
-# Enable MGLRU
-scripts/config -e LRU_GEN
-scripts/config -e LRU_GEN_ENABLED
-scripts/config -d LRU_GEN_STATS
+# Enable MGLRU - now it's available by default in config
+#scripts/config -e LRU_GEN
+#scripts/config -e LRU_GEN_ENABLED
+#scripts/config -d LRU_GEN_STATS
 
 # Enable PER_VMA_LOCK
 scripts/config -e PER_VMA_LOCK
@@ -164,6 +164,7 @@ scripts/config -e PREEMPT_DYNAMIC
 scripts/config --set-str DEFAULT_HOSTNAME "gentoo"
 
 # Miscellaneous
+scripts/config -d DRM_SIMPLEDRM
 scripts/config -e GENTOO_LINUX_INIT_SYSTEMD
 scripts/config --set-str CONFIG_LSM “lockdown,yama,integrity,selinux,apparmor,bpf,landlock”
 

@@ -3,7 +3,7 @@
 
 EAPI=8
 
-ANANICY_COMMIT="4145dfd2cf5de2e5047756e319ee3686b0dbcddc" # for rules
+ANANICY_COMMIT="5a46bac4c681d9daaf3ffccecf373c42c84270dd" # for rules
 MYPV="${PV/_rc/-rc}"
 
 inherit cmake
@@ -12,7 +12,7 @@ DESCRIPTION="Ananicy rewritten in C++ for much lower CPU and memory usage (power
 HOMEPAGE="https://gitlab.com/ananicy-cpp/ananicy-cpp"
 SRC_URI="
 	https://gitlab.com/ananicy-cpp/ananicy-cpp/-/archive/v${MYPV}/${PN}-v${MYPV}.tar.bz2
-	https://github.com/CachyOS/ananicy-rules${ANANICY_COMMIT}.tar.gz -> ananicy-rules-${ANANICY_COMMIT}.tar.gz
+	https://github.com/CachyOS/ananicy-rules/archive/${ANANICY_COMMIT}.tar.gz -> ananicy-rules-${ANANICY_COMMIT}.tar.gz
 "
 S="${WORKDIR}/${PN}-v${MYPV}"
 

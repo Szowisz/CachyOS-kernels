@@ -6,11 +6,19 @@ command_args="start"
 command_background=true
 
 start_pre() {
-	/sbin/sysctl -e kernel.sched_autogroup_enabled=0
+	/usr/sbin/sysctl -e kernel.sched_autogroup_enabled=0
+	if [ $? -ne 0 ]
+	then
+		/sbin/sysctl -e kernel.sched_autogroup_enabled=0
+	fi
 }
 
 stop_post() {
-	/sbin/sysctl -e kernel.sched_autogroup_enabled=1
+	/usr/sbin/sysctl -e kernel.sched_autogroup_enabled=1
+	if [ $? -ne 0 ]
+	then
+		/sbin/sysctl -e kernel.sched_autogroup_enabled=1
+	fi
 }
 
 stop() {

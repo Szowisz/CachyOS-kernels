@@ -30,6 +30,7 @@ RDEPEND="
 DEPEND="
 	${RDEPEND}
 	dev-cpp/std-format
+	sys-auth/rtkit
 "
 
 PATCHES=(

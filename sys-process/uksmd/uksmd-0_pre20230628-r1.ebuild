@@ -9,7 +9,7 @@ MY_COMMIT="97b7f88f984e98288ad972e01990ef3fa681a735"
 
 DESCRIPTION="Userspace KSM helper daemon"
 HOMEPAGE="https://github.com/CachyOS/uksmd"
-SRC_URI="https://github.com/CachyOS/uksmd/archive/${MY_COMMIT}.tar.gz -> ${P}.tar.gz"
+SRC_URI="https://github.com/CachyOS/uksmd/archive/${MY_COMMIT}.tar.gz"
 
 LICENSE="GPL-3"
 SLOT="0"

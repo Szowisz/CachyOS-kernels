@@ -6,7 +6,7 @@ ETYPE="sources"
 EXTRAVERSION="-cachyos"
 K_EXP_GENPATCHES_NOUSE="1"
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="10"
+K_GENPATCHES_VER="12"
 
 inherit kernel-2 optfeature
 detect_version
@@ -109,6 +109,30 @@ scripts/config -d HZ_300
 #scripts/config -e LRU_GEN
 #scripts/config -e LRU_GEN_ENABLED
 #scripts/config -d LRU_GEN_STATS
+
+# Enable PDS
+        if use pds; then
+                scripts/config -e SCHED_ALT -d SCHED_BMQ -e SCHED_PDS -e PSI_DEFAULT_DISABLED
+        fi
+
+# Enable BMQ
+        if use bmq; then
+                scripts/config -e SCHED_ALT -e SCHED_BMQ -d SCHED_PDS -e PSI_DEFAULT_DISABLED
+        fi
+
+# Enable TT
+        if use tt; then
+                scripts/config -e TT_SCHED -e TT_ACCOUNTING_STATS
+        fi
+
+# Enable BORE
+        if use bore; then
+                scripts/config -e SCHED_BORE
+        fi
+
+        if use bore-eevdf; then
+                scripts/config -e SCHED_BORE
+        fi
 
 # Enable PER_VMA_LOCK
 scripts/config -e PER_VMA_LOCK

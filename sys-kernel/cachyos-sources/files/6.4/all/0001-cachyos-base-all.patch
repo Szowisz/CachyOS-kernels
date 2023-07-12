@@ -1,7 +1,7 @@
-From 9f3adbb71235ae2d281a9e606efbc2458cfec0ff Mon Sep 17 00:00:00 2001
+From a2168c50c2c846ad624b028bbca121f11b732a95 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Tue, 9 May 2023 18:38:36 +0200
-Subject: [PATCH 1/8] bbr2
+Date: Tue, 11 Jul 2023 19:24:11 +0200
+Subject: [PATCH 1/7] bbr2
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -3283,16 +3283,14 @@ index 39eb947fe392..61ab4ee55b22 100644
 -- 
 2.41.0
 
-From 1f029b11f161f4f970af9dd597775112bece5109 Mon Sep 17 00:00:00 2001
+From 583c46f67e8db3fb6478523ff297ab3f469186ba Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Sat, 1 Jul 2023 15:11:26 +0200
-Subject: [PATCH 2/8] cachy
+Date: Tue, 11 Jul 2023 19:24:37 +0200
+Subject: [PATCH 2/7] cachy
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- .gitignore                                    |    1 +
  .../admin-guide/kernel-parameters.txt         |   12 +
- Documentation/dontdiff                        |    1 +
  Makefile                                      |    8 +-
  arch/arc/configs/axs101_defconfig             |    1 +
  arch/arc/configs/axs103_defconfig             |    1 +
@@ -3309,9 +3307,8 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  arch/arc/configs/vdk_hs38_smp_defconfig       |    1 +
  arch/x86/Kconfig.cpu                          |  427 ++-
  arch/x86/Makefile                             |   46 +-
- arch/x86/Makefile.postlink                    |   41 +
- arch/x86/boot/compressed/.gitignore           |    1 -
- arch/x86/boot/compressed/Makefile             |   10 +-
+ arch/x86/Makefile.postlink                    |   47 +
+ arch/x86/boot/compressed/Makefile             |    8 +-
  arch/x86/include/asm/pci.h                    |    6 +
  arch/x86/include/asm/vermagic.h               |   74 +
  arch/x86/pci/common.c                         |    7 +-
@@ -3346,25 +3343,13 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  mm/swap.c                                     |    5 +
  mm/vmpressure.c                               |    4 +
  mm/vmscan.c                                   |    8 +
- 56 files changed, 5341 insertions(+), 61 deletions(-)
+ 53 files changed, 5344 insertions(+), 59 deletions(-)
  create mode 100644 arch/x86/Makefile.postlink
  create mode 100644 drivers/i2c/busses/i2c-nct6775.c
  create mode 100644 drivers/pci/controller/intel-nvme-remap.c
  create mode 100644 drivers/platform/x86/legion-laptop.c
  create mode 100644 drivers/platform/x86/steamdeck.c
 
-diff --git a/.gitignore b/.gitignore
-index 7f86e0837909..7cb55784696c 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -65,6 +65,7 @@ modules.order
- /vmlinux
- /vmlinux.32
- /vmlinux.map
-+/vmlinux.relocs
- /vmlinux.symvers
- /vmlinux-gdb.py
- /vmlinuz
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
 index 9e5bab29685f..794e7a91219a 100644
 --- a/Documentation/admin-guide/kernel-parameters.txt
@@ -3395,20 +3380,8 @@ index 9e5bab29685f..794e7a91219a 100644
  		noioapicquirk	[APIC] Disable all boot interrupt quirks.
  				Safety option to keep boot IRQs enabled. This
  				should never be necessary.
-diff --git a/Documentation/dontdiff b/Documentation/dontdiff
-index 3c399f132e2d..a62ad01e6d11 100644
---- a/Documentation/dontdiff
-+++ b/Documentation/dontdiff
-@@ -254,6 +254,7 @@ vmlinux.aout
- vmlinux.bin.all
- vmlinux.lds
- vmlinux.map
-+vmlinux.relocs
- vmlinux.symvers
- vmlinuz
- voffset.h
 diff --git a/Makefile b/Makefile
-index bcac81556b56..b10b0fa3138f 100644
+index 56abbcac061d..c7cd86bb99e4 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -818,6 +818,9 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, address-of-packed-member)
@@ -4188,10 +4161,10 @@ index fdc2e3abd615..c7463d290ce7 100644
  
 diff --git a/arch/x86/Makefile.postlink b/arch/x86/Makefile.postlink
 new file mode 100644
-index 000000000000..195af937aa4d
+index 000000000000..936093d29160
 --- /dev/null
 +++ b/arch/x86/Makefile.postlink
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,47 @@
 +# SPDX-License-Identifier: GPL-2.0
 +# ===========================================================================
 +# Post-link x86 pass
@@ -4207,11 +4180,17 @@ index 000000000000..195af937aa4d
 +include $(srctree)/scripts/Kbuild.include
 +
 +CMD_RELOCS = arch/x86/tools/relocs
-+quiet_cmd_relocs = RELOCS  $@.relocs
-+      cmd_relocs = $(CMD_RELOCS) $@ > $@.relocs;$(CMD_RELOCS) --abs-relocs $@
++OUT_RELOCS = arch/x86/boot/compressed
++quiet_cmd_relocs = RELOCS  $(OUT_RELOCS)/$@.relocs
++      cmd_relocs = \
++	mkdir -p $(OUT_RELOCS); \
++	$(CMD_RELOCS) $@ > $(OUT_RELOCS)/$@.relocs; \
++	$(CMD_RELOCS) --abs-relocs $@
 +
 +quiet_cmd_strip_relocs = RSTRIP  $@
-+      cmd_strip_relocs = $(OBJCOPY) --remove-section='.rel.*' --remove-section='.rel__*' --remove-section='.rela.*' --remove-section='.rela__*' $@
++      cmd_strip_relocs = \
++	$(OBJCOPY) --remove-section='.rel.*' --remove-section='.rel__*' \
++		   --remove-section='.rela.*' --remove-section='.rela__*' $@
 +
 +# `@true` prevents complaint when there is nothing to be done
 +
@@ -4226,30 +4205,18 @@ index 000000000000..195af937aa4d
 +	@true
 +
 +clean:
-+	@rm -f vmlinux.relocs
++	@rm -f $(OUT_RELOCS)/vmlinux.relocs
 +
 +PHONY += FORCE clean
 +
 +FORCE:
 +
 +.PHONY: $(PHONY)
-diff --git a/arch/x86/boot/compressed/.gitignore b/arch/x86/boot/compressed/.gitignore
-index 25805199a506..b2968175fc27 100644
---- a/arch/x86/boot/compressed/.gitignore
-+++ b/arch/x86/boot/compressed/.gitignore
-@@ -1,7 +1,6 @@
- # SPDX-License-Identifier: GPL-2.0-only
- relocs
- vmlinux.bin.all
--vmlinux.relocs
- vmlinux.lds
- mkpiggy
- piggy.S
 diff --git a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
-index 6b6cfe607bdb..19d1fb601796 100644
+index 6b6cfe607bdb..0f78dbbbdcdd 100644
 --- a/arch/x86/boot/compressed/Makefile
 +++ b/arch/x86/boot/compressed/Makefile
-@@ -121,14 +121,12 @@ $(obj)/vmlinux.bin: vmlinux FORCE
+@@ -121,11 +121,9 @@ $(obj)/vmlinux.bin: vmlinux FORCE
  
  targets += $(patsubst $(obj)/%,%,$(vmlinux-objs-y)) vmlinux.bin.all vmlinux.relocs
  
@@ -4259,15 +4226,11 @@ index 6b6cfe607bdb..19d1fb601796 100644
 -$(obj)/vmlinux.relocs: vmlinux FORCE
 -	$(call if_changed,relocs)
 +# vmlinux.relocs is created by the vmlinux postlink step.
-+vmlinux.relocs: vmlinux
++$(obj)/vmlinux.relocs: vmlinux
 +	@true
  
  vmlinux.bin.all-y := $(obj)/vmlinux.bin
--vmlinux.bin.all-$(CONFIG_X86_NEED_RELOCS) += $(obj)/vmlinux.relocs
-+vmlinux.bin.all-$(CONFIG_X86_NEED_RELOCS) += vmlinux.relocs
- 
- $(obj)/vmlinux.bin.gz: $(vmlinux.bin.all-y) FORCE
- 	$(call if_changed,gzip)
+ vmlinux.bin.all-$(CONFIG_X86_NEED_RELOCS) += $(obj)/vmlinux.relocs
 diff --git a/arch/x86/include/asm/pci.h b/arch/x86/include/asm/pci.h
 index b40c462b4af3..c4e66e60d559 100644
 --- a/arch/x86/include/asm/pci.h
@@ -9396,7 +9359,7 @@ index 38ef6d06888e..0f78364efd4f 100644
  
  config SCHED_HRTICK
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 41c964104b58..915ad6dae416 100644
+index 8103ffd217e9..f405763e06ae 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
 @@ -100,6 +100,10 @@
@@ -9410,7 +9373,7 @@ index 41c964104b58..915ad6dae416 100644
  #include <asm/pgalloc.h>
  #include <linux/uaccess.h>
  #include <asm/mmu_context.h>
-@@ -2266,6 +2270,10 @@ __latent_entropy struct task_struct *copy_process(
+@@ -2267,6 +2271,10 @@ __latent_entropy struct task_struct *copy_process(
  	if ((clone_flags & (CLONE_NEWUSER|CLONE_FS)) == (CLONE_NEWUSER|CLONE_FS))
  		return ERR_PTR(-EINVAL);
  
@@ -9421,7 +9384,7 @@ index 41c964104b58..915ad6dae416 100644
  	/*
  	 * Thread groups must share signals as well, and detached threads
  	 * can only be started up within the thread group.
-@@ -3419,6 +3427,12 @@ int ksys_unshare(unsigned long unshare_flags)
+@@ -3420,6 +3428,12 @@ int ksys_unshare(unsigned long unshare_flags)
  	if (unshare_flags & CLONE_NEWNS)
  		unshare_flags |= CLONE_FS;
  
@@ -9651,2810 +9614,10 @@ index 5bf98d0a22c9..28f6d5cd362e 100644
 -- 
 2.41.0
 
-From e05bb7cb926a7c48b2acccfbd6119a4e0309c0ef Mon Sep 17 00:00:00 2001
+From 3a68ae439de252da49e718998385b91b69809642 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Tue, 9 May 2023 18:39:03 +0200
-Subject: [PATCH 3/8] ddcci
-
-Signed-off-by: Peter Jung <admin@ptr1337.dev>
----
- Documentation/ABI/testing/sysfs-driver-ddcci |   65 +
- Documentation/driver-api/ddcci.rst           |  130 ++
- drivers/char/Kconfig                         |   11 +
- drivers/char/Makefile                        |    1 +
- drivers/char/ddcci.c                         | 1909 ++++++++++++++++++
- drivers/video/backlight/Kconfig              |   11 +
- drivers/video/backlight/Makefile             |    1 +
- drivers/video/backlight/ddcci-backlight.c    |  413 ++++
- include/linux/ddcci.h                        |  164 ++
- 9 files changed, 2705 insertions(+)
- create mode 100644 Documentation/ABI/testing/sysfs-driver-ddcci
- create mode 100644 Documentation/driver-api/ddcci.rst
- create mode 100644 drivers/char/ddcci.c
- create mode 100644 drivers/video/backlight/ddcci-backlight.c
- create mode 100644 include/linux/ddcci.h
-
-diff --git a/Documentation/ABI/testing/sysfs-driver-ddcci b/Documentation/ABI/testing/sysfs-driver-ddcci
-new file mode 100644
-index 000000000000..55c07ec13c32
---- /dev/null
-+++ b/Documentation/ABI/testing/sysfs-driver-ddcci
-@@ -0,0 +1,65 @@
-+What:		/sys/bus/ddcci/ddcci<I2C bus number>i<hex address>
-+Date:		March 2022
-+KernelVersion:	5.18
-+Contact:	Christoph Grenz <christophg+lkml@grenz-bonn.de>
-+Description:	This file is a user interface for an internal
-+		dependent device on the I2C bus, it exports the same
-+		information as the master device(/sys/bus/ddcci/
-+		ddcci<I2C bus number>) that is referenced in this
-+		document.
-+
-+What:		/sys/bus/ddcci/ddcci<I2C bus number>e<hex address>
-+Date:		March 2022
-+KernelVersion:	5.18
-+Contact:	Christoph Grenz <christophg+lkml@grenz-bonn.de>
-+Description:	This file is a user interface for an external
-+		dependent device on the I2C bus, it exports the same
-+		information as the master device(/sys/bus/ddcci/
-+		ddcci<I2C bus number>) that is referenced in this
-+		document.
-+
-+What:		/sys/bus/ddcci/ddcci<I2C bus number>
-+Date:		March 2022
-+KernelVersion:	5.18
-+Contact:	Christoph Grenz <christophg+lkml@grenz-bonn.de>
-+Description:	This file provides the user interface for the
-+		master device on the I2C bus. It exports the following
-+		peices of information:
-+
-+		- idProt
-+
-+		ACCESS.bus protocol supported by the device. Usually
-+		"monitor".
-+
-+		- idType
-+
-+		ACCESS.bus device subtype. Usually "LCD" or "CRT".
-+
-+		- idModel
-+
-+		ACCESS.bus device model identifier. Usually a
-+		shortened form of the device model name.
-+
-+		- idVendor
-+
-+		ACCESS.bus device vendor identifier. Empty if the
-+		Identification command is not supported.
-+
-+		- idModule
-+
-+		ACCESS.bus device module identifier. Empty if the
-+		Identification command is not supported.
-+
-+		- idSerial
-+
-+		32 bit device number. A fixed serial number if it's
-+		positive, a temporary serial number if negative and zero
-+		if the Identification command is not supported.
-+
-+		- modalias
-+
-+		A combined identifier for driver selection. It has the form:
-+		ddcci:<idProt>-<idType>-<idModel>-<idVendor>-<idModule>.
-+		All non-alphanumeric characters (including whitespace)
-+		in the model, vendor or module parts are replaced by
-+		underscores to prevent issues with software like systemd-udevd.
-diff --git a/Documentation/driver-api/ddcci.rst b/Documentation/driver-api/ddcci.rst
-new file mode 100644
-index 000000000000..04cd5ab911a7
---- /dev/null
-+++ b/Documentation/driver-api/ddcci.rst
-@@ -0,0 +1,130 @@
-+.. SPDX-License-Identifier: GPL-2.0-or-later
-+
-+==============
-+DDC/CI
-+==============
-+
-+1. Introduction
-+===============
-+DDC/CI is a control protocol for monitor settings supported by most
-+monitors since about 2005. It is based on ACCESS.bus (an early USB predecessor).
-+This could be used to create drivers that communicate with the DDCCI component,
-+see ddcci-backlight for an example.
-+
-+2. sysfs interface
-+==================
-+Each detected DDC/CI device gets a directory in /sys/bus/ddcci/devices.
-+The main device on a bus is named ddcci[I2C bus number].
-+Internal dependent devices are named ddcci[I2C bus number]i[hex address]
-+External dependent devices are named ddcci[I2C bus number]e[hex address]
-+There the following files export information about the device:
-+
-+- capabilities
-+
-+The full ACCESS.bus capabilities string. It contains the protocol,
-+type and model of the device, a list of all supported command
-+codes, etc. See the ACCESS.bus spec for more information.
-+
-+- idProt
-+
-+ACCESS.bus protocol supported by the device. Usually "monitor".
-+
-+- idType
-+
-+ACCESS.bus device subtype. Usually "LCD" or "CRT".
-+
-+- idModel
-+
-+ACCESS.bus device model identifier. Usually a shortened form of the
-+device model name.
-+
-+- idVendor
-+
-+ACCESS.bus device vendor identifier. Empty if the Identification command
-+is not supported.
-+
-+- idModule
-+
-+ACCESS.bus device module identifier. Empty if the Identification command
-+is not supported.
-+
-+- idSerial
-+
-+32 bit device number. A fixed serial number if it's positive, a temporary
-+serial number if negative and zero if the
-+Identification command is not supported.
-+
-+- modalias
-+
-+A combined identifier for driver selection. It has the form:
-+ddcci:<idProt>-<idType>-<idModel>-<idVendor>-<idModule>.
-+All non-alphanumeric characters (including whitespace) in the model,
-+vendor or module parts are replaced by underscores to prevent issues
-+with software like systemd-udevd.
-+
-+3. Character device interface
-+=============================
-+For each DDC/CI device a character device in
-+/dev/bus/ddcci/[I2C bus number]/ is created,
-+127 devices are assigned in total.
-+
-+The main device on the bus is named display.
-+
-+Internal dependent devices are named i[hex address]
-+
-+External dependent devices are named e[hex address]
-+
-+These character devices can be used to issue commands to a DDC/CI device
-+more easily than over i2c-dev devices. They should be opened unbuffered.
-+To send a command just write the command byte and the arguments with a
-+single write() operation. The length byte and checksum are automatically
-+calculated.
-+
-+To read a response use read() with a buffer big enough for the expected answer.
-+
-+NOTE: The maximum length of a DDC/CI message is 32 bytes.
-+
-+4. ddcci-backlight (monitor backlight driver)
-+=============================================
-+[This is not specific to the DDC/CI backlight driver, if you already dealt with
-+backlight drivers, skip over this.]
-+
-+For each monitor that supports accessing the Backlight Level White
-+or the Luminance property, a backlight device of type "raw" named like the
-+corresponding ddcci device is created. You can find them in /sys/class/backlight/.
-+For convenience a symlink "ddcci_backlight" on the device associated with the
-+display connector in /sys/class/drm/ to the backlight device is created, as
-+long as the graphics driver allows to make this association.
-+
-+5. Limitations
-+==============
-+
-+-Dependent devices (sub devices using DDC/CI directly wired to the monitor,
-+like  Calibration devices, IR remotes, etc.) aren't automatically detected.
-+You can force detection of external dependent devices by writing
-+"ddcci-dependent [address]" into /sys/bus/i2c/i2c-?/new_device.
-+
-+There is no direct synchronization if you manually change the luminance
-+with the buttons on your monitor, as this can only be realized through polling
-+and some monitors close their OSD every time a DDC/CI command is received.
-+
-+Monitor hotplugging is not detected. You need to detach/reattach the I2C driver
-+or reload the module.
-+
-+6. Debugging
-+============
-+Both drivers use the dynamic debugging feature of the Linux kernel.
-+To get detailed debugging messages, set the dyndbg module parameter.
-+If you want to enable debugging permanently across reboots, create a file
-+/etc/modprobe.d/ddcci.conf containing lines like the following before loading the modules:
-+
-+options ddcci dyndbg
-+options ddcci-backlight dyndbg
-+
-+7. Origin
-+============
-+This driver originally came from Christoph Grenz in DKMS form here:
-+https://gitlab.com/ddcci-driver-linux/ddcci-driver-linux
-+with multiple backups available on the wayback machine. It also
-+inlcudes a example program for the usage of this driver in
-+userland.
-diff --git a/drivers/char/Kconfig b/drivers/char/Kconfig
-index 801d6c83f896..c8b3d0b8fe29 100644
---- a/drivers/char/Kconfig
-+++ b/drivers/char/Kconfig
-@@ -421,4 +421,15 @@ config ADI
- 	  and SSM (Silicon Secured Memory).  Intended consumers of this
- 	  driver include crash and makedumpfile.
- 
-+config DDCCI
-+	tristate "DDCCI display protocol support"
-+	depends on I2C
-+	help
-+	  Display Data Channel Command Interface is an
-+	  interface that allows the kernel to "talk"
-+	  to most displays made after 2005. Check your
-+	  display's specification to see if it has
-+	  support for this. This depends on I2C to
-+	  compile.
-+
- endmenu
-diff --git a/drivers/char/Makefile b/drivers/char/Makefile
-index c5f532e412f1..b12476014311 100644
---- a/drivers/char/Makefile
-+++ b/drivers/char/Makefile
-@@ -3,6 +3,7 @@
- # Makefile for the kernel character device drivers.
- #
- 
-+obj-$(CONFIG_DDCCI)				+= ddcci.o
- obj-y				+= mem.o random.o
- obj-$(CONFIG_TTY_PRINTK)	+= ttyprintk.o
- obj-y				+= misc.o
-diff --git a/drivers/char/ddcci.c b/drivers/char/ddcci.c
-new file mode 100644
-index 000000000000..129aede43651
---- /dev/null
-+++ b/drivers/char/ddcci.c
-@@ -0,0 +1,1909 @@
-+/*
-+ *  DDC/CI sub-bus driver
-+ *
-+ *  Copyright (c) 2015 Christoph Grenz
-+ */
-+
-+/*
-+ * This program is free software; you can redistribute it and/or modify it
-+ * under the terms of the GNU General Public License as published by the Free
-+ * Software Foundation; either version 2 of the License, or (at your option)
-+ * any later version.
-+ */
-+
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+#include <asm-generic/fcntl.h>
-+#include <linux/cdev.h>
-+#include <linux/delay.h>
-+#include <linux/device.h>
-+#include <linux/fs.h>
-+#include <linux/i2c.h>
-+#include <linux/module.h>
-+#include <linux/mutex.h>
-+#include <linux/rwsem.h>
-+#include <linux/sem.h>
-+#include <linux/slab.h>
-+#include <linux/uaccess.h>
-+#include <linux/version.h>
-+
-+#include <linux/ddcci.h>
-+
-+#define DDCCI_RECV_BUFFER_SIZE 130
-+#define DEVICE_NAME "ddcci"
-+#define DDCCI_MAX_CAP_CHUNKS 200
-+
-+static unsigned int delay = 60;
-+static unsigned short autoprobe_addrs[127] = {0xF0, 0xF2, 0xF4, 0xF6, 0xF8};
-+static int autoprobe_addr_count = 5;
-+
-+static dev_t ddcci_cdev_first;
-+static dev_t ddcci_cdev_next;
-+static dev_t ddcci_cdev_end;
-+static DEFINE_SEMAPHORE(core_lock, 1);
-+
-+struct bus_type ddcci_bus_type;
-+EXPORT_SYMBOL_GPL(ddcci_bus_type);
-+static bool ddcci_bus_registered;
-+
-+/* Assert neccessary string array sizes  */
-+#ifndef sizeof_field
-+# define sizeof_field(t,m) FIELD_SIZEOF(t,m)
-+#endif
-+static_assert(sizeof_field(struct ddcci_device, prot) > 8);
-+static_assert(sizeof_field(struct ddcci_device, type) > 8);
-+static_assert(sizeof_field(struct ddcci_device, model) > 8);
-+static_assert(sizeof_field(struct ddcci_device, vendor) > 8);
-+static_assert(sizeof_field(struct ddcci_device, module) > 8);
-+
-+/* Internal per-i2c-client driver data */
-+struct ddcci_bus_drv_data {
-+	unsigned long quirks;
-+	struct i2c_client *i2c_dev;
-+	struct semaphore sem;
-+	unsigned char recv_buffer[DDCCI_RECV_BUFFER_SIZE];
-+};
-+
-+/* Replace non-alphanumeric characters in a string (used for modalias) */
-+static void ddcci_modalias_clean(char *string, size_t n, char replacement)
-+{
-+	int i;
-+	for (i = 0; i < n; ++i) {
-+		char c = string[i];
-+		if (c == 0) {
-+			return;
-+		} else if (c < '0' || (c > '9' && c < 'A') || (c > 'Z' && c < 'a') || c > 'z') {
-+			string[i] = replacement;
-+		}
-+	}
-+}
-+
-+/* Write a message to the DDC/CI bus using i2c_smbus_write_byte() */
-+static int __ddcci_write_bytewise(struct i2c_client *client, unsigned char addr,
-+				  bool p_flag, const unsigned char * __restrict buf,
-+				  unsigned char len)
-+{
-+	int ret = 0;
-+	unsigned char outer_addr = (unsigned char)(client->addr << 1);
-+	unsigned xor = outer_addr; /* initial xor value */
-+
-+	/* Consistency checks */
-+	if (len > 127)
-+		return -EINVAL;
-+
-+	/* Special case: sender to 0x6E is always 0x51 */
-+	if (addr == DDCCI_DEFAULT_DEVICE_ADDR) {
-+		addr = DDCCI_HOST_ADDR_ODD;
-+	} else {
-+		/* When sending the odd address is used */
-+		addr = addr | 1;
-+	}
-+
-+	/* first byte: sender address */
-+	xor ^= addr;
-+	ret = i2c_smbus_write_byte(client, addr);
-+	if (ret < 0)
-+		return ret;
-+
-+	/* second byte: protocol flag and message size */
-+	xor ^= ((p_flag << 7) | len);
-+	ret = i2c_smbus_write_byte(client, (p_flag << 7)|len);
-+	if (ret < 0)
-+		return ret;
-+
-+	/* send payload */
-+	while (len--) {
-+		xor ^= (*buf);
-+		ret = i2c_smbus_write_byte(client, (*buf));
-+		if (ret < 0)
-+			return ret;
-+		buf++;
-+	}
-+
-+	/* send checksum */
-+	ret = i2c_smbus_write_byte(client, xor);
-+	return ret;
-+}
-+
-+/* Write a message to the DDC/CI bus using i2c_master_send() */
-+static int __ddcci_write_block(struct i2c_client *client, unsigned char addr,
-+			       unsigned char *sendbuf, bool p_flag,
-+			       const unsigned char *data, unsigned char len)
-+{
-+	unsigned char outer_addr = (unsigned char)(client->addr << 1);
-+	unsigned xor = outer_addr;	/* initial xor value */
-+	unsigned char *ptr = sendbuf;
-+
-+	/* Consistency checks */
-+	if (len > 127)
-+		return -EINVAL;
-+
-+	/* Special case: sender to 0x6E is always 0x51 */
-+	if (addr == DDCCI_DEFAULT_DEVICE_ADDR) {
-+		addr = DDCCI_HOST_ADDR_ODD;
-+	} else {
-+		/* When sending the odd address is used */
-+		addr = addr | 1;
-+	}
-+
-+	/* first byte: sender address */
-+	xor ^= addr;
-+	*(ptr++) = addr;
-+	/* second byte: protocol flag and message size */
-+	xor ^= ((p_flag << 7) | len);
-+	*(ptr++) = (p_flag << 7)|len;
-+	/* payload */
-+	while (len--) {
-+		xor ^= (*data);
-+		*(ptr++) = (*data);
-+		data++;
-+	}
-+	/* checksum */
-+	(*ptr) = xor;
-+
-+	/* Send it */
-+	return i2c_master_send(client, sendbuf, ptr - sendbuf + 1);
-+}
-+
-+/*
-+ * Write a message to the DDC/CI bus.
-+ *
-+ * You must hold the bus semaphore when calling this function.
-+ */
-+static int ddcci_write(struct i2c_client *client, unsigned char addr,
-+		       bool p_flag, const unsigned char *data,
-+		       unsigned char len)
-+{
-+	struct ddcci_bus_drv_data *drv_data;
-+	unsigned char *sendbuf;
-+	int ret;
-+
-+	drv_data = i2c_get_clientdata(client);
-+
-+
-+	pr_debug("sending to %d:%02x:%02x: %*ph\n", client->adapter->nr,
-+		 client->addr << 1, addr, len, data);
-+	if (drv_data->quirks & DDCCI_QUIRK_WRITE_BYTEWISE) {
-+		ret = __ddcci_write_bytewise(client, addr, p_flag, data, len);
-+	} else {
-+		sendbuf = drv_data->recv_buffer;
-+		ret = __ddcci_write_block(client, addr, sendbuf, p_flag, data, len);
-+	}
-+
-+	return ret;
-+}
-+
-+/*
-+ * Read a response from the DDC/CI bus with headers directly into a buffer.
-+ * Always check for DDCCI_QUIRK_SKIP_FIRST_BYTE when using this function.
-+ * The returned length contains the whole unmodified response.
-+ * If -EMSGSIZE is returned, the buffer contains the response up to `len`.
-+ * If any other negative error code is returned, the buffer content is
-+ * unspecified.
-+ */
-+static int __ddcci_read(struct i2c_client *client, unsigned char addr,
-+			bool p_flag, unsigned long quirks, unsigned char *buf,
-+			unsigned char len)
-+{
-+	int i, payload_len, packet_length, ret;
-+	unsigned char xor = DDCCI_HOST_ADDR_EVEN;
-+
-+	/* Consistency checks */
-+	if (len < 3)
-+		return -EINVAL;
-+
-+	/* Read frame */
-+	ret = i2c_master_recv(client, buf, len);
-+	if (ret < 0)
-+		goto out_err;
-+	packet_length = ret;
-+
-+	/* Skip first byte if quirk active */
-+	if ((quirks & DDCCI_QUIRK_SKIP_FIRST_BYTE) && ret > 0 && len > 0) {
-+		ret--;
-+		len--;
-+		buf++;
-+	}
-+
-+	/* If answer too short (= incomplete) break out */
-+	if (ret < 3) {
-+		ret = -EIO;
-+		goto out_err;
-+	}
-+
-+	/* validate first byte */
-+	if (unlikely(buf[0] != addr)) {
-+		ret = (buf[0] == '\0') ? -EAGAIN : -EIO;
-+		goto out_err;
-+	}
-+
-+	/* validate second byte (protocol flag) */
-+	if (unlikely((buf[1] & 0x80) != (p_flag << 7))) {
-+		if (!p_flag || !(quirks & DDCCI_QUIRK_NO_PFLAG)) {
-+			ret = -EIO;
-+			goto out_err;
-+		}
-+	}
-+
-+	/* get and check payload length */
-+	payload_len = buf[1] & 0x7F;
-+	if (3+payload_len > packet_length)
-+		return -EBADMSG;
-+	if (3+payload_len > len)
-+		return -EMSGSIZE;
-+
-+	/* calculate checksum */
-+	for (i = 0; i < 3+payload_len; i++)
-+		xor ^= buf[i];
-+
-+	/* verify checksum */
-+	if (xor != 0) {
-+		dev_err(&client->dev, "invalid DDC/CI response, corrupted data - xor is 0x%02x, length 0x%02x\n",
-+			xor, payload_len);
-+		ret = -EBADMSG;
-+		goto out_err;
-+	}
-+
-+	/* return result */
-+	ret = payload_len+3+((quirks & DDCCI_QUIRK_SKIP_FIRST_BYTE)?1:0);
-+
-+out_err:
-+	return ret;
-+}
-+
-+/*
-+ * Read a response from the DDC/CI bus
-+ *
-+ * You must hold the bus semaphore when calling this function.
-+ */
-+static int ddcci_read(struct i2c_client *client, unsigned char addr,
-+		      bool p_flag, unsigned char *buf, unsigned char len)
-+{
-+	struct ddcci_bus_drv_data *drv_data;
-+	unsigned char *recvbuf;
-+	int ret;
-+
-+	drv_data = i2c_get_clientdata(client);
-+	recvbuf = drv_data->recv_buffer;
-+
-+	/* Read frame */
-+	ret = __ddcci_read(client, addr, p_flag,
-+		drv_data->quirks, recvbuf, DDCCI_RECV_BUFFER_SIZE);
-+	if (ret < 0)
-+		return ret;
-+
-+	if (drv_data->quirks & DDCCI_QUIRK_SKIP_FIRST_BYTE)
-+		recvbuf++;
-+
-+	/* return result */
-+	if (buf) {
-+		if (ret > 3) {
-+			ret = ret-3;
-+			/* copy to caller buffer */
-+			memcpy(buf, &recvbuf[2], (ret < len) ? ret : len);
-+
-+			if (ret > len) {
-+				/* if message was truncated, return -EMSGSIZE */
-+				pr_debug("received from %d:%02x:%02x: [%u/%u] %*ph ...\n",
-+					 client->adapter->nr, client->addr << 1,
-+					 addr, ret, len, len, buf);
-+				ret = -EMSGSIZE;
-+			} else {
-+				pr_debug("received from %d:%02x:%02x: [%u/%u] %*ph\n",
-+					 client->adapter->nr, client->addr << 1,
-+					 addr, ret, len, ret, buf);
-+			}
-+		}
-+	}
-+	if (!(drv_data->quirks & DDCCI_QUIRK_WRITE_BYTEWISE)) {
-+		/* second read to clear buffers, needed on some devices */
-+		__ddcci_read(client, addr, true, drv_data->quirks, recvbuf, 1);
-+	}
-+	return ret;
-+}
-+
-+/* Request the capability string for a device and put it into buf */
-+static int ddcci_get_caps(struct i2c_client *client, unsigned char addr,
-+			  unsigned char *buf, unsigned int len)
-+{
-+	int result = 0, counter = 0, offset = 0;
-+	unsigned char cmd[3] = { DDCCI_COMMAND_CAPS, 0x00, 0x00 };
-+	unsigned char *chunkbuf = kzalloc(35, GFP_KERNEL);
-+
-+	if (!chunkbuf)
-+		return -ENOMEM;
-+
-+	do {
-+		/* Send command */
-+		result = ddcci_write(client, addr, true, cmd, sizeof(cmd));
-+		if (result < 0)
-+			goto err_free;
-+		msleep(delay);
-+		/* read result chunk */
-+		result = ddcci_read(client, addr, true, chunkbuf,
-+				    (len > 32) ? 35 : len+3);
-+		if (result < 0)
-+			goto err_free;
-+
-+		if (result > 0) {
-+			/* check chunk header */
-+			if (chunkbuf[0] != DDCCI_REPLY_CAPS) {
-+				result = -EIO;
-+				goto err_free;
-+			}
-+			if (chunkbuf[1] != cmd[1] || chunkbuf[2] != cmd[2]) {
-+				result = -EIO;
-+				goto err_free;
-+			}
-+			if (result < 3) {
-+				result = -EIO;
-+				goto err_free;
-+			}
-+			memcpy(buf, chunkbuf+3, min((unsigned int)result-3, len));
-+
-+			counter++;
-+			/* adjust offset, etc. */
-+			offset += result-3;
-+			len -= result-3;
-+			buf += result-3;
-+			cmd[1] = offset >> 8;
-+			cmd[2] = offset & 0xFF;
-+			/* Another superfluous read to make some devices happy... */
-+			ddcci_read(client, addr, true, NULL, 2);
-+		}
-+	} while (result > 3 && counter < DDCCI_MAX_CAP_CHUNKS);
-+
-+	kfree(chunkbuf);
-+	return offset+result-3;
-+err_free:
-+	kfree(chunkbuf);
-+	return result;
-+}
-+
-+/*
-+ * Request the device identification and put it into buf.
-+ *
-+ * Also detects all communication quirks and sets the corresponding flags
-+ * in the ddcci_bus_drv_data structure associated with client.
-+ *
-+ * The identification command will fail on most DDC devices, as it is optional
-+ * to support, but even the "failed" response suffices to detect quirks.
-+ */
-+static int ddcci_identify_device(struct i2c_client *client, unsigned char addr,
-+				 unsigned char *buf, unsigned char len)
-+{
-+	int i, payload_len, ret = -ENODEV;
-+	unsigned long quirks;
-+	unsigned char cmd[1] = { DDCCI_COMMAND_ID };
-+	unsigned char *buffer;
-+	unsigned char xor = DDCCI_HOST_ADDR_EVEN;
-+	struct ddcci_bus_drv_data *bus_drv_data;
-+
-+	bus_drv_data = i2c_get_clientdata(client);
-+	quirks = bus_drv_data->quirks;
-+	buffer = bus_drv_data->recv_buffer;
-+
-+	/* Send Identification command */
-+	if (!(quirks & DDCCI_QUIRK_WRITE_BYTEWISE)) {
-+		ret = __ddcci_write_block(client, addr, buffer, true, cmd, sizeof(cmd));
-+		dev_dbg(&client->dev,
-+			"[%02x:%02x] writing identification command in block mode: %d\n",
-+			client->addr << 1, addr, ret);
-+		if ((ret == -ENXIO)
-+		    && i2c_check_functionality(client->adapter,
-+					       I2C_FUNC_SMBUS_WRITE_BYTE)) {
-+			quirks |= DDCCI_QUIRK_WRITE_BYTEWISE;
-+			dev_info(&client->dev,
-+				"DDC/CI bus quirk detected: writes must be done bytewise\n");
-+			/* Some devices need writing twice after a failed blockwise write */
-+			__ddcci_write_bytewise(client, addr, true, cmd, sizeof(cmd));
-+			msleep(delay);
-+		}
-+	}
-+	if (ret < 0 && (quirks & DDCCI_QUIRK_WRITE_BYTEWISE)) {
-+		ret = __ddcci_write_bytewise(client, addr, true, cmd, sizeof(cmd));
-+		dev_dbg(&client->dev,
-+			"[%02x:%02x] writing identification command in bytewise mode: %d\n",
-+			client->addr << 1, addr, ret);
-+	}
-+	if (ret < 0)
-+		return -ENODEV;
-+
-+	/* Wait */
-+	msleep(delay);
-+
-+	/* Receive response */
-+	ret = i2c_master_recv(client, buffer, DDCCI_RECV_BUFFER_SIZE);
-+	if (ret < 0) {
-+		dev_dbg(&client->dev,
-+			"[%02x:%02x] receiving identification response resulted in errno %d\n",
-+			client->addr << 1, addr, ret);
-+		return ret;
-+	}
-+
-+	if (ret == 0) {
-+		dev_dbg(&client->dev,
-+			"[%02x:%02x] no identification response received\n",
-+			client->addr << 1, addr);
-+		return ret;
-+	}
-+
-+	/* Skip first byte if quirk already active */
-+	if (quirks & DDCCI_QUIRK_SKIP_FIRST_BYTE && ret > 1) {
-+		dev_dbg(&client->dev,
-+			"[%02x:%02x] doubled first byte quirk in effect\n",
-+			client->addr << 1, addr);
-+		ret--;
-+		buffer++;
-+	}
-+
-+	/* If answer too short (= incomplete) break out */
-+	if (ret < 3) {
-+		dev_dbg(&client->dev,
-+			"[%02x:%02x] identification response is too short (%d bytes)\n",
-+			client->addr << 1, addr, ret);
-+		return -EIO;
-+	}
-+
-+	/* validate first byte */
-+	if (buffer[0] != addr) {
-+		dev_dbg(&client->dev,
-+			"[%02x:%02x] identification response: %*ph\n",
-+			client->addr << 1, addr, (ret > 32 ? 32 : ret), buffer);
-+
-+		dev_dbg(&client->dev,
-+			"[%02x:%02x] identification response invalid (expected first byte %02x, got %02x)\n",
-+			client->addr << 1, addr, addr, buffer[0]);
-+		return -ENODEV;
-+	}
-+
-+	/* Check if first byte is doubled (QUIRK_SKIP_FIRST_BYTE) */
-+	if (!(quirks & DDCCI_QUIRK_SKIP_FIRST_BYTE)) {
-+		if (buffer[0] == buffer[1]) {
-+			quirks |= DDCCI_QUIRK_SKIP_FIRST_BYTE;
-+			dev_info(&client->dev,
-+				"DDC/CI bus quirk detected: doubled first byte on read\n");
-+			ret--;
-+			buffer++;
-+			if (ret < 3)
-+				return -EIO;
-+		}
-+	}
-+
-+	/* validate second byte (protocol flag) */
-+	if ((buffer[1] & 0x80) != 0x80 && !(quirks & DDCCI_QUIRK_NO_PFLAG)) {
-+		dev_info(&client->dev,
-+			"DDC/CI bus quirk detected: device omits protocol flag on responses\n");
-+		quirks |= DDCCI_QUIRK_NO_PFLAG;
-+	}
-+
-+	/* get and check payload length */
-+	payload_len = buffer[1] & 0x7F;
-+	if (3+payload_len > ret) {
-+		dev_dbg(&client->dev,
-+			"[%02x:%02x] identification response: %*ph ...\n",
-+			client->addr << 1, addr, ret, buffer);
-+		dev_dbg(&client->dev,
-+			"[%02x:%02x] identification response was truncated (expected %d bytes, got %d)\n",
-+			client->addr << 1, addr, 3+payload_len, ret);
-+		return -EBADMSG;
-+	}
-+
-+	dev_dbg(&client->dev,
-+		"[%02x:%02x] identification response: %*ph\n",
-+		client->addr << 1, addr, 3+payload_len, buffer);
-+
-+	/* calculate checksum */
-+	for (i = 0; i < 3+payload_len; i++)
-+		xor ^= buffer[i];
-+
-+	/* verify checksum */
-+	if (xor != 0) {
-+		dev_err(&client->dev,
-+			"[%02x:%02x] invalid DDC/CI response, corrupted data - xor is 0x%02x, length 0x%02x\n",
-+			client->addr << 1, addr, xor, payload_len);
-+		return -EBADMSG;
-+	}
-+
-+	/* save quirks */
-+	bus_drv_data->quirks = quirks;
-+
-+	/* return result */
-+	if (payload_len <= len) {
-+		ret = payload_len;
-+		memcpy(buf, &buffer[2], payload_len);
-+	} else {
-+		ret = -EMSGSIZE;
-+		memcpy(buf, &buffer[2], len);
-+	}
-+	return ret;
-+}
-+
-+/* Character device */
-+
-+/* Data structure for an open file handle */
-+struct ddcci_fp_data {
-+	struct ddcci_device *dev;
-+	bool exclusive;
-+	unsigned char buffer[129];
-+};
-+
-+/* Called when the character device is opened */
-+static int ddcci_cdev_open(struct inode *inode, struct file *filp)
-+{
-+	struct ddcci_device *dev = container_of(inode->i_cdev,
-+						struct ddcci_device, cdev);
-+	struct ddcci_fp_data *fp_data = NULL;
-+
-+	fp_data = kzalloc(sizeof(struct ddcci_fp_data), GFP_KERNEL);
-+
-+	if (!fp_data)
-+		return -ENOMEM;
-+
-+	fp_data->exclusive = filp->f_flags & O_EXCL;
-+
-+	if (fp_data->exclusive) {
-+		if (down_write_trylock(&dev->cdev_sem) == 0) {
-+			kfree(fp_data);
-+			return -EBUSY;
-+		}
-+	} else {
-+		if (down_read_trylock(&dev->cdev_sem) == 0) {
-+			kfree(fp_data);
-+			return -EBUSY;
-+		}
-+	}
-+
-+	fp_data->dev = dev;
-+	filp->private_data = fp_data;
-+
-+	return 0;
-+}
-+
-+/* Called when the character device is closed */
-+static int ddcci_cdev_close(struct inode *inode, struct file *filp)
-+{
-+	struct ddcci_fp_data *fp_data = filp->private_data;
-+	struct ddcci_device *dev = fp_data->dev;
-+
-+	if (fp_data->exclusive)
-+		up_write(&dev->cdev_sem);
-+	else
-+		up_read(&dev->cdev_sem);
-+
-+	filp->private_data = NULL;
-+	kfree(fp_data);
-+	return 0;
-+}
-+
-+/* Called when reading from the character device */
-+static ssize_t ddcci_cdev_read(struct file *filp, char __user *buffer,
-+			       size_t length, loff_t *offset)
-+{
-+	struct ddcci_fp_data *fp_data = filp->private_data;
-+	struct ddcci_device *dev = fp_data->dev;
-+	unsigned char *buf = fp_data->buffer;
-+	const bool nonblocking = (filp->f_flags & O_NONBLOCK) != 0;
-+	int ret = 0;
-+
-+	if ((filp->f_mode & FMODE_READ) == 0)
-+		return -EBADF;
-+
-+	/* Lock mutex */
-+	if (nonblocking) {
-+		if (down_trylock(&dev->bus_drv_data->sem))
-+			return -EAGAIN;
-+	} else {
-+		if (down_interruptible(&dev->bus_drv_data->sem))
-+			return -ERESTARTSYS;
-+	}
-+
-+	/* Execute read */
-+	ret = ddcci_read(dev->bus_drv_data->i2c_dev, dev->inner_addr, true, buf,
-+			 length);
-+
-+	if (ret > 0) {
-+		/* Copy data from user space */
-+		if (copy_to_user(buffer, buf, ret)) {
-+			ret = -EFAULT;
-+			goto out;
-+		}
-+	}
-+
-+out:
-+	up(&dev->bus_drv_data->sem);
-+	return ret;
-+}
-+
-+/* Called when writing to the character device */
-+static ssize_t ddcci_cdev_write(struct file *filp, const char __user *buffer,
-+				size_t count, loff_t *offset)
-+{
-+	struct ddcci_fp_data *fp_data = filp->private_data;
-+	struct ddcci_device *dev = fp_data->dev;
-+	unsigned char *buf = fp_data->buffer;
-+	const bool nonblocking = (filp->f_flags & O_NONBLOCK) != 0;
-+	int ret = 0;
-+
-+	if ((filp->f_mode & FMODE_WRITE) == 0)
-+		return -EBADF;
-+
-+	if (count > 127)
-+		return -EINVAL;
-+
-+	/* Lock mutex */
-+	if (nonblocking) {
-+		if (down_trylock(&dev->bus_drv_data->sem))
-+			return -EAGAIN;
-+	} else {
-+		if (down_interruptible(&dev->bus_drv_data->sem))
-+			return -ERESTARTSYS;
-+	}
-+
-+	if (count > 0) {
-+		/* Copy data from user space */
-+		if (copy_from_user(buf, buffer, count)) {
-+			ret = -EFAULT;
-+			goto err_out;
-+		}
-+
-+		/* Execute write */
-+		ret = ddcci_write(dev->bus_drv_data->i2c_dev, dev->inner_addr,
-+				  true, buf, count);
-+	}
-+
-+	if (ret >= 0) {
-+		msleep(delay);
-+		up(&dev->bus_drv_data->sem);
-+		return count;
-+	}
-+
-+err_out:
-+	up(&dev->bus_drv_data->sem);
-+	return ret;
-+}
-+
-+/* Called when seeking the character device */
-+static loff_t ddcci_cdev_seek(struct file *filp, loff_t offset, int anchor)
-+{
-+	return -EINVAL;
-+}
-+
-+static const struct file_operations ddcci_fops = {
-+	.owner = THIS_MODULE,
-+	.read = ddcci_cdev_read,
-+	.write = ddcci_cdev_write,
-+	.open = ddcci_cdev_open,
-+	.release = ddcci_cdev_close,
-+	.llseek = ddcci_cdev_seek
-+};
-+
-+/* Set up the character device for a DDC/CI device */
-+static int ddcci_setup_char_device(struct ddcci_device *device)
-+{
-+	int ret = -EINVAL;
-+
-+	/* Check if free minor exists */
-+	if (ddcci_cdev_next == ddcci_cdev_end) {
-+		dev_err(&device->dev, "no free major/minor\n");
-+		ret = -ENFILE;
-+		goto out;
-+	}
-+
-+	/* Initialize rwsem */
-+	init_rwsem(&device->cdev_sem);
-+
-+	/* Initialize character device node */
-+	cdev_init(&device->cdev, &ddcci_fops);
-+	device->cdev.owner = THIS_MODULE;
-+
-+	/* Publish char device */
-+	device->dev.devt = ddcci_cdev_next;
-+	ret = cdev_add(&device->cdev, ddcci_cdev_next, 1);
-+	if (ret) {
-+		device->dev.devt = 0;
-+		goto out;
-+	}
-+
-+	ddcci_cdev_next++;
-+out:
-+	return ret;
-+}
-+
-+/* sysfs attributes */
-+
-+static ssize_t ddcci_attr_capabilities_show(struct device *dev,
-+					    struct device_attribute *attr,
-+					    char *buf)
-+{
-+	struct ddcci_device *device = ddcci_verify_device(dev);
-+	ssize_t ret = -ENOENT;
-+	size_t len;
-+
-+	if (likely(device != NULL)) {
-+		len = device->capabilities_len;
-+		if (unlikely(len > PAGE_SIZE))
-+			len = PAGE_SIZE;
-+		if (len == 0) {
-+			ret = len;
-+		} else {
-+			memcpy(buf, device->capabilities, len);
-+			if (likely(len < PAGE_SIZE)) {
-+				buf[len] = '\n';
-+				ret = len+1;
-+			}
-+		}
-+	}
-+
-+	return ret;
-+}
-+
-+static ssize_t ddcci_attr_prot_show(struct device *dev,
-+				    struct device_attribute *attr, char *buf)
-+{
-+	struct ddcci_device *device = ddcci_verify_device(dev);
-+	ssize_t ret = -ENOENT;
-+	size_t len;
-+
-+	if (likely(device != NULL)) {
-+		len = strnlen(device->prot, sizeof(device->prot));
-+		strncpy(buf, device->prot, PAGE_SIZE);
-+		if (len == 0) {
-+			ret = len;
-+		} else if (likely(len < PAGE_SIZE)) {
-+			buf[len] = '\n';
-+			ret = len+1;
-+		} else {
-+			ret = PAGE_SIZE;
-+		}
-+	}
-+	return ret;
-+}
-+
-+static ssize_t ddcci_attr_type_show(struct device *dev,
-+				    struct device_attribute *attr, char *buf)
-+{
-+	struct ddcci_device *device = ddcci_verify_device(dev);
-+	ssize_t ret = -ENOENT;
-+	size_t len;
-+
-+	if (likely(device != NULL)) {
-+		len = strnlen(device->type, sizeof(device->type));
-+		strncpy(buf, device->type, PAGE_SIZE);
-+		if (len == 0) {
-+			ret = len;
-+		} else if (likely(len < PAGE_SIZE)) {
-+			buf[len] = '\n';
-+			ret = len+1;
-+		} else {
-+			ret = PAGE_SIZE;
-+		}
-+	}
-+	return ret;
-+}
-+
-+static ssize_t ddcci_attr_model_show(struct device *dev,
-+				     struct device_attribute *attr, char *buf)
-+{
-+	struct ddcci_device *device = ddcci_verify_device(dev);
-+	ssize_t ret = -ENOENT;
-+	size_t len;
-+
-+	if (likely(device != NULL)) {
-+		len = strnlen(device->model, sizeof(device->model));
-+		strncpy(buf, device->model, PAGE_SIZE);
-+		if (len == 0) {
-+			ret = len;
-+		} else if (likely(len < PAGE_SIZE)) {
-+			buf[len] = '\n';
-+			ret = len+1;
-+		} else {
-+			ret = PAGE_SIZE;
-+		}
-+	}
-+	return ret;
-+}
-+
-+static ssize_t ddcci_attr_vendor_show(struct device *dev,
-+				      struct device_attribute *attr, char *buf)
-+{
-+	struct ddcci_device *device = ddcci_verify_device(dev);
-+	ssize_t ret = -ENOENT;
-+	size_t len;
-+
-+	if (likely(device != NULL)) {
-+		len = strnlen(device->vendor, sizeof(device->vendor));
-+		strncpy(buf, device->vendor, PAGE_SIZE);
-+		if (len == 0) {
-+			ret = len;
-+		} else if (likely(len < PAGE_SIZE)) {
-+			buf[len] = '\n';
-+			ret = len+1;
-+		} else {
-+			ret = PAGE_SIZE;
-+		}
-+	}
-+	return ret;
-+}
-+
-+static ssize_t ddcci_attr_module_show(struct device *dev,
-+				      struct device_attribute *attr, char *buf)
-+{
-+	struct ddcci_device *device = ddcci_verify_device(dev);
-+	ssize_t ret = -ENOENT;
-+	size_t len;
-+
-+	if (likely(device != NULL)) {
-+		len = strnlen(device->module, sizeof(device->module));
-+		strncpy(buf, device->module, PAGE_SIZE);
-+		if (len == 0) {
-+			ret = len;
-+		} else if (likely(len < PAGE_SIZE)) {
-+			buf[len] = '\n';
-+			ret = len+1;
-+		} else {
-+			ret = PAGE_SIZE;
-+		}
-+	}
-+	return ret;
-+}
-+
-+static ssize_t ddcci_attr_serial_show(struct device *dev,
-+				      struct device_attribute *attr, char *buf)
-+{
-+	struct ddcci_device *device = ddcci_verify_device(dev);
-+	ssize_t ret = -ENOENT;
-+
-+	if (likely(device != NULL))
-+		ret = scnprintf(buf, PAGE_SIZE, "%d\n", device->device_number);
-+
-+	return ret;
-+}
-+
-+static ssize_t ddcci_attr_modalias_show(struct device *dev,
-+				      struct device_attribute *attr, char *buf)
-+{
-+	struct ddcci_device *device = ddcci_verify_device(dev);
-+	ssize_t ret = -ENOENT;
-+	char model[ARRAY_SIZE(device->model)];
-+	char vendor[ARRAY_SIZE(device->model)];
-+	char module[ARRAY_SIZE(device->model)];
-+
-+	if (likely(device != NULL)) {
-+		memcpy(model, device->model, sizeof(model));
-+		memcpy(vendor, device->vendor, sizeof(vendor));
-+		memcpy(module, device->module, sizeof(module));
-+		ddcci_modalias_clean(model, sizeof(model), '_');
-+		ddcci_modalias_clean(vendor, sizeof(vendor), '_');
-+		ddcci_modalias_clean(module, sizeof(module), '_');
-+
-+		ret = scnprintf(buf, PAGE_SIZE, "%s%s-%s-%s-%s-%s\n",
-+			DDCCI_MODULE_PREFIX,
-+			device->prot,
-+			device->type,
-+			model,
-+			vendor,
-+			module
-+		);
-+	}
-+	return ret;
-+}
-+
-+static DEVICE_ATTR(capabilities, S_IRUGO, ddcci_attr_capabilities_show, NULL);
-+static DEVICE_ATTR(idProt, S_IRUGO, ddcci_attr_prot_show, NULL);
-+static DEVICE_ATTR(idType, S_IRUGO, ddcci_attr_type_show, NULL);
-+static DEVICE_ATTR(idModel, S_IRUGO, ddcci_attr_model_show, NULL);
-+static DEVICE_ATTR(idVendor, S_IRUGO, ddcci_attr_vendor_show, NULL);
-+static DEVICE_ATTR(idModule, S_IRUGO, ddcci_attr_module_show, NULL);
-+static DEVICE_ATTR(idSerial, S_IRUGO, ddcci_attr_serial_show, NULL);
-+static DEVICE_ATTR(modalias, S_IRUGO, ddcci_attr_modalias_show, NULL);
-+
-+static struct attribute *ddcci_char_device_attrs[] = {
-+	&dev_attr_capabilities.attr,
-+	&dev_attr_idProt.attr,
-+	&dev_attr_idType.attr,
-+	&dev_attr_idModel.attr,
-+	&dev_attr_idVendor.attr,
-+	&dev_attr_idModule.attr,
-+	&dev_attr_idSerial.attr,
-+	&dev_attr_modalias.attr,
-+	NULL,
-+};
-+ATTRIBUTE_GROUPS(ddcci_char_device);
-+
-+/* DDC/CI bus */
-+
-+static int ddcci_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
-+{
-+	struct ddcci_device	*device = to_ddcci_device(dev);
-+	char model[ARRAY_SIZE(device->model)];
-+	char vendor[ARRAY_SIZE(device->vendor)];
-+	char module[ARRAY_SIZE(device->module)];
-+
-+	memcpy(model, device->model, sizeof(model));
-+	memcpy(vendor, device->vendor, sizeof(vendor));
-+	memcpy(module, device->module, sizeof(module));
-+	ddcci_modalias_clean(model, sizeof(model), '_');
-+	ddcci_modalias_clean(vendor, sizeof(vendor), '_');
-+	ddcci_modalias_clean(module, sizeof(module), '_');
-+
-+	if (add_uevent_var(env, "MODALIAS=%s%s-%s-%s-%s-%s",
-+			   DDCCI_MODULE_PREFIX,
-+			   device->prot,
-+			   device->type,
-+			   model,
-+			   vendor,
-+			   module
-+		))
-+		return -ENOMEM;
-+
-+	if (device->prot[0])
-+		if (add_uevent_var(env, "DDCCI_PROT=%s", device->prot))
-+			return -ENOMEM;
-+
-+	if (device->type[0])
-+		if (add_uevent_var(env, "DDCCI_TYPE=%s", device->type))
-+			return -ENOMEM;
-+
-+	if (device->model[0])
-+		if (add_uevent_var(env, "DDCCI_MODEL=%s", device->model))
-+			return -ENOMEM;
-+
-+	if (device->vendor[0]) {
-+		if (add_uevent_var(env, "DDCCI_VENDOR=%s", device->vendor))
-+			return -ENOMEM;
-+
-+		if (add_uevent_var(env, "DDCCI_MODULE=%s", device->module))
-+			return -ENOMEM;
-+
-+		if (add_uevent_var(env, "DDCCI_UNIQ=%d", device->device_number))
-+			return -ENOMEM;
-+	}
-+
-+	return 0;
-+}
-+
-+static void ddcci_device_release(struct device *dev)
-+{
-+	struct ddcci_device *device = to_ddcci_device(dev);
-+	struct ddcci_driver *driver;
-+
-+	/* Notify driver */
-+	if (dev->driver) {
-+		driver = to_ddcci_driver(dev->driver);
-+		if (driver->remove)
-+			driver->remove(device);
-+	}
-+
-+	/* Teardown chardev */
-+	if (dev->devt) {
-+		down(&core_lock);
-+		if (device->cdev.dev == ddcci_cdev_next-1)
-+			ddcci_cdev_next--;
-+		cdev_del(&device->cdev);
-+		up(&core_lock);
-+	}
-+
-+	/* Free capability string */
-+	if (device->capabilities) {
-+		device->capabilities_len = 0;
-+		kfree(device->capabilities);
-+	}
-+	/* Free device */
-+	kfree(device);
-+}
-+
-+static char *ddcci_devnode(const struct device *dev,
-+			 umode_t *mode, kuid_t *uid, kgid_t *gid)
-+{
-+	struct ddcci_device *device;
-+
-+	device = to_ddcci_device(dev);
-+	return kasprintf(GFP_KERNEL, "bus/ddcci/%d/display",
-+			 device->i2c_client->adapter->nr);
-+}
-+
-+static char *ddcci_dependent_devnode(const struct device *dev,
-+			 umode_t *mode, kuid_t *uid, kgid_t *gid)
-+{
-+	struct ddcci_device *device;
-+
-+	device = to_ddcci_device(dev);
-+	if (device->flags & DDCCI_FLAG_EXTERNAL) {
-+		if (device->outer_addr == device->inner_addr)
-+			return kasprintf(GFP_KERNEL, "bus/ddcci/%d/e%02x",
-+					 device->i2c_client->adapter->nr,
-+					 device->outer_addr);
-+		else
-+			return kasprintf(GFP_KERNEL, "bus/ddcci/%d/e%02x%02x",
-+					 device->i2c_client->adapter->nr,
-+					 device->outer_addr, device->inner_addr);
-+	} else {
-+		return kasprintf(GFP_KERNEL, "bus/ddcci/%d/i%02x",
-+				 device->i2c_client->adapter->nr,
-+				 device->inner_addr);
-+	}
-+}
-+
-+/* Device type for main DDC/CI devices*/
-+static struct device_type ddcci_device_type = {
-+	.name	= "ddcci-device",
-+	.uevent		= ddcci_device_uevent,
-+	.groups		= ddcci_char_device_groups,
-+	.release	= ddcci_device_release,
-+	.devnode	= ddcci_devnode
-+};
-+
-+/* Device type for dependent DDC/CI devices*/
-+static struct device_type ddcci_dependent_type = {
-+	.name	= "ddcci-dependent-device",
-+	.uevent		= ddcci_device_uevent,
-+	.groups		= ddcci_char_device_groups,
-+	.release	= ddcci_device_release,
-+	.devnode	= ddcci_dependent_devnode
-+};
-+
-+/**
-+ * ddcci_verify_device - return parameter as ddcci_device, or NULL
-+ * @dev: device, probably from some driver model iterator
-+ */
-+struct ddcci_device *ddcci_verify_device(struct device *dev)
-+{
-+	if (unlikely(!dev))
-+		return NULL;
-+	return (dev->type == &ddcci_device_type
-+		|| dev->type == &ddcci_dependent_type)
-+			? to_ddcci_device(dev)
-+			: NULL;
-+}
-+EXPORT_SYMBOL(ddcci_verify_device);
-+
-+/**
-+ * ddcci_quirks - Get quirks for DDC/CI device
-+ * @dev: Target DDC/CI device
-+ */
-+unsigned long ddcci_quirks(struct ddcci_device *dev)
-+{
-+	if (unlikely(WARN_ON(!dev)))
-+		return ~0L;
-+	if (unlikely(WARN_ON(!dev->bus_drv_data)))
-+		return ~0L;
-+	return dev->bus_drv_data->quirks;
-+}
-+EXPORT_SYMBOL(ddcci_quirks);
-+
-+/**
-+ * ddcci_register_driver - register DDC/CI driver
-+ * @owner: the owning module
-+ * @driver: the driver to register
-+ */
-+int ddcci_register_driver(struct module *owner, struct ddcci_driver *driver)
-+{
-+	int ret;
-+
-+	/* Can't register until after driver model init */
-+	if (unlikely(WARN_ON(!ddcci_bus_registered)))
-+		return -EAGAIN;
-+
-+	pr_debug("registering driver [%s]\n", driver->driver.name);
-+
-+	/* add the driver to the list of ddcci drivers in the driver core */
-+	driver->driver.owner = owner;
-+	driver->driver.bus = &ddcci_bus_type;
-+
-+	/* When registration returns, the driver core
-+	 * will have called probe() for all matching-but-unbound devices.
-+	 */
-+	ret = driver_register(&driver->driver);
-+	if (ret)
-+		return ret;
-+
-+	pr_debug("driver [%s] registered\n", driver->driver.name);
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL(ddcci_register_driver);
-+
-+/**
-+ * ddcci_del_driver - unregister DDC/CI driver
-+ * @driver: the driver being unregistered
-+ */
-+void ddcci_del_driver(struct ddcci_driver *driver)
-+{
-+	driver_unregister(&driver->driver);
-+	pr_debug("driver [%s] unregistered\n", driver->driver.name);
-+}
-+EXPORT_SYMBOL(ddcci_del_driver);
-+
-+/**
-+ * ddcci_device_write - Write a message to a DDC/CI device
-+ * @dev: Target DDC/CI device
-+ * @p_flag: Protocol flag, true for standard control messages
-+ * @data: Data that will be written to the device
-+ * @length: How many bytes to write
-+ *
-+ * Writes the message to the device and sleeps (see module parameter 'delay')
-+ */
-+int ddcci_device_write(struct ddcci_device *dev, bool p_flag,
-+		       unsigned char *data, unsigned char length)
-+{
-+	int ret;
-+
-+	if (down_interruptible(&dev->bus_drv_data->sem))
-+		return -EAGAIN;
-+
-+	ret = ddcci_write(dev->bus_drv_data->i2c_dev, dev->inner_addr, p_flag, data, length);
-+	msleep(delay);
-+	up(&dev->bus_drv_data->sem);
-+	return ret;
-+}
-+EXPORT_SYMBOL(ddcci_device_write);
-+
-+/**
-+ * ddcci_device_read - Read a response from a DDC/CI device
-+ * @dev: Target DDC/CI device
-+ * @p_flag: Protocol flag, must match the corresponding write
-+ * @buffer: Where to store data read from the device
-+ * @length: Buffer size
-+ */
-+int ddcci_device_read(struct ddcci_device *dev, bool p_flag,
-+		      unsigned char *buffer, unsigned char length)
-+{
-+	int ret;
-+
-+	if (down_interruptible(&dev->bus_drv_data->sem))
-+		return -EAGAIN;
-+
-+	ret = ddcci_read(dev->bus_drv_data->i2c_dev, dev->inner_addr, p_flag, buffer, length);
-+	up(&dev->bus_drv_data->sem);
-+	return ret;
-+}
-+EXPORT_SYMBOL(ddcci_device_read);
-+
-+/**
-+ * ddcci_device_writeread - Write a message to a device and read the response
-+ * @dev: Target DDC/CI device
-+ * @p_flag: Protocol flag, true for standard control messages
-+ * @buffer: Buffer used for write and read
-+ * @length: How many bytes to write
-+ * @maxlength: Buffer size on read
-+ *
-+ * Writing, sleeping and reading are done without releasing the DDC/CI bus.
-+ * This provides atomicity in respect to other DDC/CI accesses on the same bus.
-+ */
-+int ddcci_device_writeread(struct ddcci_device *dev, bool p_flag,
-+			   unsigned char *buffer, unsigned char length,
-+			   unsigned char maxlength)
-+{
-+	int ret;
-+
-+	if (down_interruptible(&dev->bus_drv_data->sem))
-+		return -EAGAIN;
-+
-+	ret = ddcci_write(dev->bus_drv_data->i2c_dev, dev->inner_addr, p_flag, buffer, length);
-+	if (ret < 0)
-+		goto err;
-+	msleep(delay);
-+	ret = ddcci_read(dev->bus_drv_data->i2c_dev, dev->inner_addr, p_flag, buffer, maxlength);
-+err:
-+	up(&dev->bus_drv_data->sem);
-+	return ret;
-+}
-+EXPORT_SYMBOL(ddcci_device_writeread);
-+
-+#define IS_ANY_ID(x) (((x)[0] == '\xFF') && ((x)[7] == '\xFF'))
-+
-+/* Check if any device id in the array matches the device and return the matching id */
-+static const struct ddcci_device_id *ddcci_match_id(const struct ddcci_device_id *id,
-+						    const struct ddcci_device *device)
-+{
-+	while (id->prot[0] || id->type[0] || id->model[0] || id->vendor[0] || id->module[0]) {
-+		if ((IS_ANY_ID(id->prot) || (strcmp(device->prot, id->prot) == 0))
-+		 && (IS_ANY_ID(id->type) || (strcmp(device->type, id->type) == 0))
-+		 && (IS_ANY_ID(id->model) || (strcmp(device->model, id->model) == 0))
-+		 && (IS_ANY_ID(id->vendor) || (strcmp(device->vendor, id->vendor) == 0))
-+		 && (IS_ANY_ID(id->module) || (strcmp(device->module, id->module) == 0))) {
-+			return id;
-+		}
-+		id++;
-+	}
-+	return NULL;
-+}
-+
-+static int ddcci_device_match(struct device *dev, struct device_driver *drv)
-+{
-+	struct ddcci_device	*device = ddcci_verify_device(dev);
-+	struct ddcci_driver	*driver;
-+
-+	if (!device)
-+		return 0;
-+
-+	driver = to_ddcci_driver(drv);
-+	/* match on an id table if there is one */
-+	if (driver->id_table)
-+		return ddcci_match_id(driver->id_table, device) != NULL;
-+
-+	return 0;
-+}
-+
-+static int ddcci_device_probe(struct device *dev)
-+{
-+	struct ddcci_device	*device = ddcci_verify_device(dev);
-+	struct ddcci_driver	*driver;
-+	const struct ddcci_device_id *id;
-+	int ret = 0;
-+
-+	if (!device)
-+		return -EINVAL;
-+	driver = to_ddcci_driver(dev->driver);
-+
-+	id = ddcci_match_id(driver->id_table, device);
-+	if (!id)
-+		return -ENODEV;
-+
-+	if (driver->probe)
-+		ret = driver->probe(device, id);
-+
-+	return ret;
-+}
-+
-+static int ddcci_device_remove(struct device *dev)
-+{
-+	struct ddcci_device	*device = ddcci_verify_device(dev);
-+	struct ddcci_driver	*driver;
-+	int ret = 0;
-+
-+	if (!device)
-+		return -EINVAL;
-+	driver = to_ddcci_driver(dev->driver);
-+
-+	if (driver->remove)
-+		ret = driver->remove(device);
-+
-+	return ret;
-+}
-+
-+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
-+static void ddcci_device_remove_void(struct device *dev)
-+{
-+	ddcci_device_remove(dev);
-+}
-+#endif
-+
-+/**
-+ * DDCCI bus type structure
-+ */
-+struct bus_type ddcci_bus_type = {
-+	.name		= "ddcci",
-+	.match		= ddcci_device_match,
-+	.probe		= ddcci_device_probe,
-+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
-+	.remove		= ddcci_device_remove_void
-+#else
-+	.remove		= ddcci_device_remove
-+#endif
-+};
-+
-+/* Main I2C driver */
-+
-+/* Get a pointer to the closing parenthesis */
-+static char *ddcci_capstr_tok(const char *s, int depth)
-+{
-+	const char *ptr = s;
-+	char *end;
-+
-+	if (s == NULL || s[0] == '\0')
-+		return NULL;
-+
-+	while ((end = strpbrk(ptr, "()"))) {
-+		if (!end || depth == INT_MAX)
-+			return NULL;
-+		if (*end == '(')
-+			depth++;
-+		else if (depth > 0)
-+			depth--;
-+		else
-+			break;
-+		ptr = end+1;
-+	}
-+	return end;
-+}
-+
-+/**
-+ * ddcci_find_capstr_item - Search capability string for a tag
-+ * @capabilities: Capability string to search
-+ * @tag: Tag to find
-+ * @length: Buffer for the length of the found tag value (optional)
-+ *
-+ * Return a pointer to the start of the tag value (directly after the '(') on
-+ * success and write the length of the value (excluding the ')') into `length`.
-+ *
-+ * If the tag is not found or another error occurs, an ERR_PTR is returned
-+ * and `length` stays untouched.
-+ */
-+const char *ddcci_find_capstr_item(const char * capabilities,
-+				   const char * __restrict tag,
-+				   size_t *length)
-+{
-+	const char *src = capabilities, *ptr;
-+	ptrdiff_t len;
-+	int taglen = strnlen(tag, 1024);
-+
-+	/* Check length of requested tag */
-+	if (unlikely(taglen <= 0 || taglen > 1023))
-+		return ERR_PTR(-EINVAL);
-+
-+	/* Find tag */
-+	while (src && (strncmp(src+1, tag, taglen) != 0 || src[1+taglen] != '('))
-+		src = ddcci_capstr_tok(src+1, -1);
-+	if (!src || src[0] == '\0')
-+		return ERR_PTR(-ENOENT);
-+
-+	/* Locate end of value */
-+	src += taglen+2;
-+	ptr = ddcci_capstr_tok(src, 0);
-+	if (unlikely(!ptr))
-+		return ERR_PTR(-EOVERFLOW);
-+
-+	/* Check length of tag data */
-+	len = ptr-src;
-+	if (unlikely(len < 0 || len > 65535))
-+		return ERR_PTR(-EMSGSIZE);
-+
-+	/* Return pointer and length */
-+	if (likely(length != NULL))
-+		*length = (size_t)len;
-+	return src;
-+}
-+EXPORT_SYMBOL(ddcci_find_capstr_item);
-+
-+/* Search the capability string for a tag and copy the value to dest */
-+static int ddcci_cpy_capstr_item(char *dest, const char *src,
-+				  const char * __restrict tag, size_t maxlen)
-+{
-+	const char *ptr;
-+	size_t len;
-+
-+	/* Find tag */
-+	ptr = ddcci_find_capstr_item(src, tag, &len);
-+	if (IS_ERR(ptr)) {
-+		return PTR_ERR(ptr);
-+	}
-+
-+	/* Copy value */
-+	memcpy(dest, ptr, min(len, maxlen));
-+	return 0;
-+}
-+
-+/* Fill fields in device by parsing the capability string */
-+static int ddcci_parse_capstring(struct ddcci_device *device)
-+{
-+	const char *capstr = device->capabilities;
-+	int ret = 0;
-+
-+	if (!capstr)
-+		return -EINVAL;
-+
-+	/* capability string start with a paren */
-+	if (capstr[0] != '(')
-+		return -EINVAL;
-+
-+	/* get prot(...) */
-+	ret = ddcci_cpy_capstr_item(device->prot, capstr, "prot", sizeof(device->prot)-1);
-+	if (ret) {
-+		if (ret == -ENOENT) {
-+			dev_warn(&device->dev, "malformed capability string: no protocol tag");
-+			memset(device->prot, 0, sizeof(device->prot)-1);
-+		} else {
-+			return ret;
-+		}
-+	}
-+
-+	/* get type(...) */
-+	ret = ddcci_cpy_capstr_item(device->type, capstr, "type", sizeof(device->type)-1);
-+	if (ret) {
-+		if (ret == -ENOENT) {
-+			dev_warn(&device->dev, "malformed capability string: no type tag");
-+			memset(device->type, 0, sizeof(device->type)-1);
-+		} else {
-+			return ret;
-+		}
-+	}
-+
-+	/* and then model(...) */
-+	ret = ddcci_cpy_capstr_item(device->model, capstr, "model", sizeof(device->model)-1);
-+	if (ret) {
-+		if (ret == -ENOENT) {
-+			dev_warn(&device->dev, "malformed capability string: no model tag");
-+			memset(device->model, 0, sizeof(device->model)-1);
-+		} else {
-+			return ret;
-+		}
-+	}
-+
-+	/* if there is no protocol tag */
-+	if (!device->prot[0]) {
-+		/* and no type tag: give up. */
-+		if (!device->type[0])
-+			return -ENOENT;
-+
-+		/* Assume protocol "monitor" if type is "LCD" or "CRT" */
-+		if (strncasecmp(device->type, "LCD", sizeof(device->type)-1) == 0
-+		 || strncasecmp(device->type, "CRT", sizeof(device->type)-1) == 0) {
-+			memcpy(device->prot, "monitor", 7);
-+		}
-+	}
-+
-+	/* skip the rest for now */
-+
-+	return 0;
-+}
-+
-+/* Probe for a device on an inner address and create a ddcci_device for it */
-+static int ddcci_detect_device(struct i2c_client *client, unsigned char addr,
-+			       int dependent)
-+{
-+	int ret;
-+	unsigned char outer_addr = client->addr << 1;
-+	unsigned char *buffer = NULL;
-+	struct ddcci_bus_drv_data *drv_data = i2c_get_clientdata(client);
-+	struct ddcci_device *device = NULL;
-+
-+	down(&drv_data->sem);
-+
-+	/* Allocate buffer big enough for any capability string */
-+	buffer = kmalloc(16384, GFP_KERNEL);
-+	if (!buffer) {
-+		ret = -ENOMEM;
-+		goto err_end;
-+	}
-+
-+	/* Allocate device struct */
-+	device = kzalloc(sizeof(struct ddcci_device), GFP_KERNEL);
-+	if (!device) {
-+		ret = -ENOMEM;
-+		goto err_end;
-+	}
-+
-+	/* Initialize device */
-+	device_initialize(&device->dev);
-+	device->dev.parent = &client->dev;
-+	device->dev.bus = &ddcci_bus_type;
-+	device->outer_addr = outer_addr;
-+	device->inner_addr = addr;
-+	device->bus_drv_data = drv_data;
-+	device->i2c_client = client;
-+
-+	if (!dependent) {
-+		device->dev.type = &ddcci_device_type;
-+		ret = dev_set_name(&device->dev, "ddcci%d", client->adapter->nr);
-+	} else if (outer_addr == dependent) {
-+		/* Internal dependent device */
-+		device->dev.type = &ddcci_dependent_type;
-+		device->flags = DDCCI_FLAG_DEPENDENT;
-+		ret = dev_set_name(&device->dev, "ddcci%di%02x", client->adapter->nr, addr);
-+	} else if (outer_addr == addr) {
-+		/* External dependent device */
-+		device->dev.type = &ddcci_dependent_type;
-+		device->flags = DDCCI_FLAG_DEPENDENT | DDCCI_FLAG_EXTERNAL;
-+		ret = dev_set_name(&device->dev, "ddcci%de%02x", client->adapter->nr, addr);
-+	} else {
-+		/* Dependent device of external dependent device
-+		   Just in case something like this exists */
-+		device->dev.type = &ddcci_dependent_type;
-+		device->flags = DDCCI_FLAG_DEPENDENT | DDCCI_FLAG_EXTERNAL;
-+		ret = dev_set_name(&device->dev, "ddcci%de%02x%02x", client->adapter->nr, outer_addr, addr);
-+	}
-+
-+	if (ret)
-+		goto err_free;
-+
-+	/* Read identification and check for quirks */
-+	ret = ddcci_identify_device(client, addr, buffer, 29);
-+	if (ret < 0) {
-+		if (!dependent && (ret == -EBADMSG || ret == -EMSGSIZE)) {
-+			dev_warn(&device->dev, "DDC/CI main device sent broken response on identification. Trying to detect solely based on capability information.\n");
-+		} else {
-+			goto err_free;
-+		}
-+	}
-+
-+	if (ret == 29 && buffer[0] == DDCCI_REPLY_ID) {
-+		memcpy(device->vendor, &buffer[7], 8);
-+		memcpy(device->module, &buffer[17], 8);
-+		device->device_number = be32_to_cpu(*(__force __be32 *)&buffer[18]);
-+	}
-+
-+	/* Read capabilities */
-+	ret = ddcci_get_caps(client, addr, buffer, 16384);
-+	if (ret > 0) {
-+		/* Fixup unparenthesized capability strings, but only if the first
-+		   character is an ascii lower case letter.
-+		   This should still allow an early exit for completely garbled
-+		   data but helps detecting devices where only the parentheses are
-+		   missing, as the second char must be the first character of a
-+		   keyword. */
-+		if (ret > 2 && buffer[0] >= 'a' && buffer[0] <= 'z') {
-+			dev_err(&device->dev, "DDC/CI device quirk detected: unparenthesized capability string\n");
-+			device->capabilities = kzalloc(ret+3, GFP_KERNEL);
-+			if (!device->capabilities) {
-+				ret = -ENOMEM;
-+				goto err_free;
-+			}
-+			device->capabilities_len = ret+2;
-+			memcpy(&(device->capabilities[1]), buffer, ret);
-+			device->capabilities[0] = '(';
-+			device->capabilities[ret+1] = ')';
-+		} else {
-+			/* Standard case: simply copy the received string */
-+			device->capabilities = kzalloc(ret+1, GFP_KERNEL);
-+			if (!device->capabilities) {
-+				ret = -ENOMEM;
-+				goto err_free;
-+			}
-+			device->capabilities_len = ret;
-+			memcpy(device->capabilities, buffer, ret);
-+		}
-+
-+		ret = ddcci_parse_capstring(device);
-+		if (ret) {
-+			dev_err(&device->dev, "malformed capability string: \"%s\" errno %d\n", device->capabilities, ret);
-+			ret = -EINVAL;
-+			goto err_free;
-+		}
-+	}
-+
-+	/* Found a device if either identification or capabilities succeeded */
-+	if (!device->capabilities && device->vendor[0] == '\0') {
-+		dev_dbg(&client->dev,
-+			"[%02x:%02x] got neither valid identification nor capability data\n",
-+			client->addr << 1, addr);
-+		ret = -ENODEV;
-+		goto err_free;
-+	}
-+
-+	/* Setup chardev */
-+	down(&core_lock);
-+	ret = ddcci_setup_char_device(device);
-+	up(&core_lock);
-+	if (ret)
-+		goto err_free;
-+
-+	/* Release semaphore and add device to the tree */
-+	up(&drv_data->sem);
-+	pr_debug("found device at %d:%02x:%02x\n", client->adapter->nr, outer_addr, addr);
-+	ret = device_add(&device->dev);
-+	if (ret)
-+		goto err_free;
-+
-+	goto end;
-+err_free:
-+	put_device(&device->dev);
-+err_end:
-+	up(&drv_data->sem);
-+end:
-+	kfree(buffer);
-+	return ret;
-+}
-+
-+/* I2C detect function: check if a main or external dependent device exists */
-+static int ddcci_detect(struct i2c_client *client, struct i2c_board_info *info)
-+{
-+	int ret;
-+	unsigned char outer_addr;
-+	unsigned char inner_addr;
-+	unsigned char buf[32];
-+	unsigned char cmd_id[1] = { DDCCI_COMMAND_ID };
-+	unsigned char cmd_caps[3] = { DDCCI_COMMAND_CAPS, 0x00, 0x00};
-+	unsigned char *cmd;
-+	unsigned int cmd_len;
-+
-+	/* Check for i2c_master_* functionality */
-+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-+		pr_debug("i2c adapter %d unsuitable: no i2c_master functionality\n", client->adapter->nr);
-+		return -ENODEV;
-+	}
-+
-+	/* send Capabilities Request (for main) or Identification Request command (for dependent devices) */
-+	outer_addr = client->addr << 1;
-+	inner_addr = (outer_addr == DDCCI_DEFAULT_DEVICE_ADDR) ? DDCCI_HOST_ADDR_ODD : outer_addr | 1;
-+	cmd = (outer_addr == DDCCI_DEFAULT_DEVICE_ADDR) ? cmd_caps : cmd_id;
-+	cmd_len = (outer_addr == DDCCI_DEFAULT_DEVICE_ADDR) ? sizeof(cmd_caps) : sizeof(cmd_id);
-+	pr_debug("detecting %d:%02x\n", client->adapter->nr, outer_addr);
-+
-+	ret = __ddcci_write_block(client, inner_addr, buf, true, cmd, cmd_len);
-+
-+	if (ret == -ENXIO || ret == -EIO) {
-+		if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WRITE_BYTE)) {
-+			pr_debug("i2c write failed with ENXIO or EIO but bytewise writing is not supported\n");
-+			return -ENODEV;
-+		}
-+		pr_debug("i2c write failed with ENXIO or EIO, trying bytewise writing\n");
-+		ret = __ddcci_write_bytewise(client, inner_addr, true, cmd, cmd_len);
-+		if (ret == 0) {
-+			msleep(delay);
-+			ret = __ddcci_write_bytewise(client, inner_addr, true, cmd, cmd_len);
-+		}
-+	}
-+
-+	if (ret < 0)
-+		return -ENODEV;
-+
-+	/* wait for device */
-+	msleep(delay);
-+	/* receive answer */
-+	ret = i2c_master_recv(client, buf, 32);
-+	if (ret < 3) {
-+		pr_debug("detection failed: no answer\n");
-+		return -ENODEV;
-+	}
-+
-+	/* check response starts with outer addr */
-+	if (buf[0] != outer_addr) {
-+		pr_debug("detection failed: invalid %s response (%02x != %02x)\n", (cmd == cmd_id) ? "identification" : "capabilities", buf[0], outer_addr);
-+		pr_debug("received message was %*ph \n", ret, buf);
-+		return -ENODEV;
-+	}
-+
-+	pr_debug("detected %d:%02x\n", client->adapter->nr, outer_addr);
-+
-+	/* set device type */
-+	strlcpy(info->type, (outer_addr == DDCCI_DEFAULT_DEVICE_ADDR) ? "ddcci" : "ddcci-dependent", I2C_NAME_SIZE);
-+
-+	return 0;
-+}
-+
-+/* I2C probe function */
-+static int ddcci_probe(struct i2c_client *client)
-+{
-+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
-+	int i, ret = -ENODEV, tmp;
-+	unsigned char main_addr, addr;
-+	struct ddcci_bus_drv_data *drv_data;
-+
-+	/* Initialize driver data structure */
-+	drv_data = devm_kzalloc(&client->dev, sizeof(struct ddcci_bus_drv_data), GFP_KERNEL);
-+	if (!drv_data)
-+		return -ENOMEM;
-+	drv_data->i2c_dev = client;
-+	sema_init(&drv_data->sem, 1);
-+
-+	/* Set i2c client data */
-+	i2c_set_clientdata(client, drv_data);
-+
-+	if (id->driver_data == 0) {
-+		/* Core device, probe at 0x6E */
-+		main_addr = DDCCI_DEFAULT_DEVICE_ADDR;
-+		dev_dbg(&client->dev, "probing core device [%02x]\n",
-+			client->addr << 1);
-+		ret = ddcci_detect_device(client, main_addr, 0);
-+		if (ret) {
-+			dev_info(&client->dev, "core device [%02x] probe failed: %d\n",
-+				 client->addr << 1, ret);
-+			if (ret == -EIO)
-+				ret = -ENODEV;
-+			goto err_free;
-+		}
-+
-+		/* Detect internal dependent devices */
-+		dev_dbg(&client->dev, "probing internal dependent devices\n");
-+		for (i = 0; i < autoprobe_addr_count; ++i) {
-+			addr = (unsigned short)autoprobe_addrs[i];
-+			if ((addr & 1) == 0 && addr != main_addr) {
-+				tmp = ddcci_detect_device(client, addr, main_addr);
-+				if (tmp < 0 && tmp != -ENODEV) {
-+					dev_info(&client->dev, "internal dependent device [%02x:%02x] probe failed: %d\n",
-+						 client->addr << 1, addr, ret);
-+				}
-+			}
-+		}
-+	} else if (id->driver_data == 1) {
-+		/* External dependent device */
-+		main_addr = client->addr << 1;
-+		dev_dbg(&client->dev, "probing external dependent device [%02x]\n", main_addr);
-+		ret = ddcci_detect_device(client, main_addr, -1);
-+		if (ret) {
-+			dev_info(&client->dev, "external dependent device [%02x] probe failed: %d\n",
-+				 main_addr, ret);
-+			if (ret == -EIO)
-+				ret = -ENODEV;
-+			goto err_free;
-+		}
-+	} else {
-+		dev_warn(&client->dev,
-+			 "probe() called with invalid i2c device id\n");
-+		ret = -EINVAL;
-+	}
-+
-+	goto end;
-+err_free:
-+	devm_kfree(&client->dev, drv_data);
-+end:
-+	return ret;
-+}
-+
-+/*
-+ * Callback for bus_find_device() used in ddcci_remove()
-+ *
-+ * Find next device on i2c_client not flagged with
-+ * DDCCI_FLAG_REMOVED and flag it.
-+ */
-+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,3,0)
-+static int ddcci_remove_helper(struct device *dev, const void *p)
-+#else
-+static int ddcci_remove_helper(struct device *dev, void *p)
-+#endif
-+{
-+	struct ddcci_device *device;
-+
-+	device = ddcci_verify_device(dev);
-+	if (!device || device->flags & DDCCI_FLAG_REMOVED)
-+		return 0;
-+
-+	if (!p || (dev->parent == p)) {
-+		device->flags |= DDCCI_FLAG_REMOVED;
-+		wmb();
-+		return 1;
-+	}
-+
-+	return 0;
-+}
-+
-+/* I2C driver remove callback: unregister all subdevices */
-+static int ddcci_remove(struct i2c_client *client)
-+{
-+	struct ddcci_bus_drv_data *drv_data = i2c_get_clientdata(client);
-+	struct device *dev;
-+
-+	down(&drv_data->sem);
-+	while (1) {
-+		dev = bus_find_device(&ddcci_bus_type, NULL, client,
-+				      ddcci_remove_helper);
-+		if (!dev)
-+			break;
-+		device_unregister(dev);
-+		put_device(dev);
-+	}
-+	up(&drv_data->sem);
-+	return 0;
-+}
-+
-+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-+static void ddcci_remove_void(struct i2c_client *client)
-+{
-+	ddcci_remove(client);
-+}
-+#endif
-+
-+/*
-+ * I2C driver device identification table.
-+ */
-+static const struct i2c_device_id ddcci_idtable[] = {
-+	{ "ddcci", 0 },
-+	{ "ddcci-dependent", 1 },
-+	{}
-+};
-+MODULE_DEVICE_TABLE(i2c, ddcci_idtable);
-+
-+/*
-+ * I2C driver description structure
-+ */
-+static struct i2c_driver ddcci_driver = {
-+	.driver = {
-+		.name	= "ddcci",
-+		.owner	= THIS_MODULE,
-+	},
-+
-+	.id_table	= ddcci_idtable,
-+	.probe		= ddcci_probe,
-+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
-+	.remove		= ddcci_remove_void,
-+#else
-+	.remove		= ddcci_remove,
-+#endif
-+	.class		= I2C_CLASS_DDC,
-+	.detect		= ddcci_detect,
-+	.address_list	= I2C_ADDRS(
-+		DDCCI_DEFAULT_DEVICE_ADDR>>1
-+	),
-+};
-+
-+/*
-+ * Module initialization function. Called when the module is inserted or
-+ * (if builtin) at boot time.
-+ */
-+static int __init ddcci_module_init(void)
-+{
-+	int ret;
-+
-+	pr_debug("initializing ddcci driver\n");
-+	/* Allocate a device number region for the character devices */
-+	ret = alloc_chrdev_region(&ddcci_cdev_first, 0, 128, DEVICE_NAME);
-+	if (ret < 0) {
-+		pr_err("failed to register device region: error %d\n", ret);
-+		goto err_chrdevreg;
-+	}
-+	ddcci_cdev_next = ddcci_cdev_first;
-+	ddcci_cdev_end = MKDEV(MAJOR(ddcci_cdev_first), MINOR(ddcci_cdev_first)+128);
-+
-+	/* Register bus */
-+	ret = bus_register(&ddcci_bus_type);
-+	if (ret) {
-+		pr_err("failed to register bus 'ddcci'\n");
-+		goto err_busreg;
-+	}
-+	ddcci_bus_registered = true;
-+
-+	/* Register I2C driver */
-+	ret = i2c_add_driver(&ddcci_driver);
-+	if (ret) {
-+		pr_err("failed to register i2c driver\n");
-+		goto err_drvreg;
-+	}
-+
-+	pr_debug("ddcci driver initialized\n");
-+
-+	return 0;
-+
-+err_drvreg:
-+	bus_unregister(&ddcci_bus_type);
-+err_busreg:
-+	unregister_chrdev_region(ddcci_cdev_first, 128);
-+err_chrdevreg:
-+	return ret;
-+}
-+
-+/*
-+ * Module clean-up function. Called when the module is removed.
-+ */
-+static void __exit ddcci_module_exit(void)
-+{
-+	struct device *dev;
-+
-+	while (1) {
-+		dev = bus_find_device(&ddcci_bus_type, NULL, NULL, ddcci_remove_helper);
-+		if (!dev)
-+			break;
-+		device_unregister(dev);
-+		put_device(dev);
-+	}
-+
-+	i2c_del_driver(&ddcci_driver);
-+	bus_unregister(&ddcci_bus_type);
-+	unregister_chrdev_region(ddcci_cdev_first, 128);
-+}
-+
-+/* Let the kernel know the calls for module init and exit */
-+module_init(ddcci_module_init);
-+module_exit(ddcci_module_exit);
-+
-+/* Module parameter description */
-+module_param(delay, uint, S_IRUGO|S_IWUSR);
-+MODULE_PARM_DESC(delay, "default delay after bus writes (in ms, default 60)");
-+module_param_array(autoprobe_addrs, ushort, &autoprobe_addr_count, S_IRUGO|S_IWUSR);
-+MODULE_PARM_DESC(autoprobe_addrs, "internal dependent device addresses to autoprobe");
-+
-+/* Module description */
-+MODULE_AUTHOR("Christoph Grenz");
-+MODULE_DESCRIPTION("DDC/CI bus driver");
-+MODULE_VERSION("0.4.2");
-+MODULE_LICENSE("GPL");
-diff --git a/drivers/video/backlight/Kconfig b/drivers/video/backlight/Kconfig
-index 51387b1ef012..4b8bfd7c02c6 100644
---- a/drivers/video/backlight/Kconfig
-+++ b/drivers/video/backlight/Kconfig
-@@ -297,6 +297,17 @@ config BACKLIGHT_QCOM_WLED
- 	  If you have the Qualcomm PMIC, say Y to enable a driver for the
- 	  WLED block. Currently it supports PM8941 and PMI8998.
- 
-+config BACKLIGHT_DDCCI
-+	tristate "DDCCI Backlight Driver"
-+	depends on DDCCI
-+	help
-+	  If you have a DDC/CI supporing monitor, say Y to enable a driver
-+	  to control its backlight using DDC/CI. This could be useful if
-+	  your monitor does not include a backlight driver. For this to be
-+	  useful you need to enable DDCCI support which can be found in
-+	  Device Drivers -> Character devices and that further depends on
-+	  I2C.
-+
- config BACKLIGHT_RT4831
- 	tristate "Richtek RT4831 Backlight Driver"
- 	depends on MFD_RT4831
-diff --git a/drivers/video/backlight/Makefile b/drivers/video/backlight/Makefile
-index f72e1c3c59e9..656dea21c0ee 100644
---- a/drivers/video/backlight/Makefile
-+++ b/drivers/video/backlight/Makefile
-@@ -58,3 +58,4 @@ obj-$(CONFIG_BACKLIGHT_WM831X)		+= wm831x_bl.o
- obj-$(CONFIG_BACKLIGHT_ARCXCNN) 	+= arcxcnn_bl.o
- obj-$(CONFIG_BACKLIGHT_RAVE_SP)		+= rave-sp-backlight.o
- obj-$(CONFIG_BACKLIGHT_LED)		+= led_bl.o
-+obj-$(CONFIG_BACKLIGHT_DDCCI)		+= ddcci-backlight.o
-diff --git a/drivers/video/backlight/ddcci-backlight.c b/drivers/video/backlight/ddcci-backlight.c
-new file mode 100644
-index 000000000000..7a9852207f0b
---- /dev/null
-+++ b/drivers/video/backlight/ddcci-backlight.c
-@@ -0,0 +1,413 @@
-+/*
-+ *  DDC/CI monitor backlight driver
-+ *
-+ *  Copyright (c) 2015 Christoph Grenz
-+ */
-+
-+/*
-+ * This program is free software; you can redistribute it and/or modify it
-+ * under the terms of the GNU General Public License as published by the Free
-+ * Software Foundation; either version 2 of the License, or (at your option)
-+ * any later version.
-+ */
-+
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+#include <linux/backlight.h>
-+#include <linux/module.h>
-+#include <linux/fb.h>
-+#include <linux/sysfs.h>
-+
-+#include <linux/ddcci.h>
-+
-+
-+#define DDCCI_COMMAND_READ	0x01	/* read ctrl value */
-+#define DDCCI_REPLY_READ	0x02	/* read ctrl value reply */
-+#define DDCCI_COMMAND_WRITE	0x03	/* write ctrl value */
-+#define DDCCI_COMMAND_SAVE	0x0c	/* save current settings */
-+
-+#define DDCCI_MONITOR_LUMINANCE	0x10
-+#define DDCCI_MONITOR_BACKLIGHT	0x13
-+#define DDCCI_MONITOR_BL_WHITE		0x6B
-+
-+static bool convenience_symlink = true;
-+
-+struct ddcci_monitor_drv_data {
-+	struct ddcci_device *device;
-+	struct backlight_device *bl_dev;
-+	struct device *fb_dev;
-+	unsigned char used_vcp;
-+};
-+
-+static int ddcci_monitor_writectrl(struct ddcci_device *device,
-+				   unsigned char ctrl, unsigned short value)
-+{
-+	unsigned char buf[4];
-+	int ret;
-+
-+	buf[0] = DDCCI_COMMAND_WRITE;
-+	buf[1] = ctrl;
-+	buf[2] = (value >> 8);
-+	buf[3] = (value & 255);
-+
-+	ret = ddcci_device_write(device, true, buf, sizeof(buf));
-+
-+	return ret;
-+}
-+
-+static int ddcci_monitor_readctrl(struct ddcci_device *device,
-+				  unsigned char ctrl, unsigned short *value,
-+				  unsigned short *maximum)
-+{
-+	int ret;
-+	unsigned char buf[10];
-+
-+	buf[0] = DDCCI_COMMAND_READ;
-+	buf[1] = ctrl;
-+
-+	ret = ddcci_device_writeread(device, true, buf, 2, sizeof(buf));
-+	if (ret < 0)
-+		return ret;
-+
-+	if (ret == 0)
-+		return -ENOTSUPP;
-+
-+	if (ret == 8 && buf[0] == DDCCI_REPLY_READ && buf[2] == ctrl) {
-+		if (value)
-+			*value = buf[6] * 256 + buf[7];
-+
-+		if (maximum)
-+			*maximum = buf[4] * 256 + buf[5];
-+
-+		if (buf[1] == 1)
-+			return -ENOTSUPP;
-+		if (buf[1] != 0)
-+			return -EIO;
-+		return 0;
-+	}
-+
-+	return -EIO;
-+}
-+
-+static int ddcci_backlight_check_fb(struct backlight_device *bl,
-+				   struct fb_info *info)
-+{
-+	struct ddcci_monitor_drv_data *drv_data = bl_get_data(bl);
-+
-+	return drv_data->fb_dev == NULL || drv_data->fb_dev == info->dev;
-+}
-+
-+static int ddcci_backlight_update_status(struct backlight_device *bl)
-+{
-+	struct ddcci_monitor_drv_data *drv_data = bl_get_data(bl);
-+	int brightness = bl->props.brightness;
-+	int ret;
-+
-+	if (bl->props.power != FB_BLANK_UNBLANK ||
-+	    bl->props.state & BL_CORE_FBBLANK)
-+		brightness = 0;
-+
-+	ret = ddcci_monitor_writectrl(drv_data->device, drv_data->used_vcp,
-+				      brightness);
-+	if (ret > 0)
-+		ret = 0;
-+	return ret;
-+}
-+
-+static int ddcci_backlight_get_brightness(struct backlight_device *bl)
-+{
-+	unsigned short value = 0, maxval = 0;
-+	int ret;
-+	struct ddcci_monitor_drv_data *drv_data = bl_get_data(bl);
-+
-+	ret = ddcci_monitor_readctrl(drv_data->device, drv_data->used_vcp,
-+				     &value, &maxval);
-+	if (ret < 0)
-+		return ret;
-+
-+	bl->props.brightness = value;
-+	bl->props.max_brightness = maxval;
-+	ret = value;
-+
-+	return ret;
-+}
-+
-+static const struct backlight_ops ddcci_backlight_ops = {
-+	.options	= 0,
-+	.update_status	= ddcci_backlight_update_status,
-+	.get_brightness = ddcci_backlight_get_brightness,
-+	.check_fb	= ddcci_backlight_check_fb,
-+};
-+
-+static const char *ddcci_monitor_vcp_name(unsigned char vcp)
-+{
-+	switch (vcp) {
-+		case DDCCI_MONITOR_BL_WHITE:
-+			return "backlight";
-+		case DDCCI_MONITOR_LUMINANCE:
-+			return "luminance";
-+		default:
-+			return "???";
-+	}
-+}
-+
-+static const char *ddcci_monitor_next_vcp_item(const char *ptr)
-+{
-+	int depth = 0;
-+
-+	/* Sanity check */
-+	if (unlikely(ptr == NULL || ptr[0] == '\0'))
-+		return NULL;
-+
-+	/* Find next white space outside of parentheses */
-+	while ((ptr = strpbrk(ptr, " ()"))) {
-+		if (!ptr || depth == INT_MAX) {
-+			return NULL;
-+		} else if (*ptr == '(') {
-+			depth++;
-+		} else if (depth > 0) {
-+			if (*ptr == ')')
-+				depth--;
-+		} else {
-+			break;
-+		}
-+		++ptr;
-+	}
-+
-+	/* Skip over whitespace */
-+	ptr = skip_spaces(ptr);
-+
-+	/* Check if we're now at the end of the list */
-+	if (unlikely(*ptr == '\0' || *ptr == ')'))
-+		return NULL;
-+
-+	return ptr;
-+}
-+
-+static bool ddcci_monitor_find_vcp(unsigned char vcp, const char *s)
-+{
-+	const char *ptr = s;
-+	char vcp_hex[3];
-+
-+	/* Sanity check */
-+	if (unlikely(s == NULL || s[0] == '\0'))
-+		return false;
-+
-+	/* Create hex representation of VCP */
-+	if (unlikely(snprintf(vcp_hex, 3, "%02hhX", vcp) != 2)) {
-+		pr_err("snprintf failed to convert to hex. This should not happen.\n");
-+		return false;
-+	}
-+
-+	/* Search for it */
-+	do {
-+		if (strncasecmp(vcp_hex, ptr, 2) == 0) {
-+			if (ptr[2] == ' ' || ptr[2] == '(' || ptr[2] == ')') {
-+				return true;
-+			}
-+		}
-+	} while ((ptr = ddcci_monitor_next_vcp_item(ptr)));
-+
-+	return false;
-+}
-+
-+static int ddcci_backlight_create_symlink(struct ddcci_device *ddcci_dev)
-+{
-+	int i, result;
-+	struct device *dev = &ddcci_dev->dev;
-+	struct kernfs_node *dirent;
-+	for (i = 0; i < 3; ++i) {
-+		dev = dev->parent;
-+		if (!dev) {
-+			dev_dbg(&ddcci_dev->dev, "failed to create convenience symlink: ancestor device not found\n");
-+			return -ENOENT;
-+		}
-+	}
-+	dirent = sysfs_get_dirent(dev->kobj.sd, "ddcci_backlight");
-+	if (dirent) {
-+		sysfs_put(dirent);
-+		dev_dbg(&ddcci_dev->dev, "failed to create convenience symlink: %s/ddcci_backlight already exists\n", dev_name(dev));
-+		return -EEXIST;
-+	}
-+
-+	result = sysfs_create_link(&dev->kobj, &ddcci_dev->dev.kobj, "ddcci_backlight");
-+	if (result == 0) {
-+		dev_dbg(&ddcci_dev->dev, "created symlink %s/ddcci_backlight\n", dev_name(dev));
-+	} else {
-+		dev_info(&ddcci_dev->dev, "failed to create convenience symlink: %d\n", result);
-+	}
-+	return result;
-+}
-+
-+static int ddcci_backlight_remove_symlink(struct ddcci_device *ddcci_dev)
-+{
-+	int i;
-+	struct device *dev = &ddcci_dev->dev;
-+	struct kernfs_node *dirent;
-+	for (i = 0; i < 3; ++i) {
-+		dev = dev->parent;
-+		if (!dev)
-+			return -ENOENT;
-+	}
-+	dirent = sysfs_get_dirent(dev->kobj.sd, "ddcci_backlight");
-+	if (!dirent) {
-+		return -ENOENT;
-+	}
-+
-+	if ((dirent->flags & KERNFS_LINK) == 0) {
-+		sysfs_put(dirent);
-+		dev_dbg(&ddcci_dev->dev, "won't remove %s/ddcci_backlight: not a symlink\n", dev_name(dev));
-+		return -EINVAL;
-+	}
-+
-+	if (dirent->symlink.target_kn != ddcci_dev->dev.kobj.sd) {
-+		sysfs_put(dirent);
-+		dev_dbg(&ddcci_dev->dev, "won't remove %s/ddcci_backlight: we are not the link target\n", dev_name(dev));
-+		return -EINVAL;
-+	}
-+
-+	sysfs_put(dirent);
-+
-+	sysfs_remove_link(&dev->kobj, "ddcci_backlight");
-+	dev_dbg(&ddcci_dev->dev, "removed symlink %s/ddcci_backlight\n", dev_name(dev));
-+	return 0;
-+}
-+
-+static int ddcci_monitor_probe(struct ddcci_device *dev,
-+			       const struct ddcci_device_id *id)
-+{
-+	struct ddcci_monitor_drv_data *drv_data;
-+	struct backlight_properties props;
-+	struct backlight_device *bl = NULL;
-+	int ret = 0;
-+	bool support_luminance, support_bl_white;
-+	unsigned short brightness = 0, max_brightness = 0;
-+	const char *vcps;
-+
-+	dev_dbg(&dev->dev, "probing monitor backlight device\n");
-+
-+	/* Get VCP list */
-+	vcps = ddcci_find_capstr_item(dev->capabilities, "vcp", NULL);
-+	if (IS_ERR(vcps)) {
-+		dev_info(&dev->dev,
-+			 "monitor doesn't provide a list of supported controls.\n");
-+		support_bl_white = support_luminance = true;
-+	} else {
-+		/* Check VCP list for supported VCPs */
-+		support_bl_white = ddcci_monitor_find_vcp(DDCCI_MONITOR_BL_WHITE, vcps);
-+		support_luminance = ddcci_monitor_find_vcp(DDCCI_MONITOR_LUMINANCE, vcps);
-+		/* Fallback to trying if no support is found */
-+		if (!support_bl_white && !support_luminance) {
-+			dev_info(&dev->dev,
-+				 "monitor doesn't announce support for backlight or luminance controls.\n");
-+			support_bl_white = support_luminance = true;
-+		}
-+	}
-+
-+	/* Initialize driver data structure */
-+	drv_data = devm_kzalloc(&dev->dev, sizeof(struct ddcci_monitor_drv_data),
-+				GFP_KERNEL);
-+	if (!drv_data)
-+		return -ENOMEM;
-+	drv_data->device = dev;
-+
-+	if (support_bl_white) {
-+		/* Try getting backlight level */
-+		dev_dbg(&dev->dev,
-+			"trying to access \"backlight level white\" control\n");
-+		ret = ddcci_monitor_readctrl(drv_data->device, DDCCI_MONITOR_BL_WHITE,
-+						&brightness, &max_brightness);
-+		if (ret < 0) {
-+			if (ret == -ENOTSUPP)
-+				dev_info(&dev->dev,
-+					"monitor does not support reading backlight level\n");
-+			else
-+				goto err_free;
-+		} else {
-+			drv_data->used_vcp = DDCCI_MONITOR_BL_WHITE;
-+		}
-+	}
-+
-+	if (support_luminance && !drv_data->used_vcp) {
-+		/* Try getting luminance */
-+		dev_dbg(&dev->dev,
-+			"trying to access \"luminance\" control\n");
-+		ret = ddcci_monitor_readctrl(drv_data->device, DDCCI_MONITOR_LUMINANCE,
-+					     &brightness, &max_brightness);
-+		if (ret < 0) {
-+			if (ret == -ENOTSUPP)
-+				dev_info(&dev->dev,
-+					"monitor does not support reading luminance\n");
-+			else
-+				goto err_free;
-+		} else {
-+			drv_data->used_vcp = DDCCI_MONITOR_LUMINANCE;
-+		}
-+		drv_data->used_vcp = DDCCI_MONITOR_LUMINANCE;
-+	}
-+
-+	if (!drv_data->used_vcp)
-+		goto err_free;
-+
-+	/* Create brightness device */
-+	memset(&props, 0, sizeof(props));
-+	props.type = BACKLIGHT_RAW;
-+	props.max_brightness = max_brightness;
-+	props.brightness = brightness;
-+	bl = devm_backlight_device_register(&dev->dev, dev_name(&dev->dev),
-+					    &dev->dev, drv_data,
-+					    &ddcci_backlight_ops, &props);
-+	drv_data->bl_dev = bl;
-+	if (IS_ERR(bl)) {
-+		dev_err(&dev->dev, "failed to register backlight\n");
-+		return PTR_ERR(bl);
-+	}
-+	dev_info(&dev->dev, "registered %s as backlight device %s\n",
-+		 ddcci_monitor_vcp_name(drv_data->used_vcp),
-+		 dev_name(&dev->dev));
-+
-+	if (convenience_symlink) {
-+		ddcci_backlight_create_symlink(dev);
-+	}
-+
-+	goto end;
-+err_free:
-+	devm_kfree(&dev->dev, drv_data);
-+end:
-+	return ret;
-+}
-+
-+static int ddcci_monitor_remove(struct ddcci_device *dev)
-+{
-+	dev_dbg(&dev->dev, "removing device\n");
-+	ddcci_backlight_remove_symlink(dev);
-+	return 0;
-+}
-+
-+static struct ddcci_device_id ddcci_monitor_idtable[] = {
-+	{ "monitor", DDCCI_ANY_ID, DDCCI_ANY_ID, DDCCI_ANY_ID, DDCCI_ANY_ID, 0 },
-+	{}
-+};
-+
-+static struct ddcci_driver ddcci_backlight_driver = {
-+	.driver = {
-+		.name	= "ddcci-backlight",
-+		.owner	= THIS_MODULE,
-+	},
-+
-+	.id_table	= ddcci_monitor_idtable,
-+	.probe		= ddcci_monitor_probe,
-+	.remove		= ddcci_monitor_remove,
-+};
-+
-+module_ddcci_driver(ddcci_backlight_driver);
-+
-+/* Module parameter description */
-+module_param(convenience_symlink, bool, S_IRUGO|S_IWUSR);
-+MODULE_PARM_DESC(convenience_symlink, "add convenience symlink \"ddcci_backlight\" to ancestor device in sysfs (default true)");
-+
-+MODULE_AUTHOR("Christoph Grenz");
-+MODULE_DESCRIPTION("DDC/CI generic monitor backlight driver");
-+MODULE_VERSION("0.4.2");
-+MODULE_LICENSE("GPL");
-+
-+MODULE_ALIAS("ddcci:monitor-*-*-*-*");
-diff --git a/include/linux/ddcci.h b/include/linux/ddcci.h
-new file mode 100644
-index 000000000000..a219f031e584
---- /dev/null
-+++ b/include/linux/ddcci.h
-@@ -0,0 +1,164 @@
-+/*
-+ *  DDC/CI bus driver
-+ *
-+ *  Copyright (c) 2015 Christoph Grenz
-+ */
-+
-+/*
-+ * This program is free software; you can redistribute it and/or modify it
-+ * under the terms of the GNU General Public License as published by the Free
-+ * Software Foundation; either version 2 of the License, or (at your option)
-+ * any later version.
-+ */
-+
-+#ifndef _DDCCI_H
-+#define _DDCCI_H
-+
-+#include <linux/mod_devicetable.h>
-+#include <linux/device.h>
-+#include <linux/cdev.h>
-+
-+#define DDCCI_MODULE_PREFIX "ddcci:"
-+
-+/* Special addresses */
-+
-+/* default device address (even) */
-+#define DDCCI_DEFAULT_DEVICE_ADDR	0x6E
-+/* receiving host address for communication with default device address */
-+#define DDCCI_HOST_ADDR_EVEN	0x50
-+/* sending host address for communication with default device address */
-+#define DDCCI_HOST_ADDR_ODD	0x51
-+
-+/* Command codes */
-+
-+/* Identification Request */
-+#define DDCCI_COMMAND_ID	0xf1
-+/* Identification Reply */
-+#define DDCCI_REPLY_ID	0xe1
-+/* Capabilities Request */
-+#define DDCCI_COMMAND_CAPS	0xf3
-+/* Capabilities Reply */
-+#define DDCCI_REPLY_CAPS	0xe3
-+
-+/* Quirks */
-+
-+/* Device always responds with unset protocol flag */
-+#define DDCCI_QUIRK_NO_PFLAG BIT(1)
-+/* Device needs writing one byte at a time  */
-+#define DDCCI_QUIRK_WRITE_BYTEWISE BIT(2)
-+/* Device repeats first byte on read */
-+#define DDCCI_QUIRK_SKIP_FIRST_BYTE BIT(3)
-+
-+/* Flags */
-+
-+#define DDCCI_FLAG_REMOVED BIT(1)
-+#define DDCCI_FLAG_DEPENDENT BIT(2)
-+#define DDCCI_FLAG_EXTERNAL BIT(3)
-+
-+extern struct bus_type ddcci_bus_type;
-+
-+struct ddcci_bus_drv_data;
-+
-+/* struct ddcci_device_id - identifies DDC/CI devices for probing */
-+struct ddcci_device_id {
-+	char prot[9];
-+	char type[9];
-+	char model[9];
-+	char vendor[9];
-+	char module[9];
-+	kernel_ulong_t driver_data;	/* Data private to the driver */
-+};
-+#define DDCCI_ANY_ID "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"
-+
-+/**
-+ * struct ddcci_device - represent an DDC/CI device
-+ * @outer_addr: Outer device address (I2C address << 1).
-+ * @inner_addr: Inner device address.
-+ * @flags: Device flags.
-+ * @capabilities: Device capability string.
-+ * @capabilities_len: Length of capability string.
-+ * @i2c_client: Parent I2C device.
-+ * @bus_drv_data: Driver internal data structure.
-+ * @dev: Driver model device node for the slave.
-+ * @cdev: Character device structure
-+ * @cdev_sem: RW semaphore for exclusive access on character device.
-+ * @prot: Device class ("protocol", from capability string)
-+ * @type: Device subclass ("type", from capability string)
-+ * @model: Device model (from capability string)
-+ * @vendor: Device vendor (from identification command response)
-+ * @module: Device module (from identification command response)
-+ * @device_number: Device serial (from identification command response)
-+ */
-+struct ddcci_device {
-+	unsigned short outer_addr;
-+	unsigned short inner_addr;
-+	int flags;
-+	char *capabilities;
-+	size_t capabilities_len;
-+	struct i2c_client *i2c_client;
-+	struct ddcci_bus_drv_data *bus_drv_data;
-+	struct device dev;
-+	struct cdev cdev;
-+	struct rw_semaphore cdev_sem;
-+	char prot[9];
-+	char type[9];
-+	char model[9];
-+	char vendor[9];
-+	char module[9];
-+	int device_number;
-+};
-+#define to_ddcci_device(d) container_of(d, struct ddcci_device, dev)
-+
-+/**
-+ * struct ddcci_driver - represent an DDC/CI device driver
-+ * @probe: Callback for device binding
-+ * @remove: Callback for device unbinding
-+ * @driver: Device driver model driver
-+ * @id_table: List of DDC/CI devices supported by this driver
-+ *
-+ * The driver.owner field should be set to the module owner of this driver.
-+ * The driver.name field should be set to the name of this driver.
-+ */
-+struct ddcci_driver {
-+	int (*probe)(struct ddcci_device *, const struct ddcci_device_id *);
-+	int (*remove)(struct ddcci_device *);
-+	struct device_driver driver;
-+	struct ddcci_device_id *id_table;
-+};
-+#define to_ddcci_driver(d) container_of(d, struct ddcci_driver, driver)
-+
-+int ddcci_register_driver(struct module *owner, struct ddcci_driver *driver);
-+#define ddcci_add_driver(driver) \
-+	ddcci_register_driver(THIS_MODULE, driver)
-+void ddcci_del_driver(struct ddcci_driver *driver);
-+
-+struct ddcci_device *ddcci_verify_device(struct device *dev);
-+
-+#define module_ddcci_driver(__ddcci_driver) \
-+	module_driver(__ddcci_driver, ddcci_add_driver, \
-+			ddcci_del_driver)
-+
-+int ddcci_device_write(struct ddcci_device *, bool p_flag, unsigned char *data,
-+		       unsigned char length);
-+int ddcci_device_read(struct ddcci_device *, bool p_flag, unsigned char *buffer,
-+		      unsigned char length);
-+int ddcci_device_writeread(struct ddcci_device *, bool p_flag,
-+			   unsigned char *buffer, unsigned char length,
-+			   unsigned char maxlength);
-+
-+static inline void *ddcci_get_drvdata(const struct ddcci_device *dev)
-+{
-+	return dev_get_drvdata(&dev->dev);
-+}
-+
-+static inline void ddcci_set_drvdata(struct ddcci_device *dev, void *data)
-+{
-+	dev_set_drvdata(&dev->dev, data);
-+}
-+
-+unsigned long ddcci_quirks(struct ddcci_device *dev);
-+
-+const char *ddcci_find_capstr_item(const char *capabilities, const char *tag,
-+				   size_t *length);
-+
-+#endif
--- 
-2.41.0
-
-From e82da25e02fc1fe164ab10e5f845362694c45919 Mon Sep 17 00:00:00 2001
-From: Peter Jung <admin@ptr1337.dev>
-Date: Wed, 5 Jul 2023 20:30:49 +0200
-Subject: [PATCH 4/8] fixes
+Date: Tue, 11 Jul 2023 19:25:14 +0200
+Subject: [PATCH 3/7] fixes
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -12467,7 +9630,6 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  drivers/leds/trigger/Makefile                 |    1 +
  drivers/leds/trigger/ledtrig-blkdev.c         | 1221 +++++++++++++++++
  include/linux/pageblock-flags.h               |    2 +-
- kernel/fork.c                                 |    6 +
  kernel/padata.c                               |    4 +-
  lib/decompress_inflate.c                      |    2 +-
  lib/decompress_unxz.c                         |    2 +
@@ -12476,7 +9638,7 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  net/netfilter/nf_tables_api.c                 |    2 +
  scripts/Makefile.vmlinux_o                    |    2 +-
  sound/pci/hda/cs35l41_hda.c                   |    2 +-
- 18 files changed, 1502 insertions(+), 11 deletions(-)
+ 17 files changed, 1496 insertions(+), 11 deletions(-)
  create mode 100644 Documentation/ABI/testing/sysfs-class-led-trigger-blkdev
  create mode 100644 Documentation/leds/ledtrig-blkdev.rst
  create mode 100644 drivers/leds/trigger/ledtrig-blkdev.c
@@ -14042,23 +11204,6 @@ index e83c4c095041..21b8dfa5d828 100644
  
  #endif /* CONFIG_HUGETLB_PAGE */
  
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 915ad6dae416..131e2eb54e40 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -666,6 +666,12 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
- 		retval = -EINTR;
- 		goto fail_uprobe_end;
- 	}
-+#ifdef CONFIG_PER_VMA_LOCK
-+	/* Disallow any page faults before calling flush_cache_dup_mm */
-+	for_each_vma(old_vmi, mpnt)
-+		vma_start_write(mpnt);
-+	vma_iter_init(&old_vmi, oldmm, 0);
-+#endif
- 	flush_cache_dup_mm(oldmm);
- 	uprobe_dup_mmap(oldmm, mm);
- 	/*
 diff --git a/kernel/padata.c b/kernel/padata.c
 index 222d60195de6..b8e6b7c48746 100644
 --- a/kernel/padata.c
@@ -14121,10 +11266,10 @@ index a512b99ae16a..bba2c0bb10cb 100644
  
  #include <linux/decompress/mm.h>
 diff --git a/mm/mmap.c b/mm/mmap.c
-index bc510361acec..d3d939d8410a 100644
+index 30bf7772d4ac..5c5a917b261e 100644
 --- a/mm/mmap.c
 +++ b/mm/mmap.c
-@@ -2476,7 +2476,8 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
+@@ -2480,7 +2480,8 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
  		}
  		vma_start_write(next);
  		mas_set_range(&mas_detach, next->vm_start, next->vm_end - 1);
@@ -14134,7 +11279,7 @@ index bc510361acec..d3d939d8410a 100644
  			goto munmap_gather_failed;
  		vma_mark_detached(next, true);
  		if (next->vm_flags & VM_LOCKED)
-@@ -2525,12 +2526,12 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
+@@ -2529,12 +2530,12 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
  		BUG_ON(count != test_count);
  	}
  #endif
@@ -14192,10 +11337,10 @@ index b5210abb5141..4d8936e1f769 100644
 -- 
 2.41.0
 
-From 6ecbfdcf46cd3e93c1cbff19f4ddad6f47f2db43 Mon Sep 17 00:00:00 2001
+From cf10d13e4dc6b189366dd15713486e50d71aa718 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Thu, 1 Jun 2023 16:35:38 +0200
-Subject: [PATCH 5/8] ksm
+Date: Tue, 11 Jul 2023 19:25:28 +0200
+Subject: [PATCH 4/7] ksm
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -14644,10 +11789,10 @@ index 860b2dcf3ac4..96fe36a6d0f5 100644
 -- 
 2.41.0
 
-From cb04ba467b179d54961105b32447c3b506b388db Mon Sep 17 00:00:00 2001
+From 6118edead4a8f108c5069f9629816f4d52b2a131 Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Mon, 26 Jun 2023 17:01:13 +0200
-Subject: [PATCH 6/8] kvm-lru
+Date: Tue, 11 Jul 2023 19:25:38 +0200
+Subject: [PATCH 5/7] kvm-lru
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -16092,26 +13237,31 @@ index 65f94f592ff8..9db05880b6b9 100644
 -- 
 2.41.0
 
-From ffd21ba7dcdbf4305f844b1769f93ea76a50f9fd Mon Sep 17 00:00:00 2001
+From a87c6bebcb1e942bbc824d451e0a93efb954116c Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Thu, 1 Jun 2023 16:35:57 +0200
-Subject: [PATCH 7/8] sched
+Date: Tue, 11 Jul 2023 19:25:53 +0200
+Subject: [PATCH 6/7] sched
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
- arch/x86/kernel/itmt.c         |  23 +--
- arch/x86/kernel/smpboot.c      |   4 +-
+ arch/x86/kernel/itmt.c         |  23 +-
+ arch/x86/kernel/smpboot.c      |   7 +-
+ include/linux/cgroup-defs.h    |   2 +
+ include/linux/sched.h          |   2 +
  include/linux/sched/sd_flags.h |   5 +-
- kernel/cgroup/cgroup.c         |  12 ++
- kernel/sched/core.c            |  59 ++++++--
+ include/linux/sched/task.h     |  38 ++-
+ kernel/cgroup/cgroup.c         |  46 ++++
+ kernel/fork.c                  |   8 +
+ kernel/sched/core.c            | 116 +++++++++-
  kernel/sched/deadline.c        |   7 -
- kernel/sched/debug.c           |   2 +-
- kernel/sched/fair.c            | 255 +++++++++++++++++++--------------
+ kernel/sched/debug.c           |   3 +-
+ kernel/sched/fair.c            | 409 ++++++++++++++++++++++++---------
  kernel/sched/features.h        |   1 +
- kernel/sched/psi.c             |  19 +--
- kernel/sched/sched.h           |  29 ++--
- kernel/sched/topology.c        |   7 +-
- 12 files changed, 253 insertions(+), 170 deletions(-)
+ kernel/sched/psi.c             |  21 +-
+ kernel/sched/sched.h           |  32 ++-
+ kernel/sched/topology.c        |  21 +-
+ kernel/softirq.c               |   2 +-
+ 17 files changed, 568 insertions(+), 175 deletions(-)
 
 diff --git a/arch/x86/kernel/itmt.c b/arch/x86/kernel/itmt.c
 index 670eb08b972a..ee4fe8cdb857 100644
@@ -16156,7 +13306,7 @@ index 670eb08b972a..ee4fe8cdb857 100644
 +	per_cpu(sched_core_priority, cpu) = prio;
  }
 diff --git a/arch/x86/kernel/smpboot.c b/arch/x86/kernel/smpboot.c
-index 483df0427678..bc64fd5ca69e 100644
+index 483df0427678..a81f2b0dbbad 100644
 --- a/arch/x86/kernel/smpboot.c
 +++ b/arch/x86/kernel/smpboot.c
 @@ -571,7 +571,7 @@ static int x86_core_flags(void)
@@ -16168,7 +13318,13 @@ index 483df0427678..bc64fd5ca69e 100644
  }
  #endif
  #ifdef CONFIG_SCHED_CLUSTER
-@@ -602,7 +602,7 @@ static struct sched_domain_topology_level x86_hybrid_topology[] = {
+@@ -599,10 +599,13 @@ static struct sched_domain_topology_level x86_hybrid_topology[] = {
+ #ifdef CONFIG_SCHED_SMT
+ 	{ cpu_smt_mask, x86_smt_flags, SD_INIT_NAME(SMT) },
+ #endif
++#ifdef CONFIG_SCHED_CLUSTER
++	{ cpu_clustergroup_mask, x86_cluster_flags, SD_INIT_NAME(CLS) },
++#endif
  #ifdef CONFIG_SCHED_MC
  	{ cpu_coregroup_mask, x86_core_flags, SD_INIT_NAME(MC) },
  #endif
@@ -16177,6 +13333,35 @@ index 483df0427678..bc64fd5ca69e 100644
  	{ NULL, },
  };
  
+diff --git a/include/linux/cgroup-defs.h b/include/linux/cgroup-defs.h
+index 8a0d5466c7be..ae20dbb885d6 100644
+--- a/include/linux/cgroup-defs.h
++++ b/include/linux/cgroup-defs.h
+@@ -661,6 +661,8 @@ struct cgroup_subsys {
+ 	void (*css_rstat_flush)(struct cgroup_subsys_state *css, int cpu);
+ 	int (*css_extra_stat_show)(struct seq_file *seq,
+ 				   struct cgroup_subsys_state *css);
++	int (*css_local_stat_show)(struct seq_file *seq,
++				   struct cgroup_subsys_state *css);
+ 
+ 	int (*can_attach)(struct cgroup_taskset *tset);
+ 	void (*cancel_attach)(struct cgroup_taskset *tset);
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index eed5d65b8d1f..8473324705ca 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2437,9 +2437,11 @@ extern void sched_core_free(struct task_struct *tsk);
+ extern void sched_core_fork(struct task_struct *p);
+ extern int sched_core_share_pid(unsigned int cmd, pid_t pid, enum pid_type type,
+ 				unsigned long uaddr);
++extern int sched_core_idle_cpu(int cpu);
+ #else
+ static inline void sched_core_free(struct task_struct *tsk) { }
+ static inline void sched_core_fork(struct task_struct *p) { }
++static inline int sched_core_idle_cpu(int cpu) { return idle_cpu(cpu); }
+ #endif
+ 
+ extern void sched_set_stop_task(int cpu, struct task_struct *stop);
 diff --git a/include/linux/sched/sd_flags.h b/include/linux/sched/sd_flags.h
 index 57bde66d95f7..fad77b5172e2 100644
 --- a/include/linux/sched/sd_flags.h
@@ -16195,11 +13380,101 @@ index 57bde66d95f7..fad77b5172e2 100644
  
  /*
   * Prefer to place tasks in a sibling domain
+diff --git a/include/linux/sched/task.h b/include/linux/sched/task.h
+index e0f5ac90a228..b53909027771 100644
+--- a/include/linux/sched/task.h
++++ b/include/linux/sched/task.h
+@@ -118,11 +118,47 @@ static inline struct task_struct *get_task_struct(struct task_struct *t)
+ }
+ 
+ extern void __put_task_struct(struct task_struct *t);
++extern void __put_task_struct_rcu_cb(struct rcu_head *rhp);
+ 
+ static inline void put_task_struct(struct task_struct *t)
+ {
+-	if (refcount_dec_and_test(&t->usage))
++	if (!refcount_dec_and_test(&t->usage))
++		return;
++
++	/*
++	 * In !RT, it is always safe to call __put_task_struct().
++	 * Under RT, we can only call it in preemptible context.
++	 */
++	if (!IS_ENABLED(CONFIG_PREEMPT_RT) || preemptible()) {
++		static DEFINE_WAIT_OVERRIDE_MAP(put_task_map, LD_WAIT_SLEEP);
++
++		lock_map_acquire_try(&put_task_map);
+ 		__put_task_struct(t);
++		lock_map_release(&put_task_map);
++		return;
++	}
++
++	/*
++	 * under PREEMPT_RT, we can't call put_task_struct
++	 * in atomic context because it will indirectly
++	 * acquire sleeping locks.
++	 *
++	 * call_rcu() will schedule delayed_put_task_struct_rcu()
++	 * to be called in process context.
++	 *
++	 * __put_task_struct() is called when
++	 * refcount_dec_and_test(&t->usage) succeeds.
++	 *
++	 * This means that it can't "conflict" with
++	 * put_task_struct_rcu_user() which abuses ->rcu the same
++	 * way; rcu_users has a reference so task->usage can't be
++	 * zero after rcu_users 1 -> 0 transition.
++	 *
++	 * delayed_free_task() also uses ->rcu, but it is only called
++	 * when it fails to fork a process. Therefore, there is no
++	 * way it can conflict with put_task_struct().
++	 */
++	call_rcu(&t->rcu, __put_task_struct_rcu_cb);
+ }
+ 
+ static inline void put_task_struct_many(struct task_struct *t, int nr)
 diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
-index 4d42f0cbc11e..8f917f682f52 100644
+index 4d42f0cbc11e..b782ae876c84 100644
 --- a/kernel/cgroup/cgroup.c
 +++ b/kernel/cgroup/cgroup.c
-@@ -3891,6 +3891,14 @@ static __poll_t cgroup_pressure_poll(struct kernfs_open_file *of,
+@@ -3740,6 +3740,36 @@ static int cpu_stat_show(struct seq_file *seq, void *v)
+ 	return ret;
+ }
+ 
++static int __maybe_unused cgroup_local_stat_show(struct seq_file *seq,
++						 struct cgroup *cgrp, int ssid)
++{
++	struct cgroup_subsys *ss = cgroup_subsys[ssid];
++	struct cgroup_subsys_state *css;
++	int ret;
++
++	if (!ss->css_local_stat_show)
++		return 0;
++
++	css = cgroup_tryget_css(cgrp, ss);
++	if (!css)
++		return 0;
++
++	ret = ss->css_local_stat_show(seq, css);
++	css_put(css);
++	return ret;
++}
++
++static int cpu_local_stat_show(struct seq_file *seq, void *v)
++{
++	struct cgroup __maybe_unused *cgrp = seq_css(seq)->cgroup;
++	int ret = 0;
++
++#ifdef CONFIG_CGROUP_SCHED
++	ret = cgroup_local_stat_show(seq, cgrp, cpu_cgrp_id);
++#endif
++	return ret;
++}
++
+ #ifdef CONFIG_PSI
+ static int cgroup_io_pressure_show(struct seq_file *seq, void *v)
+ {
+@@ -3891,6 +3921,14 @@ static __poll_t cgroup_pressure_poll(struct kernfs_open_file *of,
  	return psi_trigger_poll(&ctx->psi.trigger, of->file, pt);
  }
  
@@ -16214,7 +13489,18 @@ index 4d42f0cbc11e..8f917f682f52 100644
  static void cgroup_pressure_release(struct kernfs_open_file *of)
  {
  	struct cgroup_file_ctx *ctx = of->priv;
-@@ -5290,6 +5298,7 @@ static struct cftype cgroup_psi_files[] = {
+@@ -5282,6 +5320,10 @@ static struct cftype cgroup_base_files[] = {
+ 		.name = "cpu.stat",
+ 		.seq_show = cpu_stat_show,
+ 	},
++	{
++		.name = "cpu.stat.local",
++		.seq_show = cpu_local_stat_show,
++	},
+ 	{ }	/* terminate */
+ };
+ 
+@@ -5290,6 +5332,7 @@ static struct cftype cgroup_psi_files[] = {
  	{
  		.name = "io.pressure",
  		.file_offset = offsetof(struct cgroup, psi_files[PSI_IO]),
@@ -16222,7 +13508,7 @@ index 4d42f0cbc11e..8f917f682f52 100644
  		.seq_show = cgroup_io_pressure_show,
  		.write = cgroup_io_pressure_write,
  		.poll = cgroup_pressure_poll,
-@@ -5298,6 +5307,7 @@ static struct cftype cgroup_psi_files[] = {
+@@ -5298,6 +5341,7 @@ static struct cftype cgroup_psi_files[] = {
  	{
  		.name = "memory.pressure",
  		.file_offset = offsetof(struct cgroup, psi_files[PSI_MEM]),
@@ -16230,7 +13516,7 @@ index 4d42f0cbc11e..8f917f682f52 100644
  		.seq_show = cgroup_memory_pressure_show,
  		.write = cgroup_memory_pressure_write,
  		.poll = cgroup_pressure_poll,
-@@ -5306,6 +5316,7 @@ static struct cftype cgroup_psi_files[] = {
+@@ -5306,6 +5350,7 @@ static struct cftype cgroup_psi_files[] = {
  	{
  		.name = "cpu.pressure",
  		.file_offset = offsetof(struct cgroup, psi_files[PSI_CPU]),
@@ -16238,7 +13524,7 @@ index 4d42f0cbc11e..8f917f682f52 100644
  		.seq_show = cgroup_cpu_pressure_show,
  		.write = cgroup_cpu_pressure_write,
  		.poll = cgroup_pressure_poll,
-@@ -5315,6 +5326,7 @@ static struct cftype cgroup_psi_files[] = {
+@@ -5315,6 +5360,7 @@ static struct cftype cgroup_psi_files[] = {
  	{
  		.name = "irq.pressure",
  		.file_offset = offsetof(struct cgroup, psi_files[PSI_IRQ]),
@@ -16246,8 +13532,27 @@ index 4d42f0cbc11e..8f917f682f52 100644
  		.seq_show = cgroup_irq_pressure_show,
  		.write = cgroup_irq_pressure_write,
  		.poll = cgroup_pressure_poll,
+diff --git a/kernel/fork.c b/kernel/fork.c
+index f405763e06ae..47a1967b6a55 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -993,6 +993,14 @@ void __put_task_struct(struct task_struct *tsk)
+ }
+ EXPORT_SYMBOL_GPL(__put_task_struct);
+ 
++void __put_task_struct_rcu_cb(struct rcu_head *rhp)
++{
++	struct task_struct *task = container_of(rhp, struct task_struct, rcu);
++
++	__put_task_struct(task);
++}
++EXPORT_SYMBOL_GPL(__put_task_struct_rcu_cb);
++
+ void __init __weak arch_task_cache_init(void) { }
+ 
+ /*
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index a68d1276bab0..bcb3a7e684ca 100644
+index a68d1276bab0..1b971c69d3a2 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
 @@ -3341,6 +3341,39 @@ int migrate_swap(struct task_struct *cur, struct task_struct *p,
@@ -16359,6 +13664,98 @@ index a68d1276bab0..bcb3a7e684ca 100644
  }
  
  /*
+@@ -7342,6 +7379,19 @@ struct task_struct *idle_task(int cpu)
+ 	return cpu_rq(cpu)->idle;
+ }
+ 
++#ifdef CONFIG_SCHED_CORE
++int sched_core_idle_cpu(int cpu)
++{
++	struct rq *rq = cpu_rq(cpu);
++
++	if (sched_core_enabled(rq) && rq->curr == rq->idle)
++		return 1;
++
++	return idle_cpu(cpu);
++}
++
++#endif
++
+ #ifdef CONFIG_SMP
+ /*
+  * This function computes an effective utilization for the given CPU, to be
+@@ -11103,6 +11153,27 @@ static int cpu_cfs_stat_show(struct seq_file *sf, void *v)
+ 
+ 	return 0;
+ }
++
++static u64 throttled_time_self(struct task_group *tg)
++{
++	int i;
++	u64 total = 0;
++
++	for_each_possible_cpu(i) {
++		total += READ_ONCE(tg->cfs_rq[i]->throttled_clock_self_time);
++	}
++
++	return total;
++}
++
++static int cpu_cfs_local_stat_show(struct seq_file *sf, void *v)
++{
++	struct task_group *tg = css_tg(seq_css(sf));
++
++	seq_printf(sf, "throttled_time %llu\n", throttled_time_self(tg));
++
++	return 0;
++}
+ #endif /* CONFIG_CFS_BANDWIDTH */
+ #endif /* CONFIG_FAIR_GROUP_SCHED */
+ 
+@@ -11179,6 +11250,10 @@ static struct cftype cpu_legacy_files[] = {
+ 		.name = "stat",
+ 		.seq_show = cpu_cfs_stat_show,
+ 	},
++	{
++		.name = "stat.local",
++		.seq_show = cpu_cfs_local_stat_show,
++	},
+ #endif
+ #ifdef CONFIG_RT_GROUP_SCHED
+ 	{
+@@ -11235,6 +11310,24 @@ static int cpu_extra_stat_show(struct seq_file *sf,
+ 	return 0;
+ }
+ 
++static int cpu_local_stat_show(struct seq_file *sf,
++			       struct cgroup_subsys_state *css)
++{
++#ifdef CONFIG_CFS_BANDWIDTH
++	{
++		struct task_group *tg = css_tg(css);
++		u64 throttled_self_usec;
++
++		throttled_self_usec = throttled_time_self(tg);
++		do_div(throttled_self_usec, NSEC_PER_USEC);
++
++		seq_printf(sf, "throttled_usec %llu\n",
++			   throttled_self_usec);
++	}
++#endif
++	return 0;
++}
++
+ #ifdef CONFIG_FAIR_GROUP_SCHED
+ static u64 cpu_weight_read_u64(struct cgroup_subsys_state *css,
+ 			       struct cftype *cft)
+@@ -11413,6 +11506,7 @@ struct cgroup_subsys cpu_cgrp_subsys = {
+ 	.css_released	= cpu_cgroup_css_released,
+ 	.css_free	= cpu_cgroup_css_free,
+ 	.css_extra_stat_show = cpu_extra_stat_show,
++	.css_local_stat_show = cpu_local_stat_show,
+ #ifdef CONFIG_RT_GROUP_SCHED
+ 	.can_attach	= cpu_cgroup_can_attach,
+ #endif
 diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
 index 5a9a4b81c972..f827067ad03b 100644
 --- a/kernel/sched/deadline.c
@@ -16378,10 +13775,18 @@ index 5a9a4b81c972..f827067ad03b 100644
  {
  	raw_spin_lock_init(&dl_b->lock);
 diff --git a/kernel/sched/debug.c b/kernel/sched/debug.c
-index 0b2340a79b65..066ff1c8ae4e 100644
+index 0b2340a79b65..aeeba46a096b 100644
 --- a/kernel/sched/debug.c
 +++ b/kernel/sched/debug.c
-@@ -777,7 +777,7 @@ static void print_cpu(struct seq_file *m, int cpu)
+@@ -427,6 +427,7 @@ static void register_sd(struct sched_domain *sd, struct dentry *parent)
+ #undef SDM
+ 
+ 	debugfs_create_file("flags", 0444, parent, &sd->flags, &sd_flags_fops);
++	debugfs_create_file("groups_flags", 0444, parent, &sd->groups->flags, &sd_flags_fops);
+ }
+ 
+ void update_sched_domain_debugfs(void)
+@@ -777,7 +778,7 @@ static void print_cpu(struct seq_file *m, int cpu)
  #define P(x)								\
  do {									\
  	if (sizeof(rq->x) == 4)						\
@@ -16391,7 +13796,7 @@ index 0b2340a79b65..066ff1c8ae4e 100644
  		SEQ_printf(m, "  .%-30s: %Ld\n", #x, (long long)(rq->x));\
  } while (0)
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 9671df93d1f5..9fe8288b1b1f 100644
+index 9671df93d1f5..64cbea29b007 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
 @@ -1082,6 +1082,23 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
@@ -16442,7 +13847,87 @@ index 9671df93d1f5..9fe8288b1b1f 100644
  struct task_numa_env {
  	struct task_struct *p;
  
-@@ -7045,6 +7045,37 @@ static int select_idle_cpu(struct task_struct *p, struct sched_domain *sd, bool
+@@ -4805,6 +4805,7 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
+ }
+ 
+ static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
++static inline int cfs_rq_throttled(struct cfs_rq *cfs_rq);
+ 
+ static inline bool cfs_bandwidth_used(void);
+ 
+@@ -4891,8 +4892,18 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
+ 
+ 	if (cfs_rq->nr_running == 1) {
+ 		check_enqueue_throttle(cfs_rq);
+-		if (!throttled_hierarchy(cfs_rq))
++		if (!throttled_hierarchy(cfs_rq)) {
+ 			list_add_leaf_cfs_rq(cfs_rq);
++		} else {
++#ifdef CONFIG_CFS_BANDWIDTH
++			struct rq *rq = rq_of(cfs_rq);
++
++			if (cfs_rq_throttled(cfs_rq) && !cfs_rq->throttled_clock)
++				cfs_rq->throttled_clock = rq_clock(rq);
++			if (!cfs_rq->throttled_clock_self)
++				cfs_rq->throttled_clock_self = rq_clock(rq);
++#endif
++		}
+ 	}
+ }
+ 
+@@ -5395,6 +5406,17 @@ static int tg_unthrottle_up(struct task_group *tg, void *data)
+ 		/* Add cfs_rq with load or one or more already running entities to the list */
+ 		if (!cfs_rq_is_decayed(cfs_rq))
+ 			list_add_leaf_cfs_rq(cfs_rq);
++
++		if (cfs_rq->throttled_clock_self) {
++			u64 delta = rq_clock(rq) - cfs_rq->throttled_clock_self;
++
++			cfs_rq->throttled_clock_self = 0;
++
++			if (SCHED_WARN_ON((s64)delta < 0))
++				delta = 0;
++
++			cfs_rq->throttled_clock_self_time += delta;
++		}
+ 	}
+ 
+ 	return 0;
+@@ -5409,6 +5431,10 @@ static int tg_throttle_down(struct task_group *tg, void *data)
+ 	if (!cfs_rq->throttle_count) {
+ 		cfs_rq->throttled_clock_pelt = rq_clock_pelt(rq);
+ 		list_del_leaf_cfs_rq(cfs_rq);
++
++		SCHED_WARN_ON(cfs_rq->throttled_clock_self);
++		if (cfs_rq->nr_running)
++			cfs_rq->throttled_clock_self = rq_clock(rq);
+ 	}
+ 	cfs_rq->throttle_count++;
+ 
+@@ -5498,7 +5524,9 @@ static bool throttle_cfs_rq(struct cfs_rq *cfs_rq)
+ 	 * throttled-list.  rq->lock protects completion.
+ 	 */
+ 	cfs_rq->throttled = 1;
+-	cfs_rq->throttled_clock = rq_clock(rq);
++	SCHED_WARN_ON(cfs_rq->throttled_clock);
++	if (cfs_rq->nr_running)
++		cfs_rq->throttled_clock = rq_clock(rq);
+ 	return true;
+ }
+ 
+@@ -5516,7 +5544,10 @@ void unthrottle_cfs_rq(struct cfs_rq *cfs_rq)
+ 	update_rq_clock(rq);
+ 
+ 	raw_spin_lock(&cfs_b->lock);
+-	cfs_b->throttled_time += rq_clock(rq) - cfs_rq->throttled_clock;
++	if (cfs_rq->throttled_clock) {
++		cfs_b->throttled_time += rq_clock(rq) - cfs_rq->throttled_clock;
++		cfs_rq->throttled_clock = 0;
++	}
+ 	list_del_rcu(&cfs_rq->throttled_list);
+ 	raw_spin_unlock(&cfs_b->lock);
+ 
+@@ -7045,6 +7076,37 @@ static int select_idle_cpu(struct task_struct *p, struct sched_domain *sd, bool
  	return idle_cpu;
  }
  
@@ -16480,7 +13965,7 @@ index 9671df93d1f5..9fe8288b1b1f 100644
  /*
   * Scan the asym_capacity domain for idle CPUs; pick the first idle one on which
   * the task fits. If no CPU is big enough, but there are idle ones, try to
-@@ -7217,6 +7248,12 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
+@@ -7217,6 +7279,12 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
  	if ((unsigned)i < nr_cpumask_bits)
  		return i;
  
@@ -16493,7 +13978,37 @@ index 9671df93d1f5..9fe8288b1b1f 100644
  	return target;
  }
  
-@@ -9349,96 +9386,61 @@ group_type group_classify(unsigned int imbalance_pct,
+@@ -8358,6 +8426,11 @@ enum group_type {
+ 	 * more powerful CPU.
+ 	 */
+ 	group_misfit_task,
++	/*
++	 * Balance SMT group that's fully busy. Can benefit from migration
++	 * a task on SMT with busy sibling to another CPU on idle core.
++	 */
++	group_smt_balance,
+ 	/*
+ 	 * SD_ASYM_PACKING only: One local CPU with higher capacity is available,
+ 	 * and the task should be migrated to it instead of running on the
+@@ -9066,6 +9139,7 @@ struct sg_lb_stats {
+ 	unsigned int group_weight;
+ 	enum group_type group_type;
+ 	unsigned int group_asym_packing; /* Tasks should be moved to preferred CPU */
++	unsigned int group_smt_balance;  /* Task on busy SMT be moved */
+ 	unsigned long group_misfit_task_load; /* A CPU has a task too big for its capacity */
+ #ifdef CONFIG_NUMA_BALANCING
+ 	unsigned int nr_numa_running;
+@@ -9339,6 +9413,9 @@ group_type group_classify(unsigned int imbalance_pct,
+ 	if (sgs->group_asym_packing)
+ 		return group_asym_packing;
+ 
++	if (sgs->group_smt_balance)
++		return group_smt_balance;
++
+ 	if (sgs->group_misfit_task_load)
+ 		return group_misfit_task;
+ 
+@@ -9349,98 +9426,128 @@ group_type group_classify(unsigned int imbalance_pct,
  }
  
  /**
@@ -16523,31 +14038,31 @@ index 9671df93d1f5..9fe8288b1b1f 100644
   * @sds:	Load-balancing data with statistics of the local group
   * @sgs:	Load-balancing statistics of the candidate busiest group
 - * @sg:		The candidate busiest group
-+ * @group:	The candidate busiest group
-  *
+- *
 - * Check the state of the SMT siblings of both @sds::local and @sg and decide
 - * if @dst_cpu can pull tasks.
-+ * @env::dst_cpu can do asym_packing if it has higher priority than the
-+ * preferred CPU of @group.
++ * @group:	The candidate busiest group
   *
 - * If @dst_cpu does not have SMT siblings, it can pull tasks if two or more of
 - * the SMT siblings of @sg are busy. If only one CPU in @sg is busy, pull tasks
 - * only if @dst_cpu has higher priority.
-+ * SMT is a special case. If we are balancing load between cores, @env::dst_cpu
-+ * can do asym_packing balance only if all its SMT siblings are idle. Also, it
-+ * can only do it if @group is an SMT group and has exactly on busy CPU. Larger
-+ * imbalances in the number of CPUS are dealt with in find_busiest_group().
++ * @env::dst_cpu can do asym_packing if it has higher priority than the
++ * preferred CPU of @group.
   *
 - * If both @dst_cpu and @sg have SMT siblings, and @sg has exactly one more
 - * busy CPU than @sds::local, let @dst_cpu pull tasks if it has higher priority.
 - * Bigger imbalances in the number of busy CPUs will be dealt with in
 - * update_sd_pick_busiest().
-+ * If we are balancing load within an SMT core, or at DIE domain level, always
-+ * proceed.
++ * SMT is a special case. If we are balancing load between cores, @env::dst_cpu
++ * can do asym_packing balance only if all its SMT siblings are idle. Also, it
++ * can only do it if @group is an SMT group and has exactly on busy CPU. Larger
++ * imbalances in the number of CPUS are dealt with in find_busiest_group().
   *
 - * If @sg does not have SMT siblings, only pull tasks if all of the SMT siblings
 - * of @dst_cpu are idle and @sg has lower priority.
-- *
++ * If we are balancing load within an SMT core, or at DIE domain level, always
++ * proceed.
+  *
 - * Return: true if @dst_cpu can pull tasks, false otherwise.
 + * Return: true if @env::dst_cpu can do with asym_packing load balance. False
 + * otherwise.
@@ -16576,7 +14091,10 @@ index 9671df93d1f5..9fe8288b1b1f 100644
 -		 */
 -		if (sg_busy_cpus >= 2) /* implies sg_is_smt */
 -			return true;
--
++	/* Ensure that the whole local core is idle, if applicable. */
++	if (!sched_use_asym_prio(env->sd, env->dst_cpu))
++		return false;
+ 
 -		/*
 -		 * @dst_cpu does not have SMT siblings. @sg may have SMT
 -		 * siblings and only one is busy. In such case, @dst_cpu
@@ -16584,20 +14102,40 @@ index 9671df93d1f5..9fe8288b1b1f 100644
 -		 * it has no running tasks).
 -		 */
 -		return sched_asym_prefer(dst_cpu, sg->asym_prefer_cpu);
--	}
--
++	/*
++	 * CPU priorities does not make sense for SMT cores with more than one
++	 * busy sibling.
++	 */
++	if (group->flags & SD_SHARE_CPUCAPACITY) {
++		if (sgs->group_weight - sgs->idle_cpus != 1)
++			return false;
+ 	}
+ 
 -	/* @dst_cpu has SMT siblings. */
--
++	return sched_asym_prefer(env->dst_cpu, group->asym_prefer_cpu);
++}
+ 
 -	if (sg_is_smt) {
 -		int local_busy_cpus = sds->local->group_weight -
 -				      sds->local_stat.idle_cpus;
 -		int busy_cpus_delta = sg_busy_cpus - local_busy_cpus;
--
++/* One group has more than one SMT CPU while the other group does not */
++static inline bool smt_vs_nonsmt_groups(struct sched_group *sg1,
++				    struct sched_group *sg2)
++{
++	if (!sg1 || !sg2)
++		return false;
+ 
 -		if (busy_cpus_delta == 1)
 -			return sched_asym_prefer(dst_cpu, sg->asym_prefer_cpu);
--
-+	/* Ensure that the whole local core is idle, if applicable. */
-+	if (!sched_use_asym_prio(env->sd, env->dst_cpu))
++	return (sg1->flags & SD_SHARE_CPUCAPACITY) !=
++		(sg2->flags & SD_SHARE_CPUCAPACITY);
++}
+ 
++static inline bool smt_balance(struct lb_env *env, struct sg_lb_stats *sgs,
++			       struct sched_group *group)
++{
++	if (env->idle == CPU_NOT_IDLE)
  		return false;
 -	}
  
@@ -16605,35 +14143,88 @@ index 9671df93d1f5..9fe8288b1b1f 100644
 -	 * @sg does not have SMT siblings. Ensure that @sds::local does not end
 -	 * up with more than one busy SMT sibling and only pull tasks if there
 -	 * are not busy CPUs (i.e., no CPU has running tasks).
-+	 * CPU priorities does not make sense for SMT cores with more than one
-+	 * busy sibling.
++	 * For SMT source group, it is better to move a task
++	 * to a CPU that doesn't have multiple tasks sharing its CPU capacity.
++	 * Note that if a group has a single SMT, SD_SHARE_CPUCAPACITY
++	 * will not be on.
  	 */
 -	if (!sds->local_stat.sum_nr_running)
 -		return sched_asym_prefer(dst_cpu, sg->asym_prefer_cpu);
--
--	return false;
++	if (group->flags & SD_SHARE_CPUCAPACITY &&
++	    sgs->sum_h_nr_running > 1)
++		return true;
+ 
+ 	return false;
 -#else
 -	/* Always return false so that callers deal with non-SMT cases. */
 -	return false;
 -#endif
--}
--
+ }
+ 
 -static inline bool
 -sched_asym(struct lb_env *env, struct sd_lb_stats *sds,  struct sg_lb_stats *sgs,
 -	   struct sched_group *group)
--{
++static inline long sibling_imbalance(struct lb_env *env,
++				    struct sd_lb_stats *sds,
++				    struct sg_lb_stats *busiest,
++				    struct sg_lb_stats *local)
+ {
 -	/* Only do SMT checks if either local or candidate have SMT siblings */
 -	if ((sds->local->flags & SD_SHARE_CPUCAPACITY) ||
 -	    (group->flags & SD_SHARE_CPUCAPACITY))
 -		return asym_smt_can_pull_tasks(env->dst_cpu, sds, sgs, group);
-+	if (group->flags & SD_SHARE_CPUCAPACITY) {
-+		if (sgs->group_weight - sgs->idle_cpus != 1)
-+			return false;
-+	}
++	int ncores_busiest, ncores_local;
++	long imbalance;
  
- 	return sched_asym_prefer(env->dst_cpu, group->asym_prefer_cpu);
+-	return sched_asym_prefer(env->dst_cpu, group->asym_prefer_cpu);
++	if (env->idle == CPU_NOT_IDLE || !busiest->sum_nr_running)
++		return 0;
++
++	ncores_busiest = sds->busiest->cores;
++	ncores_local = sds->local->cores;
++
++	if (ncores_busiest == ncores_local) {
++		imbalance = busiest->sum_nr_running;
++		lsub_positive(&imbalance, local->sum_nr_running);
++		return imbalance;
++	}
++
++	/* Balance such that nr_running/ncores ratio are same on both groups */
++	imbalance = ncores_local * busiest->sum_nr_running;
++	lsub_positive(&imbalance, ncores_busiest * local->sum_nr_running);
++	/* Normalize imbalance and do rounding on normalization */
++	imbalance = 2 * imbalance + ncores_local + ncores_busiest;
++	imbalance /= ncores_local + ncores_busiest;
++
++	/* Take advantage of resource in an empty sched group */
++	if (imbalance == 0 && local->sum_nr_running == 0 &&
++	    busiest->sum_nr_running > 1)
++		imbalance = 2;
++
++	return imbalance;
  }
-@@ -9628,10 +9630,22 @@ static bool update_sd_pick_busiest(struct lb_env *env,
+ 
+ static inline bool
+@@ -9535,6 +9642,10 @@ static inline void update_sg_lb_stats(struct lb_env *env,
+ 		sgs->group_asym_packing = 1;
+ 	}
+ 
++	/* Check for loaded SMT group to be balanced to dst CPU */
++	if (!local_group && smt_balance(env, sgs, group))
++		sgs->group_smt_balance = 1;
++
+ 	sgs->group_type = group_classify(env->sd->imbalance_pct, group, sgs);
+ 
+ 	/* Computing avg_load makes sense only when group is overloaded */
+@@ -9619,6 +9730,7 @@ static bool update_sd_pick_busiest(struct lb_env *env,
+ 			return false;
+ 		break;
+ 
++	case group_smt_balance:
+ 	case group_fully_busy:
+ 		/*
+ 		 * Select the fully busy group with highest avg_load. In
+@@ -9628,13 +9740,37 @@ static bool update_sd_pick_busiest(struct lb_env *env,
  		 * contention when accessing shared HW resources.
  		 *
  		 * XXX for now avg_load is not computed and always 0 so we
@@ -16658,7 +14249,38 @@ index 9671df93d1f5..9fe8288b1b1f 100644
  		break;
  
  	case group_has_spare:
-@@ -10106,7 +10120,6 @@ static void update_idle_cpu_scan(struct lb_env *env,
++		/*
++		 * Do not pick sg with SMT CPUs over sg with pure CPUs,
++		 * as we do not want to pull task off SMT core with one task
++		 * and make the core idle.
++		 */
++		if (smt_vs_nonsmt_groups(sds->busiest, sg)) {
++			if (sg->flags & SD_SHARE_CPUCAPACITY && sgs->sum_h_nr_running <= 1)
++				return false;
++			else
++				return true;
++		}
++
+ 		/*
+ 		 * Select not overloaded group with lowest number of idle cpus
+ 		 * and highest number of running tasks. We could also compare
+@@ -9831,6 +9967,7 @@ static bool update_pick_idlest(struct sched_group *idlest,
+ 
+ 	case group_imbalanced:
+ 	case group_asym_packing:
++	case group_smt_balance:
+ 		/* Those types are not used in the slow wakeup path */
+ 		return false;
+ 
+@@ -9962,6 +10099,7 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
+ 
+ 	case group_imbalanced:
+ 	case group_asym_packing:
++	case group_smt_balance:
+ 		/* Those type are not used in the slow wakeup path */
+ 		return NULL;
+ 
+@@ -10106,7 +10244,6 @@ static void update_idle_cpu_scan(struct lb_env *env,
  
  static inline void update_sd_lb_stats(struct lb_env *env, struct sd_lb_stats *sds)
  {
@@ -16666,7 +14288,7 @@ index 9671df93d1f5..9fe8288b1b1f 100644
  	struct sched_group *sg = env->sd->groups;
  	struct sg_lb_stats *local = &sds->local_stat;
  	struct sg_lb_stats tmp_sgs;
-@@ -10147,8 +10160,13 @@ static inline void update_sd_lb_stats(struct lb_env *env, struct sd_lb_stats *sd
+@@ -10147,8 +10284,13 @@ static inline void update_sd_lb_stats(struct lb_env *env, struct sd_lb_stats *sd
  		sg = sg->next;
  	} while (sg != env->sd->groups);
  
@@ -16682,7 +14304,37 @@ index 9671df93d1f5..9fe8288b1b1f 100644
  
  
  	if (env->sd->flags & SD_NUMA)
-@@ -10458,7 +10476,10 @@ static struct sched_group *find_busiest_group(struct lb_env *env)
+@@ -10212,6 +10354,13 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
+ 		return;
+ 	}
+ 
++	if (busiest->group_type == group_smt_balance) {
++		/* Reduce number of tasks sharing CPU capacity */
++		env->migration_type = migrate_task;
++		env->imbalance = 1;
++		return;
++	}
++
+ 	if (busiest->group_type == group_imbalanced) {
+ 		/*
+ 		 * In the group_imb case we cannot rely on group-wide averages
+@@ -10259,14 +10408,12 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
+ 		}
+ 
+ 		if (busiest->group_weight == 1 || sds->prefer_sibling) {
+-			unsigned int nr_diff = busiest->sum_nr_running;
+ 			/*
+ 			 * When prefer sibling, evenly spread running tasks on
+ 			 * groups.
+ 			 */
+ 			env->migration_type = migrate_task;
+-			lsub_positive(&nr_diff, local->sum_nr_running);
+-			env->imbalance = nr_diff;
++			env->imbalance = sibling_imbalance(env, sds, busiest, local);
+ 		} else {
+ 
+ 			/*
+@@ -10458,22 +10605,32 @@ static struct sched_group *find_busiest_group(struct lb_env *env)
  			goto out_balanced;
  	}
  
@@ -16692,9 +14344,50 @@ index 9671df93d1f5..9fe8288b1b1f 100644
 +	 * group's child domain.
 +	 */
  	if (sds.prefer_sibling && local->group_type == group_has_spare &&
- 	    busiest->sum_nr_running > local->sum_nr_running + 1)
+-	    busiest->sum_nr_running > local->sum_nr_running + 1)
++	    sibling_imbalance(env, &sds, busiest, local) > 1)
  		goto force_balance;
-@@ -10560,8 +10581,15 @@ static struct rq *find_busiest_queue(struct lb_env *env,
+ 
+ 	if (busiest->group_type != group_overloaded) {
+-		if (env->idle == CPU_NOT_IDLE)
++		if (env->idle == CPU_NOT_IDLE) {
+ 			/*
+ 			 * If the busiest group is not overloaded (and as a
+ 			 * result the local one too) but this CPU is already
+ 			 * busy, let another idle CPU try to pull task.
+ 			 */
+ 			goto out_balanced;
++		}
++
++		if (busiest->group_type == group_smt_balance &&
++		    smt_vs_nonsmt_groups(sds.local, sds.busiest)) {
++			/* Let non SMT CPU pull from SMT CPU sharing with sibling */
++			goto force_balance;
++		}
+ 
+ 		if (busiest->group_weight > 1 &&
+-		    local->idle_cpus <= (busiest->idle_cpus + 1))
++		    local->idle_cpus <= (busiest->idle_cpus + 1)) {
+ 			/*
+ 			 * If the busiest group is not overloaded
+ 			 * and there is no imbalance between this and busiest
+@@ -10484,12 +10641,14 @@ static struct sched_group *find_busiest_group(struct lb_env *env)
+ 			 * there is more than 1 CPU per group.
+ 			 */
+ 			goto out_balanced;
++		}
+ 
+-		if (busiest->sum_h_nr_running == 1)
++		if (busiest->sum_h_nr_running == 1) {
+ 			/*
+ 			 * busiest doesn't have any tasks waiting to run
+ 			 */
+ 			goto out_balanced;
++		}
+ 	}
+ 
+ force_balance:
+@@ -10560,8 +10719,15 @@ static struct rq *find_busiest_queue(struct lb_env *env,
  		    nr_running == 1)
  			continue;
  
@@ -16711,7 +14404,7 @@ index 9671df93d1f5..9fe8288b1b1f 100644
  		    sched_asym_prefer(i, env->dst_cpu) &&
  		    nr_running == 1)
  			continue;
-@@ -10650,12 +10678,19 @@ static inline bool
+@@ -10650,12 +10816,19 @@ static inline bool
  asym_active_balance(struct lb_env *env)
  {
  	/*
@@ -16735,7 +14428,41 @@ index 9671df93d1f5..9fe8288b1b1f 100644
  }
  
  static inline bool
-@@ -10762,7 +10797,7 @@ static int load_balance(int this_cpu, struct rq *this_rq,
+@@ -10709,7 +10882,7 @@ static int active_load_balance_cpu_stop(void *data);
+ static int should_we_balance(struct lb_env *env)
+ {
+ 	struct sched_group *sg = env->sd->groups;
+-	int cpu;
++	int cpu, idle_smt = -1;
+ 
+ 	/*
+ 	 * Ensure the balancing environment is consistent; can happen
+@@ -10736,10 +10909,24 @@ static int should_we_balance(struct lb_env *env)
+ 		if (!idle_cpu(cpu))
+ 			continue;
+ 
++		/*
++		 * Don't balance to idle SMT in busy core right away when
++		 * balancing cores, but remember the first idle SMT CPU for
++		 * later consideration.  Find CPU on an idle core first.
++		 */
++		if (!(env->sd->flags & SD_SHARE_CPUCAPACITY) && !is_core_idle(cpu)) {
++			if (idle_smt == -1)
++				idle_smt = cpu;
++			continue;
++		}
++
+ 		/* Are we the first idle CPU? */
+ 		return cpu == env->dst_cpu;
+ 	}
+ 
++	if (idle_smt == env->dst_cpu)
++		return true;
++
+ 	/* Are we the first CPU of this group ? */
+ 	return group_balance_cpu(sg) == env->dst_cpu;
+ }
+@@ -10762,7 +10949,7 @@ static int load_balance(int this_cpu, struct rq *this_rq,
  		.sd		= sd,
  		.dst_cpu	= this_cpu,
  		.dst_rq		= this_rq,
@@ -16744,7 +14471,7 @@ index 9671df93d1f5..9fe8288b1b1f 100644
  		.idle		= idle,
  		.loop_break	= SCHED_NR_MIGRATE_BREAK,
  		.cpus		= cpus,
-@@ -11389,9 +11424,13 @@ static void nohz_balancer_kick(struct rq *rq)
+@@ -11389,9 +11576,13 @@ static void nohz_balancer_kick(struct rq *rq)
  		 * When ASYM_PACKING; see if there's a more preferred CPU
  		 * currently idle; in which case, kick the ILB to move tasks
  		 * around.
@@ -16772,9 +14499,18 @@ index ee7f23c76bd3..9e390eb82e38 100644
  /*
   * Issue a WARN when we do multiple update_rq_clock() calls
 diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
-index e072f6b31bf3..81fca77397f6 100644
+index e072f6b31bf3..2ccb0b2ebd78 100644
 --- a/kernel/sched/psi.c
 +++ b/kernel/sched/psi.c
+@@ -140,7 +140,7 @@
+ static int psi_bug __read_mostly;
+ 
+ DEFINE_STATIC_KEY_FALSE(psi_disabled);
+-DEFINE_STATIC_KEY_TRUE(psi_cgroups_enabled);
++static DEFINE_STATIC_KEY_TRUE(psi_cgroups_enabled);
+ 
+ #ifdef CONFIG_PSI_DEFAULT_DISABLED
+ static bool psi_enable;
 @@ -160,7 +160,6 @@ __setup("psi=", setup_psi);
  #define EXP_300s	2034		/* 1/exp(2s/300s) */
  
@@ -16816,7 +14552,7 @@ index e072f6b31bf3..81fca77397f6 100644
  			if (group->rtpoll_states == 0) {
  				group->rtpoll_until = 0;
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index ec7b3e0a2b20..d8ba81c66579 100644
+index ec7b3e0a2b20..0605fb53816d 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
 @@ -286,12 +286,6 @@ struct rt_bandwidth {
@@ -16832,7 +14568,16 @@ index ec7b3e0a2b20..d8ba81c66579 100644
  static inline int dl_bandwidth_enabled(void)
  {
  	return sysctl_sched_rt_runtime >= 0;
-@@ -1772,6 +1766,13 @@ queue_balance_callback(struct rq *rq,
+@@ -642,6 +636,8 @@ struct cfs_rq {
+ 	u64			throttled_clock;
+ 	u64			throttled_clock_pelt;
+ 	u64			throttled_clock_pelt_time;
++	u64			throttled_clock_self;
++	u64			throttled_clock_self_time;
+ 	int			throttled;
+ 	int			throttle_count;
+ 	struct list_head	throttled_list;
+@@ -1772,6 +1768,13 @@ queue_balance_callback(struct rq *rq,
  	for (__sd = rcu_dereference_check_sched_domain(cpu_rq(cpu)->sd); \
  			__sd; __sd = __sd->parent)
  
@@ -16846,7 +14591,7 @@ index ec7b3e0a2b20..d8ba81c66579 100644
  /**
   * highest_flag_domain - Return highest sched_domain containing flag.
   * @cpu:	The CPU whose highest level of sched domain is to
-@@ -1779,16 +1780,25 @@ queue_balance_callback(struct rq *rq,
+@@ -1779,16 +1782,25 @@ queue_balance_callback(struct rq *rq,
   * @flag:	The flag to check for the highest sched_domain
   *		for the given CPU.
   *
@@ -16875,7 +14620,15 @@ index ec7b3e0a2b20..d8ba81c66579 100644
  	}
  
  	return hsd;
-@@ -2378,7 +2388,6 @@ extern struct rt_bandwidth def_rt_bandwidth;
+@@ -1844,6 +1856,7 @@ struct sched_group {
+ 	atomic_t		ref;
+ 
+ 	unsigned int		group_weight;
++	unsigned int		cores;
+ 	struct sched_group_capacity *sgc;
+ 	int			asym_prefer_cpu;	/* CPU of highest priority in group */
+ 	int			flags;
+@@ -2378,7 +2391,6 @@ extern struct rt_bandwidth def_rt_bandwidth;
  extern void init_rt_bandwidth(struct rt_bandwidth *rt_b, u64 period, u64 runtime);
  extern bool sched_rt_bandwidth_account(struct rt_rq *rt_rq);
  
@@ -16884,7 +14637,7 @@ index ec7b3e0a2b20..d8ba81c66579 100644
  extern void init_dl_inactive_task_timer(struct sched_dl_entity *dl_se);
  
 diff --git a/kernel/sched/topology.c b/kernel/sched/topology.c
-index 6682535e37c8..ca4472281c28 100644
+index 6682535e37c8..8c7c0b64e615 100644
 --- a/kernel/sched/topology.c
 +++ b/kernel/sched/topology.c
 @@ -719,8 +719,13 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
@@ -16902,13 +14655,54 @@ index 6682535e37c8..ca4472281c28 100644
  			/*
  			 * Transfer SD_PREFER_SIBLING down in case of a
  			 * degenerate parent; the spans match for this
+@@ -1270,14 +1275,26 @@ build_sched_groups(struct sched_domain *sd, int cpu)
+ static void init_sched_groups_capacity(int cpu, struct sched_domain *sd)
+ {
+ 	struct sched_group *sg = sd->groups;
++	struct cpumask *mask = sched_domains_tmpmask2;
+ 
+ 	WARN_ON(!sg);
+ 
+ 	do {
+-		int cpu, max_cpu = -1;
++		int cpu, cores = 0, max_cpu = -1;
+ 
+ 		sg->group_weight = cpumask_weight(sched_group_span(sg));
+ 
++		cpumask_copy(mask, sched_group_span(sg));
++		for_each_cpu(cpu, mask) {
++			cores++;
++#ifdef CONFIG_SCHED_SMT
++			cpumask_andnot(mask, mask, cpu_smt_mask(cpu));
++#else
++			__cpumask_clear_cpu(cpu, mask);
++#endif
++		}
++		sg->cores = cores;
++
+ 		if (!(sd->flags & SD_ASYM_PACKING))
+ 			goto next;
+ 
+diff --git a/kernel/softirq.c b/kernel/softirq.c
+index 1b725510dd0f..a5758661875c 100644
+--- a/kernel/softirq.c
++++ b/kernel/softirq.c
+@@ -630,7 +630,7 @@ static inline void tick_irq_exit(void)
+ 	int cpu = smp_processor_id();
+ 
+ 	/* Make sure that timer wheel updates are propagated */
+-	if ((idle_cpu(cpu) && !need_resched()) || tick_nohz_full_cpu(cpu)) {
++	if ((sched_core_idle_cpu(cpu) && !need_resched()) || tick_nohz_full_cpu(cpu)) {
+ 		if (!in_hardirq())
+ 			tick_nohz_irq_exit();
+ 	}
 -- 
 2.41.0
 
-From 56d503033ee20d4299c0e266050594b24ce4f9d1 Mon Sep 17 00:00:00 2001
+From da924e0790a68d55b9e03f6892a1cd82c98b660b Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Tue, 9 May 2023 18:40:05 +0200
-Subject: [PATCH 8/8] zstd 1.5.5
+Date: Tue, 11 Jul 2023 19:26:20 +0200
+Subject: [PATCH 7/7] zstd 1.5.5
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---

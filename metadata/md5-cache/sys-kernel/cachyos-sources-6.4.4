@@ -1,0 +1,15 @@
+DEFINED_PHASES=compile install postinst postrm preinst prepare setup test unpack
+DESCRIPTION=CachyOS provides enhanced kernels that offer improved performance and other benefits.
+EAPI=8
+HOMEPAGE=https://github.com/CachyOS/linux-cachyos
+INHERIT=kernel-2 optfeature
+IUSE=+bore-eevdf bore eevdf pds bmq cfs tt symlink build
+KEYWORDS=~amd64
+LICENSE=GPL-3
+RDEPEND=!build? ( app-arch/cpio dev-lang/perl sys-devel/bc sys-devel/bison sys-devel/flex sys-devel/make >=sys-libs/ncurses-5.2 virtual/libelf virtual/pkgconfig )
+REQUIRED_USE=bore-eevdf? ( !bore !eevdf !pds !bmq !cfs !tt ) bore? ( !pds !bmq !cfs !tt !bore-eevdf !eevdf ) eevdf? ( !bore !pds !bmq !cfs !tt !bore-eevdf ) pds? ( !bore !bmq !cfs !tt !bore-eevdf !eevdf ) tt? ( !bore !pds !bmq !cfs !bore-eevdf !eevdf ) bmq? ( !tt !bore !pds !cfs !bore-eevdf !eevdf )
+RESTRICT=binchecks strip
+SLOT=6.4.4
+SRC_URI=https://www.kernel.org/pub/linux/kernel/v6.x/linux-6.4.tar.xz https://dev.gentoo.org/~alicef/dist/genpatches/genpatches-6.4-6.base.tar.xz https://dev.gentoo.org/~mpagano/dist/genpatches/genpatches-6.4-6.base.tar.xz https://dev.gentoo.org/~alicef/dist/genpatches/genpatches-6.4-6.extras.tar.xz https://dev.gentoo.org/~mpagano/dist/genpatches/genpatches-6.4-6.extras.tar.xz
+_eclasses_=estack	c61c368a76fdf3a82fdf8dbaebea3804	multiprocessing	b4e253ab22cef7b1085e9b67c7a3b730	toolchain-funcs	513c31b3346458ed1f3878b57da6d61c	multilib	c19072c3cd7ac5cb21de013f7e9832e0	kernel-2	f3fe06845554116f3a63786f864ff07f	optfeature	222cb475c5a4f7ae7cfb0bf510a6fe54
+_md5_=e087bb1341d2904309e2484c0c51a5b4

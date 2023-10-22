@@ -5,23 +5,21 @@ EAPI=8
 
 inherit linux-info meson systemd
 
-MY_COMMIT="0dac870c328b7d050dc20e8ee1496b1945fc9cdb"
-
 DESCRIPTION="Userspace KSM helper daemon"
 HOMEPAGE="https://github.com/CachyOS/uksmd"
-SRC_URI="https://github.com/CachyOS/uksmd/archive/${MY_COMMIT}.tar.gz -> ${P}.tar.gz"
+SRC_URI="https://github.com/CachyOS/uksmd/archive/v${PV}.tar.gz"
 
 LICENSE="GPL-3"
 SLOT="0"
 KEYWORDS="~amd64 ~x86"
 
 DEPEND="sys-libs/libcap-ng
-	sys-process/procps:="
+	>=sys-process/procps-4:="
 RDEPEND="${DEPEND}"
 
 CONFIG_CHECK="~KSM"
 
-S="${WORKDIR}/uksmd-${MY_COMMIT}"
+S="${WORKDIR}/uksmd-${PV}"
 
 
 src_install() {

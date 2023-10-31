@@ -18,7 +18,7 @@ SRC_URI="${KERNEL_URI} ${GENPATCHES_URI}"
 LICENSE="GPL-3"
 KEYWORDS="~amd64"
 IUSE="+bore-eevdf bore eevdf sched-ext"
-REQUIRED_USE="bore-eevdf? ( !bore !eevdf sched-ext ) bore? ( !bore-eevdf !eevdf !sched-ext ) eevdf? ( !bore !bore-eevdf !sched-ext )"
+REQUIRED_USE="bore-eevdf? ( !bore !eevdf ) bore? ( !bore-eevdf !eevdf !sched-ext ) eevdf? ( !bore !bore-eevdf !sched-ext )"
 
 src_prepare() {
 	eapply "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/all/0001-cachyos-base-all.patch"

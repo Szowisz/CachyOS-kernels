@@ -30,7 +30,19 @@ src_prepare(){
 if usex systemd; then rm -f "${S}/security/limits.d/99-esync.conf"
 fi
 
-if usex zram; then rm -rf "${S}/systemd/zram-generator.conf"
+if usex zram; then rm -f "${S}/systemd/zram-generator.conf"
+fi
+
+if usex systemd; then rm -rf "${S}/systemd/journald.conf.d"
+fi
+
+if usex systemd; then rm -rf "${S}/systemd/system.conf.d"
+fi
+
+if usex systemd; then rm -rf "${S}/systemd/system"
+fi
+
+if usex systemd; then rm -rf "${S}/systemd/user.conf.d"
 fi
 eapply_user
 
@@ -41,8 +53,7 @@ src_install() {
 	doins -r "${S}/modprobe.d"
 	doins -r "${S}/security"
 	doins -r "${S}/sysctl.d"
-	if use systemd; then doins -r "${S}/systemd"
-	fi
+	doins -r "${S}/systemd"
 	insinto /usr/lib
 	doins -r "${S}/tmpfiles.d"
 	udev_dorules "${S}/udev/rules.d/30-zram.rules"

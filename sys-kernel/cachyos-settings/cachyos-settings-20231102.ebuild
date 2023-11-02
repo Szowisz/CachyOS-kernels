@@ -27,22 +27,15 @@ DEPEND="virtual/udev
 RDEPEND="${DEPEND}"
 
 src_prepare(){
-if ! use systemd; then rm -f "${S}/security/limits.d/99-esync.conf"
-fi
-
 if ! use zram; then rm -f "${S}/systemd/zram-generator.conf"
 fi
 
-if ! use systemd; then rm -rf "${S}/systemd/journald.conf.d"
-fi
-
-if ! use systemd; then rm -rf "${S}/systemd/system.conf.d"
-fi
-
-if ! use systemd; then rm -rf "${S}/systemd/system"
-fi
-
-if ! use systemd; then rm -rf "${S}/systemd/user.conf.d"
+if ! use systemd; then
+	rm -f "${S}/security/limits.d/99-esync.conf"
+	rm -rf "${S}/systemd/journald.conf.d"
+	rm -rf "${S}/systemd/system.conf.d"
+	rm -rf "${S}/systemd/system"
+	rm -rf "${S}/systemd/user.conf.d"
 fi
 eapply_user
 

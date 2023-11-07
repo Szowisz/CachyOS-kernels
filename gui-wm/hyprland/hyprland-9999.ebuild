@@ -8,15 +8,10 @@ inherit meson toolchain-funcs
 DESCRIPTION="A dynamic tiling Wayland compositor that doesn't sacrifice on its looks"
 HOMEPAGE="https://github.com/hyprwm/Hyprland"
 
-if [[ "${PV}" = *9999 ]]; then
-	inherit git-r3
-	EGIT_REPO_URI="https://github.com/hyprwm/${PN^}.git"
-else
-	SRC_URI="https://github.com/hyprwm/${PN^}/releases/download/v${PV}/source-v${PV}.tar.gz -> ${P}.gh.tar.gz"
-	S="${WORKDIR}/${PN}-source"
-	KEYWORDS="~amd64"
-fi
+inherit git-r3
+EGIT_REPO_URI="https://github.com/hyprwm/hyprland.git"
 
+KEYWORDS=""
 LICENSE="BSD"
 SLOT="0"
 IUSE="X legacy-renderer systemd video_cards_nvidia"
@@ -83,10 +78,6 @@ BDEPEND="
 	virtual/pkgconfig
 "
 
-PATCHES=(
-	"${FILESDIR}/hyprland-0.30.0-no-wlroots-automagic-r1.patch"
-)
-
 pkg_setup() {
 	[[ ${MERGE_TYPE} == binary ]] && return
 
@@ -114,8 +105,11 @@ src_prepare() {
 src_configure() {
 	local emesonargs=(
 		$(meson_feature legacy-renderer legacy_renderer)
-		$(meson_feature X xwayland)
 		$(meson_feature systemd)
+		$(meson_feature X xwayland)
+		$(meson_feature X wlroots:xwayland)
+		-Dwlroots:backends=drm,libinput$(usev X ',x11')
+		-Dwlroots:xcb-errors=disabled
 	)
 
 	meson_src_configure
@@ -123,4 +117,14 @@ src_configure() {
 
 src_install() {
 	meson_src_install --skip-subprojects wlroots
+	meson_src_install --tags devel
+
+	# Wlroots headers are required by hyprland-plugins and the pkgconfig file expects
+	# them to be in /usr/include/hyprland/wlroots, despite this they aren't installed there.
+	# Ideally you could override includedir per subproject and the install tags would
+	# be granular enough to only install headers. But its not requiring this.
+	mkdir "${ED}"/usr/include/hyprland/wlroots || die
+	mv "${ED}"/usr/include/wlr "${ED}"/usr/include/hyprland/wlroots || die
+	# devel tag includes wlroots .pc and .a files still
+	rm -rf "${ED}"/usr/$(get_libdir)/ || die
 }

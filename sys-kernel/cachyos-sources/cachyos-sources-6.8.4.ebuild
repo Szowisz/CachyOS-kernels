@@ -184,7 +184,7 @@ scripts/config --set-str DEFAULT_HOSTNAME "gentoo"
 # Miscellaneous
 scripts/config -d DRM_SIMPLEDRM
 scripts/config -e GENTOO_LINUX_INIT_SYSTEMD
-scripts/config --set-str CONFIG_LSM “lockdown,yama,integrity,selinux,apparmor,bpf,landlock”
+scripts/config --set-str CONFIG_LSM "lockdown,yama,integrity,selinux,apparmor,bpf,landlock"
 
 }
 

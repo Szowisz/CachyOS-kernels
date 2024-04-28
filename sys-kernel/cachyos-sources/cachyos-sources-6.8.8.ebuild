@@ -11,10 +11,12 @@ K_GENPATCHES_VER="8"
 inherit kernel-2 optfeature
 detect_version
 
+MY_PV="${KV_MAJOR}.${KV_MINOR}.${KV_PATCH}"
+
 DESCRIPTION="CachyOS provides enhanced kernels that offer improved performance and other benefits."
 HOMEPAGE="https://github.com/CachyOS/linux-cachyos"
 SRC_URI="
-	${KERNEL_BASE_URI}/linux-${KV_MAJOR}.${KV_MINOR}.tar.xz
+	${KERNEL_BASE_URI}/linux-${MY_PV}.tar.xz -> linux-${KV_MAJOR}.${KV_MINOR}.tar.xz
 	${GENPATCHES_URI}
 "
 LICENSE="GPL-3"
@@ -253,8 +255,11 @@ src_prepare() {
 	### Enable USER_NS_UNPRIVILEGED
 	scripts/config -e USER_NS || die
 
-	# Change hostname
+	### Change hostname
 	scripts/config --set-str DEFAULT_HOSTNAME "gentoo" || die
+
+	### Set LOCALVERSION
+	scripts/config --set-str LOCALVERSION "${MY_PV}" || die
 }
 
 pkg_postinst() {
@@ -268,4 +273,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# ./script/get_files.py --version 6.8 --previous-commit 91e2155497ae454d8b70372342b304c71596f709
+# ./script/get_files.py --version 6.8 --previous-commit 37578fd0d9f7cf54380d4e2f6797a9f0f5f152d4

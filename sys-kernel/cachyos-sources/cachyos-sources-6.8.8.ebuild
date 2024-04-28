@@ -54,49 +54,50 @@ _set_hztick_rate() {
 }
 
 src_prepare() {
-	eapply "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/all/0001-cachyos-base-all.patch"
+	files_dir="${FILESDIR}/${MY_PV}"
+	eapply "${files_dir}/all/0001-cachyos-base-all.patch"
 
 	if use bore-sched-ext; then
-		eapply "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/sched/0001-sched-ext.patch"
-		eapply "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/sched/0001-bore-cachy-ext.patch"
-		cp "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/config-bore-sched-ext" .config || die
+		eapply "${files_dir}/sched/0001-sched-ext.patch"
+		eapply "${files_dir}/sched/0001-bore-cachy-ext.patch"
+		cp "${files_dir}/config-bore-sched-ext" .config || die
 	fi
 
 	if use bore; then
-		eapply "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/sched/0001-bore-cachy.patch"
-		cp "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/config-bore" .config || die
+		eapply "${files_dir}/sched/0001-bore-cachy.patch"
+		cp "${files_dir}/config-bore" .config || die
 	fi
 
 	if use "echo"; then
-		eapply "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/sched/0001-echo-cachy.patch"
-		cp "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/config-echo" .config || die
+		eapply "${files_dir}/sched/0001-echo-cachy.patch"
+		cp "${files_dir}/config-echo" .config || die
 	fi
 
 	if use rt; then
-		eapply "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/misc/0001-rt.patch"
-		cp "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/config-rt" .config || die
+		eapply "${files_dir}/misc/0001-rt.patch"
+		cp "${files_dir}/config-rt" .config || die
 	fi
 
 	if use rt-bore; then
-		eapply "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/misc/0001-rt.patch"
-		eapply "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/sched/0001-bore-cachy-rt.patch"
-		cp "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/config-rt-bore" .config || die
+		eapply "${files_dir}/misc/0001-rt.patch"
+		eapply "${files_dir}/sched/0001-bore-cachy-rt.patch"
+		cp "${files_dir}/config-rt-bore" .config || die
 	fi
 
 	if use sched-ext; then
-		eapply "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/sched/0001-sched-ext.patch"
-		cp "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/config-sched-ext" .config || die
+		eapply "${files_dir}/sched/0001-sched-ext.patch"
+		cp "${files_dir}/config-sched-ext" .config || die
 	fi
 
 	if use hardened; then
-		eapply "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/misc/0001-hardened.patch"
-		cp "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/config-hardened" .config || die
+		eapply "${files_dir}/misc/0001-hardened.patch"
+		cp "${files_dir}/config-hardened" .config || die
 	fi
 
 	eapply_user
 
 	if use auto-cpu-optimization; then
-		sh "${FILESDIR}/${KV_MAJOR}.${KV_MINOR}/auto-cpu-optimization.sh" || die
+		sh "${files_dir}/auto-cpu-optimization.sh" || die
 	fi
 
 	# Remove CachyOS's localversion
@@ -273,4 +274,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# ./script/get_files.py --version 6.8 --previous-commit 37578fd0d9f7cf54380d4e2f6797a9f0f5f152d4
+# ./script/get_files.py --version 6.8.8 --previous-commit 37578fd0d9f7cf54380d4e2f6797a9f0f5f152d4

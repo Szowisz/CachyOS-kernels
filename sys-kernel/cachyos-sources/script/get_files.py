@@ -18,8 +18,17 @@ def get_patch(version: str, files_path: str, tmp_path: str):
     )
     # copy the patches to the files_path
     target_path = f"{files_path}/{version}"
-    source_path = f"{tmp_path}/{repo_name}/{version}"
+    patch_version = version.rsplit(".", 1)[0]
+    source_path = f"{tmp_path}/{repo_name}/{patch_version}"
     subprocess.call(["cp", "-r", source_path, target_path])
+    with open(f"{target_path}/commit", "w") as f:
+        f.write(
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=f"{tmp_path}/{repo_name}"
+            )
+            .decode("utf-8")
+            .strip()
+        )
 
 
 def get_config(version: str, files_path: str, tmp_path: str):
@@ -61,7 +70,10 @@ def get_config(version: str, files_path: str, tmp_path: str):
 
 
 def diff_files(repo_path: str, previous_commit: str):
-    subprocess.call(["git", "diff", previous_commit, "HEAD", "--", "linux-cachyos/PKGBUILD"], cwd=repo_path)
+    subprocess.call(
+        ["git", "diff", previous_commit, "HEAD", "--", "linux-cachyos/PKGBUILD"],
+        cwd=repo_path,
+    )
 
 
 def main(files_path: str, version: str, previous_commit: str):

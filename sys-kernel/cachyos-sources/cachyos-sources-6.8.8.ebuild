@@ -268,6 +268,9 @@ pkg_postinst() {
 
 	optfeature "userspace KSM helper" sys-process/uksmd
 	optfeature "auto nice daemon" app-admin/ananicy-cpp
+	ewarn "Note: Install sys-kernel/scx to Enable sched_ext schedulers"
+	ewarn "You can find it in xarblu-overlay"
+	ewarn "Then enable/start scx service."
 }
 
 pkg_postrm() {

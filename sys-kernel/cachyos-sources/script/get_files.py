@@ -9,7 +9,7 @@ def clean_files(files_path: str, version: str):
     subprocess.call(["rm", "-rf", f"{files_path}/{version}"])
 
 
-def get_patch(version: str, files_path: str, tmp_path: str):
+def get_patch(version: str, files_path: str, tmp_path: str) -> str:
     # create a tmp directory
     repo_name = "kernel-patches"
     repo_url = "https://github.com/CachyOS/kernel-patches.git"
@@ -21,14 +21,16 @@ def get_patch(version: str, files_path: str, tmp_path: str):
     patch_version = version.rsplit(".", 1)[0]
     source_path = f"{tmp_path}/{repo_name}/{patch_version}"
     subprocess.call(["cp", "-r", source_path, target_path])
-    with open(f"{target_path}/commit", "w") as f:
-        f.write(
-            subprocess.check_output(
-                ["git", "rev-parse", "HEAD"], cwd=f"{tmp_path}/{repo_name}"
-            )
-            .decode("utf-8")
-            .strip()
+    commit_hash = (
+        subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=f"{tmp_path}/{repo_name}"
         )
+        .decode("utf-8")
+        .strip()
+    )
+    with open(f"{target_path}/commit", "w") as f:
+        f.write(commit_hash)
+    return commit_hash
 
 
 def get_config(version: str, files_path: str, tmp_path: str):

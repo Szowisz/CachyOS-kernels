@@ -55,7 +55,9 @@ _set_hztick_rate() {
 
 _eapply() {
 	local _patch=$1
-	patch -N "${files_dir}/${_patch}" || die
+	# no die, due https://github.com/CachyOS/kernel-patches/commit/19dd3a1f0aaa0deb61964e9d88a361804e3c6a24 have bugs
+	einfo "Applying ${_patch} (-p1) ..."
+	patch -p1 -N -i "${_patch}" -d "$S"
 }
 
 src_prepare() {

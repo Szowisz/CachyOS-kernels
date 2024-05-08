@@ -4,7 +4,7 @@
 EAPI="8"
 ETYPE="sources"
 EXTRAVERSION="-cachyos"
-K_EXP_GENPATCHES_NOUSE="2"
+K_EXP_GENPATCHES_NOUSE="3"
 K_WANT_GENPATCHES="base extras"
 K_GENPATCHES_VER="9"
 
@@ -284,4 +284,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# ./script/get_files.py --version 6.8.9 --previous-commit 02ded21a3e411017c1f7b0d77353382f0ccb90e0
+# ./script/get_files.py --version 6.8.9 --previous-commit 022279c8ed8c99c22865fd14d24742a172f2c389

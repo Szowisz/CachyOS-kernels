@@ -4,7 +4,7 @@
 EAPI="8"
 ETYPE="sources"
 EXTRAVERSION="-cachyos"
-K_EXP_GENPATCHES_NOUSE="3"
+K_EXP_GENPATCHES_NOUSE="4"
 K_WANT_GENPATCHES="base extras"
 K_GENPATCHES_VER="9"
 
@@ -13,7 +13,7 @@ detect_version
 
 MY_PV="${KV_MAJOR}.${KV_MINOR}.${KV_PATCH}"
 
-DESCRIPTION="CachyOS provides enhanced kernels that offer improved performance and other benefits."
+DESCRIPTION="Linux SCHED-EXT + Cachy Sauce + BORE Kernel by CachyOS with other patches and improvements"
 HOMEPAGE="https://github.com/CachyOS/linux-cachyos"
 SRC_URI="
 	${KERNEL_BASE_URI}/linux-${MY_PV}.tar.xz -> linux-${KV_MAJOR}.${KV_MINOR}.tar.xz
@@ -284,4 +284,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# ./script/get_files.py --version 6.8.9 --previous-commit 022279c8ed8c99c22865fd14d24742a172f2c389
+# ./script/get_files.py --version 6.8.9 --previous-commit 365d5af1c93d63e7e53847312b0fc96576a320c5

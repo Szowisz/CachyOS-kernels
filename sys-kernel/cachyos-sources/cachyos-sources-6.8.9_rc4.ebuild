@@ -4,19 +4,23 @@
 EAPI="8"
 ETYPE="sources"
 EXTRAVERSION="-cachyos"
-K_EXP_GENPATCHES_NOUSE="4"
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="9"
+K_GENPATCHES_VER="10"
+
+# make sure kernel-2 know right version without guess
+K_BASE_VER="$PV"
 
 inherit kernel-2 optfeature
 detect_version
 
-MY_PV="${KV_MAJOR}.${KV_MINOR}.${KV_PATCH}"
+
+# disable all patch from kernel-2
+UNIPATCH_LIST_DEFAULT=""
 
 DESCRIPTION="Linux SCHED-EXT + Cachy Sauce + BORE Kernel by CachyOS with other patches and improvements"
 HOMEPAGE="https://github.com/CachyOS/linux-cachyos"
 SRC_URI="
-	${KERNEL_BASE_URI}/linux-${MY_PV}.tar.xz -> linux-${KV_MAJOR}.${KV_MINOR}.tar.xz
+	${KERNEL_BASE_URI}/linux-${KV_MAJOR}.${KV_MINOR}.${KV_PATCH}.tar.xz -> linux-${KV_MAJOR}.${KV_MINOR}.tar.xz
 	${GENPATCHES_URI}
 "
 LICENSE="GPL-3"
@@ -61,7 +65,7 @@ _eapply() {
 }
 
 src_prepare() {
-	files_dir="${FILESDIR}/${MY_PV}"
+	files_dir="${FILESDIR}/${PV}"
 	_eapply "${files_dir}/all/0001-cachyos-base-all.patch"
 
 	if use bore-sched-ext; then
@@ -267,7 +271,7 @@ src_prepare() {
 	scripts/config --set-str DEFAULT_HOSTNAME "gentoo" || die
 
 	### Set LOCALVERSION
-	scripts/config --set-str LOCALVERSION "${MY_PV}" || die
+	scripts/config --set-str LOCALVERSION "${PV}" || die
 }
 
 pkg_postinst() {
@@ -284,4 +288,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# ./script/get_files.py --version 6.8.9 --previous-commit 365d5af1c93d63e7e53847312b0fc96576a320c5
+# ./script/get_files.py --version 6.8.9_rc4 --previous-commit 365d5af1c93d63e7e53847312b0fc96576a320c5

@@ -45,7 +45,6 @@ def get_config(version: str, files_path: str, tmp_path: str):
         "bore": "bore",
         "hardened": "hardened",
         "eevdf": "eevdf",
-        "rt": "rt",
         "rt-bore": "rt-bore",
         "sched-ext": "sched-ext",
         "echo": "echo",

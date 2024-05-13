@@ -41,6 +41,7 @@ def get_config(version: str, files_path: str, tmp_path: str):
     # copy the config to the files_path
     config_map = {
         "": "bore-sched-ext",
+        "deckify": "deckify",
         "bore": "bore",
         "hardened": "hardened",
         "eevdf": "eevdf",

@@ -27,7 +27,7 @@ LICENSE="GPL-3"
 KEYWORDS="~amd64"
 IUSE="
 	+bore-sched-ext bore echo rt rt-bore eevdf sched-ext
-	hardened +auto-cpu-optimization kcfi
+	deckify hardened +auto-cpu-optimization kcfi
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_625 hz_ticks_750 +hz_ticks_1000
 	+per-gov tickrate_perodic tickrate_idle +tickrate_full preempt_full preempt_voluntary preempt_server
 	+o3 os +bbr3
@@ -103,6 +103,10 @@ src_prepare() {
 	if use hardened; then
 		_eapply "${files_dir}/misc/0001-hardened.patch"
 		cp "${files_dir}/config-hardened" .config || die
+	fi
+
+	if use deckify; then
+		cp "${files_dir}/config-deckify" .config || die
 	fi
 
 	eapply_user
@@ -288,4 +292,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# ./script/get_files.py --version 6.8.9_rc4 --previous-commit 365d5af1c93d63e7e53847312b0fc96576a320c5
+# ./script/get_files.py --version 6.8.9_rc4 --previous-commit 7228bea4c47292cdb7be22d462244dfea6c9cfca

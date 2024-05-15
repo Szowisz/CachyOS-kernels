@@ -5,8 +5,7 @@ EAPI="8"
 ETYPE="sources"
 EXTRAVERSION="-cachyos"
 K_WANT_GENPATCHES="base extras"
-# due genpatch is not ready for 6.9
-#K_GENPATCHES_VER="0"
+K_GENPATCHES_VER="1"
 
 # make sure kernel-2 know right version without guess
 K_BASE_VER="$PV"

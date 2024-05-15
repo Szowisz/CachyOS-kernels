@@ -43,6 +43,13 @@ REQUIRED_USE="
 	^^ ( hugepage_always hugepage_madvise )
 "
 
+_eapply() {
+	local _patch=$1
+	# no die, for genpatch-experimental
+	einfo "Applying ${_patch} (-p1) ..."
+	patch -p1 -N -i "${_patch}" -d "$S"
+}
+
 _set_hztick_rate() {
 	local _HZ_ticks=$1
 	if [[ $_HZ_ticks == 300 ]]; then
@@ -54,37 +61,37 @@ _set_hztick_rate() {
 
 src_prepare() {
 	files_dir="${FILESDIR}/${PV}"
-	eapply "${files_dir}/all/0001-cachyos-base-all.patch"
+	_eapply "${files_dir}/all/0001-cachyos-base-all.patch"
 
 	if use bore-sched-ext; then
-		eapply "${files_dir}/sched/0001-sched-ext.patch"
-		eapply "${files_dir}/sched/0001-bore-cachy-ext.patch"
+		_eapply "${files_dir}/sched/0001-sched-ext.patch"
+		_eapply "${files_dir}/sched/0001-bore-cachy-ext.patch"
 		cp "${files_dir}/config-bore-sched-ext" .config || die
 	fi
 
 	if use bore; then
-		eapply "${files_dir}/sched/0001-bore-cachy.patch"
+		_eapply "${files_dir}/sched/0001-bore-cachy.patch"
 		cp "${files_dir}/config-bore" .config || die
 	fi
 
 	if use "echo"; then
-		eapply "${files_dir}/sched/0001-echo-cachy.patch"
+		_eapply "${files_dir}/sched/0001-echo-cachy.patch"
 		cp "${files_dir}/config-echo" .config || die
 	fi
 
 	if use rt-bore; then
-		eapply "${files_dir}/misc/0001-rt.patch"
-		eapply "${files_dir}/sched/0001-bore-cachy-rt.patch"
+		_eapply "${files_dir}/misc/0001-rt.patch"
+		_eapply "${files_dir}/sched/0001-bore-cachy-rt.patch"
 		cp "${files_dir}/config-rt-bore" .config || die
 	fi
 
 	if use sched-ext; then
-		eapply "${files_dir}/sched/0001-sched-ext.patch"
+		_eapply "${files_dir}/sched/0001-sched-ext.patch"
 		cp "${files_dir}/config-sched-ext" .config || die
 	fi
 
 	if use hardened; then
-		eapply "${files_dir}/misc/0001-hardened.patch"
+		_eapply "${files_dir}/misc/0001-hardened.patch"
 		cp "${files_dir}/config-hardened" .config || die
 	fi
 

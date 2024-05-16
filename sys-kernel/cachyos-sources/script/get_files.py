@@ -18,7 +18,7 @@ def get_patch(version: str, files_path: str, tmp_path: str) -> str:
     )
     # copy the patches to the files_path
     target_path = f"{files_path}/{version}"
-    patch_version = version.rsplit(".", 1)[0]
+    patch_version = ".".join(version.split(".")[:2])
     source_path = f"{tmp_path}/{repo_name}/{patch_version}"
     subprocess.call(["cp", "-r", source_path, target_path])
     commit_hash = (

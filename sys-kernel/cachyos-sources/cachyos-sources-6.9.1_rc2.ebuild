@@ -243,6 +243,9 @@ pkg_postinst() {
 
 	optfeature "userspace KSM helper" sys-process/uksmd
 	optfeature "auto nice daemon" app-admin/ananicy-cpp
+	optfeature "NVIDIA opensource module" "x11-drivers/nvidia-drivers[kernel-open]"
+	optfeature "NVIDIA module" x11-drivers/nvidia-drivers
+	optfeature "ZFS support" sys-fs/zfs-kmod
 	ewarn "Install sys-kernel/scx to Enable sched_ext schedulers"
 	ewarn "You can find it in xarblu-overlay"
 	ewarn "Then enable/start scx service."

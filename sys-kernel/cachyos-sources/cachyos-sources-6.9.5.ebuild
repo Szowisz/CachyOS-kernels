@@ -33,6 +33,9 @@ IUSE="
 	+o3 os +bbr3
 	+hugepage_always hugepage_madvise
 	damon
+	mnative_amd mnative_intel
+	mk8 mk8sse3 mk10 mbarcelona mbobcat mjaguar mbulldozer mpiledriver msteamroller mexcavator mzen mzen2 mzen3 mzen4
+	mmpsc matom mcore2 mnehalem mwestmere msilvermont msandybridge mivybridge mhaswell mbroadwell mskylake mskylakex mcannonlake micelake mgoldmont mgoldmontplus mcascadelake mcooperlake mtigerlake msapphirerapids mrocketlake malderlake
 "
 REQUIRED_USE="
 	^^ ( bore-sched-ext bore echo rt-bore eevdf sched-ext )
@@ -41,6 +44,7 @@ REQUIRED_USE="
 	rt-bore? ( ^^ ( preempt_full preempt_voluntary preempt_server ) )
 	?? ( o3 os )
 	^^ ( hugepage_always hugepage_madvise )
+	?? ( mnative_amd mnative_intel mk8 mk8sse3 mk10 mbarcelona mbobcat mjaguar mbulldozer mpiledriver msteamroller mexcavator mzen mzen2 mzen3 mzen4 mmpsc matom mcore2 mnehalem mwestmere msilvermont msandybridge mivybridge mhaswell mbroadwell mskylake mskylakex mcannonlake micelake mgoldmont mgoldmontplus mcascadelake mcooperlake mtigerlake msapphirerapids mrocketlake malderlake )
 "
 
 _eapply() {
@@ -229,6 +233,17 @@ src_prepare() {
 			-e DAMON_RECLAIM \
 			-e DAMON_LRU_SORT || die
 	fi
+
+	### Select CPU optimization
+	march_list=(mnative_amd mnative_intel mk7 mk8sse3 mk10 mbarcelona mbobcat mjaguar mbulldozer mpiledriver msteamroller mexcavator mzen mzen2 mzen3 mzen4 mmpsc matom mcore2 mnehalem mwestmere msilvermont msandybridge mivybridge mhaswell mbroadwell mskylake mskylakex mcannonlake micelake mgoldmont mgoldmontplus mcascadelake mcooperlake mtigerlake msapphirerapids mrocketlake malderlake)
+	for MARCH in "${march_list[@]}"; do
+		if use "${MARCH}"; then
+			MARCH_UPPER=$(echo "$MARCH" | tr '[:lower:]' '[:upper:]')
+			scripts/config -k -e CONFIG_"${MARCH_UPPER}"
+			scripts/config -k -d CONFIG_GENERIC_CPU
+			break
+		fi
+	done
 
 	### Enable USER_NS_UNPRIVILEGED
 	scripts/config -e USER_NS || die

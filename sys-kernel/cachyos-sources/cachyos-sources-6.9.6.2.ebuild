@@ -113,8 +113,8 @@ src_prepare() {
 	fi
 
 	# Remove CachyOS's localversion
-	find . -name "localversion*" -delete || die
-	scripts/config -u LOCALVERSION || die
+	#find . -name "localversion*" -delete || die
+	#scripts/config -u LOCALVERSION || die
 
 	# Enable CachyOS tweaks
 	scripts/config -e CACHY || die
@@ -253,7 +253,7 @@ src_prepare() {
 	scripts/config --set-str DEFAULT_HOSTNAME "gentoo" || die
 
 	### Set LOCALVERSION
-	scripts/config --set-str LOCALVERSION "${PV}" || die
+	#scripts/config --set-str LOCALVERSION "${PV}" || die
 }
 
 pkg_postinst() {

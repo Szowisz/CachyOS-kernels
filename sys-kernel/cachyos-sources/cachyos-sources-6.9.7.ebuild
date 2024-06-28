@@ -29,6 +29,7 @@ IUSE="
 	experimental
 	+bore-sched-ext bore echo rt-bore eevdf sched-ext
 	deckify hardened +auto-cpu-optimization kcfi
+	llvm-lto-thin llvm-lto-full
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_625 hz_ticks_750 +hz_ticks_1000
 	+per-gov tickrate_perodic tickrate_idle +tickrate_full preempt_full preempt_voluntary preempt_server
 	+o3 os +bbr3
@@ -40,6 +41,7 @@ IUSE="
 "
 REQUIRED_USE="
 	^^ ( bore-sched-ext bore echo rt-bore eevdf sched-ext )
+	?? ( llvm-lto-thin llvm-lto-full )
 	^^ ( hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_625 hz_ticks_750 hz_ticks_1000 )
 	^^ ( tickrate_perodic tickrate_idle tickrate_full )
 	rt-bore? ( ^^ ( preempt_full preempt_voluntary preempt_server ) )
@@ -116,10 +118,10 @@ src_prepare() {
 	#find . -name "localversion*" -delete || die
 	#scripts/config -u LOCALVERSION || die
 
-	# Enable CachyOS tweaks
+	### Selecting CachyOS config
 	scripts/config -e CACHY || die
 
-	# _cpusched
+	### Selecting the CPU scheduler
 	if use bore-sched-ext; then
 		scripts/config -e SCHED_CLASS_EXT -e SCHED_BORE || die
 	fi
@@ -140,12 +142,21 @@ src_prepare() {
 		scripts/config -e SCHED_CLASS_EXT || die
 	fi
 
-	# Enable KCFI
+	### Enable KCFI
 	if use kcfi; then
 		scripts/config -e ARCH_SUPPORTS_CFI_CLANG -e CFI_CLANG || die
 	fi
 
-	# Setting tick rate
+	### Select LLVM level
+	if use llvm-lto-thin; then
+		scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -d LTO_NONE -e HAS_LTO_CLANG -d LTO_CLANG_FULL -e LTO_CLANG_THIN -e HAVE_GCC_PLUGINS || die
+	elif use llvm-lto-full; then
+		scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -d LTO_NONE -e HAS_LTO_CLANG -e LTO_CLANG_FULL -d LTO_CLANG_THIN -e HAVE_GCC_PLUGINS || die
+	else
+		scripts/config -e LTO_NONE || die
+	fi
+
+	### Select tick rate
 	if use hz_ticks_100; then
 		_set_hztick_rate 100
 	elif use hz_ticks_250; then

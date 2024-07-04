@@ -33,7 +33,7 @@ def get_patch(version: str, files_path: str, tmp_path: str) -> str:
     return commit_hash
 
 
-def get_config(version: str, files_path: str, tmp_path: str):
+def get_config(version: str, files_path: str, tmp_path: str, lts: bool):
     # create a tmp directory
     repo_name = "linux-cachyos"
     repo_url = "https://github.com/CachyOS/linux-cachyos.git"
@@ -49,6 +49,10 @@ def get_config(version: str, files_path: str, tmp_path: str):
         "sched-ext": "sched-ext",
         "echo": "echo",
     }
+    if lts:
+        config_map = {
+            "lts": "lts",
+        }
     for source, target in config_map.items():
         if source == "":
             source_dir_name = "linux-cachyos"
@@ -71,27 +75,32 @@ def get_config(version: str, files_path: str, tmp_path: str):
     )
 
 
-def diff_files(repo_path: str, previous_commit: str):
+def diff_files(repo_path: str, previous_commit: str, lts: bool):
+    if lts:
+        diff_file = "linux-cachyos-lts/PKGBUILD"
+    else:
+        diff_file = "linux-cachyos/PKGBUILD"
     subprocess.call(
-        ["git", "diff", previous_commit, "HEAD", "--", "linux-cachyos/PKGBUILD"],
+        ["git", "diff", previous_commit, "HEAD", "--", diff_file],
         cwd=repo_path,
     )
 
 
-def main(files_path: str, version: str, previous_commit: str):
+def main(files_path: str, version: str, previous_commit: str, lts: bool):
     # get the latest version
     clean_files(files_path, version)
     with TemporaryDirectory() as tmp_path:
         get_patch(version, files_path, tmp_path)
-        get_config(version, files_path, tmp_path)
+        get_config(version, files_path, tmp_path, lts)
         repo_path = f"{tmp_path}/linux-cachyos"
-        diff_files(repo_path, previous_commit)
+        diff_files(repo_path, previous_commit, lts)
 
 
 parser = ArgumentParser()
 parser.add_argument("--files-path", type=str, default="./files")
 parser.add_argument("--version", type=str, required=True)
 parser.add_argument("--previous-commit", type=str, required=True)
+parser.add_argument("--lts", action="store_true")
 args = parser.parse_args()
 
-main(args.files_path, args.version, args.previous_commit)
+main(args.files_path, args.version, args.previous_commit, args.lts)

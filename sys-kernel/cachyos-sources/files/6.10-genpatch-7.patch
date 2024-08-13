@@ -1,0 +1,14 @@
+diff -ur linux-6.10.4/tools/lib/bpf/elf.c linux-6.10.4-m/tools/lib/bpf/elf.c
+--- linux-6.10.4/tools/lib/bpf/elf.c	2024-08-13 01:41:01.126427975 +0100
++++ linux-6.10.4-m/tools/lib/bpf/elf.c	2024-08-13 01:52:39.096675123 +0100
+@@ -370,8 +370,10 @@
+ }
+ 
+ #pragma GCC diagnostic push
++#if !defined( __clang__ )
+ /* https://gcc.gnu.org/PR114952 */
+ #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
++#endif
+ /* Find offset of function name in ELF object specified by path. "name" matches
+  * symbol name or name@@LIB for library functions.
+  */

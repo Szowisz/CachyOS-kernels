@@ -1,0 +1,238 @@
+From 1de4c03fd12b0064af9db641bac0080f222cca7e Mon Sep 17 00:00:00 2001
+From: Peter Jung <admin@ptr1337.dev>
+Date: Wed, 14 Aug 2024 16:19:23 +0200
+Subject: [PATCH 06/12] fixes
+
+Signed-off-by: Peter Jung <admin@ptr1337.dev>
+---
+ arch/Kconfig                            |  4 ++--
+ drivers/gpu/drm/nouveau/nouveau_bo.c    |  2 +-
+ drivers/gpu/drm/nouveau/nouveau_chan.c  |  2 +-
+ drivers/gpu/drm/nouveau/nouveau_dmem.c  |  2 +-
+ drivers/gpu/drm/nouveau/nouveau_fence.c | 30 +------------------------
+ drivers/gpu/drm/nouveau/nouveau_fence.h |  2 +-
+ drivers/gpu/drm/nouveau/nouveau_gem.c   |  2 +-
+ fs/btrfs/extent_map.c                   | 22 +++++-------------
+ fs/btrfs/super.c                        | 10 +++++++++
+ 9 files changed, 24 insertions(+), 52 deletions(-)
+
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 975dd22a2dbd..de69b8f5b5be 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -1050,7 +1050,7 @@ config ARCH_MMAP_RND_BITS
+ 	int "Number of bits to use for ASLR of mmap base address" if EXPERT
+ 	range ARCH_MMAP_RND_BITS_MIN ARCH_MMAP_RND_BITS_MAX
+ 	default ARCH_MMAP_RND_BITS_DEFAULT if ARCH_MMAP_RND_BITS_DEFAULT
+-	default ARCH_MMAP_RND_BITS_MIN
++	default ARCH_MMAP_RND_BITS_MAX
+ 	depends on HAVE_ARCH_MMAP_RND_BITS
+ 	help
+ 	  This value can be used to select the number of bits to use to
+@@ -1084,7 +1084,7 @@ config ARCH_MMAP_RND_COMPAT_BITS
+ 	int "Number of bits to use for ASLR of mmap base address for compatible applications" if EXPERT
+ 	range ARCH_MMAP_RND_COMPAT_BITS_MIN ARCH_MMAP_RND_COMPAT_BITS_MAX
+ 	default ARCH_MMAP_RND_COMPAT_BITS_DEFAULT if ARCH_MMAP_RND_COMPAT_BITS_DEFAULT
+-	default ARCH_MMAP_RND_COMPAT_BITS_MIN
++	default ARCH_MMAP_RND_COMPAT_BITS_MAX
+ 	depends on HAVE_ARCH_MMAP_RND_COMPAT_BITS
+ 	help
+ 	  This value can be used to select the number of bits to use to
+diff --git a/drivers/gpu/drm/nouveau/nouveau_bo.c b/drivers/gpu/drm/nouveau/nouveau_bo.c
+index 70fb003a6666..0712d0b15170 100644
+--- a/drivers/gpu/drm/nouveau/nouveau_bo.c
++++ b/drivers/gpu/drm/nouveau/nouveau_bo.c
+@@ -898,7 +898,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict,
+ 	 * Without this the operation can timeout and we'll fallback to a
+ 	 * software copy, which might take several minutes to finish.
+ 	 */
+-	nouveau_fence_wait(fence, false, false);
++	nouveau_fence_wait(fence, false);
+ 	ret = ttm_bo_move_accel_cleanup(bo, &fence->base, evict, false,
+ 					new_reg);
+ 	nouveau_fence_unref(&fence);
+diff --git a/drivers/gpu/drm/nouveau/nouveau_chan.c b/drivers/gpu/drm/nouveau/nouveau_chan.c
+index 7c97b2886807..66fca95c10c7 100644
+--- a/drivers/gpu/drm/nouveau/nouveau_chan.c
++++ b/drivers/gpu/drm/nouveau/nouveau_chan.c
+@@ -72,7 +72,7 @@ nouveau_channel_idle(struct nouveau_channel *chan)
+ 
+ 		ret = nouveau_fence_new(&fence, chan);
+ 		if (!ret) {
+-			ret = nouveau_fence_wait(fence, false, false);
++			ret = nouveau_fence_wait(fence, false);
+ 			nouveau_fence_unref(&fence);
+ 		}
+ 
+diff --git a/drivers/gpu/drm/nouveau/nouveau_dmem.c b/drivers/gpu/drm/nouveau/nouveau_dmem.c
+index 6fb65b01d778..6719353e2e13 100644
+--- a/drivers/gpu/drm/nouveau/nouveau_dmem.c
++++ b/drivers/gpu/drm/nouveau/nouveau_dmem.c
+@@ -128,7 +128,7 @@ static void nouveau_dmem_page_free(struct page *page)
+ static void nouveau_dmem_fence_done(struct nouveau_fence **fence)
+ {
+ 	if (fence) {
+-		nouveau_fence_wait(*fence, true, false);
++		nouveau_fence_wait(*fence, false);
+ 		nouveau_fence_unref(fence);
+ 	} else {
+ 		/*
+diff --git a/drivers/gpu/drm/nouveau/nouveau_fence.c b/drivers/gpu/drm/nouveau/nouveau_fence.c
+index 93f08f9479d8..ba469767a20f 100644
+--- a/drivers/gpu/drm/nouveau/nouveau_fence.c
++++ b/drivers/gpu/drm/nouveau/nouveau_fence.c
+@@ -311,39 +311,11 @@ nouveau_fence_wait_legacy(struct dma_fence *f, bool intr, long wait)
+ 	return timeout - t;
+ }
+ 
+-static int
+-nouveau_fence_wait_busy(struct nouveau_fence *fence, bool intr)
+-{
+-	int ret = 0;
+-
+-	while (!nouveau_fence_done(fence)) {
+-		if (time_after_eq(jiffies, fence->timeout)) {
+-			ret = -EBUSY;
+-			break;
+-		}
+-
+-		__set_current_state(intr ?
+-				    TASK_INTERRUPTIBLE :
+-				    TASK_UNINTERRUPTIBLE);
+-
+-		if (intr && signal_pending(current)) {
+-			ret = -ERESTARTSYS;
+-			break;
+-		}
+-	}
+-
+-	__set_current_state(TASK_RUNNING);
+-	return ret;
+-}
+-
+ int
+-nouveau_fence_wait(struct nouveau_fence *fence, bool lazy, bool intr)
++nouveau_fence_wait(struct nouveau_fence *fence, bool intr)
+ {
+ 	long ret;
+ 
+-	if (!lazy)
+-		return nouveau_fence_wait_busy(fence, intr);
+-
+ 	ret = dma_fence_wait_timeout(&fence->base, intr, 15 * HZ);
+ 	if (ret < 0)
+ 		return ret;
+diff --git a/drivers/gpu/drm/nouveau/nouveau_fence.h b/drivers/gpu/drm/nouveau/nouveau_fence.h
+index 8bc065acfe35..1b63197b744a 100644
+--- a/drivers/gpu/drm/nouveau/nouveau_fence.h
++++ b/drivers/gpu/drm/nouveau/nouveau_fence.h
+@@ -23,7 +23,7 @@ void nouveau_fence_unref(struct nouveau_fence **);
+ 
+ int  nouveau_fence_emit(struct nouveau_fence *);
+ bool nouveau_fence_done(struct nouveau_fence *);
+-int  nouveau_fence_wait(struct nouveau_fence *, bool lazy, bool intr);
++int  nouveau_fence_wait(struct nouveau_fence *, bool intr);
+ int  nouveau_fence_sync(struct nouveau_bo *, struct nouveau_channel *, bool exclusive, bool intr);
+ 
+ struct nouveau_fence_chan {
+diff --git a/drivers/gpu/drm/nouveau/nouveau_gem.c b/drivers/gpu/drm/nouveau/nouveau_gem.c
+index 5a887d67dc0e..2e535caa7d6e 100644
+--- a/drivers/gpu/drm/nouveau/nouveau_gem.c
++++ b/drivers/gpu/drm/nouveau/nouveau_gem.c
+@@ -928,7 +928,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
+ 	}
+ 
+ 	if (sync) {
+-		if (!(ret = nouveau_fence_wait(fence, false, false))) {
++		if (!(ret = nouveau_fence_wait(fence, false))) {
+ 			if ((ret = dma_fence_get_status(&fence->base)) == 1)
+ 				ret = 0;
+ 		}
+diff --git a/fs/btrfs/extent_map.c b/fs/btrfs/extent_map.c
+index b4c9a6aa118c..6853f043c2c1 100644
+--- a/fs/btrfs/extent_map.c
++++ b/fs/btrfs/extent_map.c
+@@ -1065,8 +1065,7 @@ static long btrfs_scan_inode(struct btrfs_inode *inode, struct btrfs_em_shrink_c
+ 		return 0;
+ 
+ 	/*
+-	 * We want to be fast because we can be called from any path trying to
+-	 * allocate memory, so if the lock is busy we don't want to spend time
++	 * We want to be fast so if the lock is busy we don't want to spend time
+ 	 * waiting for it - either some task is about to do IO for the inode or
+ 	 * we may have another task shrinking extent maps, here in this code, so
+ 	 * skip this inode.
+@@ -1109,9 +1108,7 @@ static long btrfs_scan_inode(struct btrfs_inode *inode, struct btrfs_em_shrink_c
+ 		/*
+ 		 * Stop if we need to reschedule or there's contention on the
+ 		 * lock. This is to avoid slowing other tasks trying to take the
+-		 * lock and because the shrinker might be called during a memory
+-		 * allocation path and we want to avoid taking a very long time
+-		 * and slowing down all sorts of tasks.
++		 * lock.
+ 		 */
+ 		if (need_resched() || rwlock_needbreak(&tree->lock))
+ 			break;
+@@ -1139,12 +1136,7 @@ static long btrfs_scan_root(struct btrfs_root *root, struct btrfs_em_shrink_ctx
+ 		if (ctx->scanned >= ctx->nr_to_scan)
+ 			break;
+ 
+-		/*
+-		 * We may be called from memory allocation paths, so we don't
+-		 * want to take too much time and slowdown tasks.
+-		 */
+-		if (need_resched())
+-			break;
++		cond_resched();
+ 
+ 		inode = btrfs_find_first_inode(root, min_ino);
+ 	}
+@@ -1202,14 +1194,12 @@ long btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
+ 							   ctx.last_ino);
+ 	}
+ 
+-	/*
+-	 * We may be called from memory allocation paths, so we don't want to
+-	 * take too much time and slowdown tasks, so stop if we need reschedule.
+-	 */
+-	while (ctx.scanned < ctx.nr_to_scan && !need_resched()) {
++	while (ctx.scanned < ctx.nr_to_scan) {
+ 		struct btrfs_root *root;
+ 		unsigned long count;
+ 
++		cond_resched();
++
+ 		spin_lock(&fs_info->fs_roots_radix_lock);
+ 		count = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
+ 					       (void **)&root,
+diff --git a/fs/btrfs/super.c b/fs/btrfs/super.c
+index f05cce7c8b8d..11faf5e983ea 100644
+--- a/fs/btrfs/super.c
++++ b/fs/btrfs/super.c
+@@ -28,6 +28,7 @@
+ #include <linux/btrfs.h>
+ #include <linux/security.h>
+ #include <linux/fs_parser.h>
++#include <linux/swap.h>
+ #include "messages.h"
+ #include "delayed-inode.h"
+ #include "ctree.h"
+@@ -2394,6 +2395,15 @@ static long btrfs_free_cached_objects(struct super_block *sb, struct shrink_cont
+ 	const long nr_to_scan = min_t(unsigned long, LONG_MAX, sc->nr_to_scan);
+ 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+ 
++	/*
++	 * We may be called from any task trying to allocate memory and we don't
++	 * want to slow it down with scanning and dropping extent maps. It would
++	 * also cause heavy lock contention if many tasks concurrently enter
++	 * here. Therefore only allow kswapd tasks to scan and drop extent maps.
++	 */
++	if (!current_is_kswapd())
++		return 0;
++
+ 	return btrfs_free_extent_maps(fs_info, nr_to_scan);
+ }
+ 
+-- 
+2.46.0
+

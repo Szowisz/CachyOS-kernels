@@ -48,6 +48,7 @@ def get_config(version: str, files_path: str, tmp_path: str, lts: bool):
         "rt-bore": "rt-bore",
         "sched-ext": "sched-ext",
         "echo": "echo",
+        "bmq": "bmq",
     }
     if lts:
         config_map = {

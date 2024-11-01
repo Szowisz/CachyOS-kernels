@@ -7,6 +7,7 @@ EXTRAVERSION="-cachyos" # Not used in kernel-2, just due to most ebuilds have it
 K_USEPV="1"
 K_WANT_GENPATCHES="base extras experimental"
 K_GENPATCHES_VER="6"
+ZFS_COMMIT="baa50314567afd986a00838f0fa65fdacbd12daf"
 
 # make sure kernel-2 know right version without guess
 CKV="$(ver_cut 1-3)"
@@ -19,10 +20,6 @@ UNIPATCH_LIST_DEFAULT=""
 
 DESCRIPTION="Linux SCHED-EXT + BORE + Cachy Sauce Kernel by CachyOS with other patches and improvements"
 HOMEPAGE="https://github.com/CachyOS/linux-cachyos"
-SRC_URI="
-	${KERNEL_URI}
-	${GENPATCHES_URI}
-"
 LICENSE="GPL-3"
 KEYWORDS="~amd64"
 IUSE="
@@ -30,6 +27,7 @@ IUSE="
 	+bore-sched-ext bore bmq rt rt-bore eevdf sched-ext
 	deckify hardened +auto-cpu-optimization kcfi
 	+llvm-lto-thin llvm-lto-full
+	zfs
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_625 hz_ticks_750 +hz_ticks_1000
 	+per-gov tickrate_perodic tickrate_idle +tickrate_full preempt_full preempt_voluntary preempt_server
 	+o3 os debug +bbr3
@@ -50,6 +48,11 @@ REQUIRED_USE="
 	^^ ( hugepage_always hugepage_madvise )
 	?? ( auto-cpu-optimization mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative_amd mnative_intel mk8 mk8sse3 mk10 mbarcelona mbobcat mjaguar mbulldozer mpiledriver msteamroller mexcavator mzen mzen2 mzen3 mzen4 mmpsc matom mcore2 mnehalem mwestmere msilvermont msandybridge mivybridge mhaswell mbroadwell mskylake mskylakex mcannonlake micelake mgoldmont mgoldmontplus mcascadelake mcooperlake mtigerlake msapphirerapids mrocketlake malderlake )
 "
+SRC_URI="
+	${KERNEL_URI}
+	${GENPATCHES_URI}
+	zfs? ( https://github.com/cachyos/zfs/archive/$ZFS_COMMIT.tar.gz -> zfs.tar.gz )
+"
 
 _set_hztick_rate() {
 	local _HZ_ticks=$1
@@ -58,6 +61,13 @@ _set_hztick_rate() {
 	else
 		scripts/config -d HZ_300 -e "HZ_${_HZ_ticks}" --set-val HZ "${_HZ_ticks}" || die
 	fi
+}
+
+
+src_unpack() {
+	kernel-2_src_unpack
+	### Push ZFS to linux
+	use zfs && unpack zfs.tar.gz && mv zfs-$ZFS_COMMIT zfs || die
 }
 
 src_prepare() {
@@ -300,6 +310,7 @@ pkg_postinst() {
 	optfeature "NVIDIA opensource module" "x11-drivers/nvidia-drivers[kernel-open]"
 	optfeature "NVIDIA module" x11-drivers/nvidia-drivers
 	optfeature "ZFS support" sys-fs/zfs-kmod
+	use zfs && ewarn "Build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573"
 	ewarn "Install sys-kernel/scx to Enable sched_ext schedulers"
 	ewarn "You can find it in xarblu-overlay"
 	ewarn "Then enable/start scx service."

@@ -67,8 +67,8 @@ _set_hztick_rate() {
 src_unpack() {
 	kernel-2_src_unpack
 	### Push ZFS to linux
-	use zfs && unpack zfs-$ZFS_COMMIT.tar.gz && mv zfs-$ZFS_COMMIT zfs || die
-	use zfs && cp $FILESDIR/kernel-build-zsh.sh zfs/ || die
+	use zfs && (unpack zfs-$ZFS_COMMIT.tar.gz && mv zfs-$ZFS_COMMIT zfs || die)
+	use zfs && (cp $FILESDIR/kernel-build-zsh.sh zfs/ || die)
 }
 
 src_prepare() {

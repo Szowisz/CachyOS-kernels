@@ -1,0 +1,59 @@
+From 388846a7197e09827139dd2e32554cf564cee8d7 Mon Sep 17 00:00:00 2001
+From: Peter Jung <admin@ptr1337.dev>
+Date: Fri, 8 Nov 2024 16:53:48 +0100
+Subject: [PATCH 01/13] address-masking
+
+Signed-off-by: Peter Jung <admin@ptr1337.dev>
+---
+ include/linux/uaccess.h | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
+index 39c7cf82b0c2..43844510d5d0 100644
+--- a/include/linux/uaccess.h
++++ b/include/linux/uaccess.h
+@@ -38,6 +38,7 @@
+ #else
+  #define can_do_masked_user_access() 0
+  #define masked_user_access_begin(src) NULL
++ #define mask_user_address(src) (src)
+ #endif
+ 
+ /*
+@@ -159,19 +160,27 @@ _inline_copy_from_user(void *to, const void __user *from, unsigned long n)
+ {
+ 	unsigned long res = n;
+ 	might_fault();
+-	if (!should_fail_usercopy() && likely(access_ok(from, n))) {
++	if (should_fail_usercopy())
++		goto fail;
++	if (can_do_masked_user_access())
++		from = mask_user_address(from);
++	else {
++		if (!access_ok(from, n))
++			goto fail;
+ 		/*
+ 		 * Ensure that bad access_ok() speculation will not
+ 		 * lead to nasty side effects *after* the copy is
+ 		 * finished:
+ 		 */
+ 		barrier_nospec();
+-		instrument_copy_from_user_before(to, from, n);
+-		res = raw_copy_from_user(to, from, n);
+-		instrument_copy_from_user_after(to, from, n, res);
+ 	}
+-	if (unlikely(res))
+-		memset(to + (n - res), 0, res);
++	instrument_copy_from_user_before(to, from, n);
++	res = raw_copy_from_user(to, from, n);
++	instrument_copy_from_user_after(to, from, n, res);
++	if (likely(!res))
++		return 0;
++fail:
++	memset(to + (n - res), 0, res);
+ 	return res;
+ }
+ extern __must_check unsigned long
+-- 
+2.47.0
+

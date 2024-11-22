@@ -85,6 +85,7 @@ def diff_files(repo_path: str, previous_commit: str, lts: bool):
         ["git", "diff", previous_commit, "HEAD", "--", diff_file],
         cwd=repo_path,
     )
+    subprocess.call(["git", "rev-parse", "HEAD"], cwd=repo_path)
 
 
 def main(files_path: str, version: str, previous_commit: str, lts: bool):

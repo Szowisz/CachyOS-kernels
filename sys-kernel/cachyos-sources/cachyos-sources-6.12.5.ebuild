@@ -38,6 +38,7 @@ IUSE="
 	mmpsc matom mcore2 mnehalem mwestmere msilvermont msandybridge mivybridge mhaswell mbroadwell mskylake mskylakex mcannonlake micelake mgoldmont mgoldmontplus mcascadelake mcooperlake mtigerlake msapphirerapids mrocketlake malderlake
 "
 REQUIRED_USE="
+	^^ ( zfs kcfi )
 	^^ ( bore bmq rt rt-bore eevdf )
 	?? ( llvm-lto-thin llvm-lto-full )
 	^^ ( hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_625 hz_ticks_750 hz_ticks_1000 )
@@ -147,6 +148,9 @@ src_prepare() {
 	### Enable KCFI
 	if use kcfi; then
 		scripts/config -e ARCH_SUPPORTS_CFI_CLANG -e CFI_CLANG -e CFI_AUTO_DEFAULT || die
+	else
+		# https://github.com/openzfs/zfs/issues/15911
+		scripts/config -d CFI_CLANG || die
 	fi
 
 	### Select LLVM level

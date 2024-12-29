@@ -51,6 +51,7 @@ REQUIRED_USE="
 	^^ ( hugepage_always hugepage_madvise )
 	?? ( auto-cpu-optimization mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative_amd mnative_intel mk8 mk8sse3 mk10 mbarcelona mbobcat mjaguar mbulldozer mpiledriver msteamroller mexcavator mzen mzen2 mzen3 mzen4 mmpsc matom mcore2 mnehalem mwestmere msilvermont msandybridge mivybridge mhaswell mbroadwell mskylake mskylakex mcannonlake micelake mgoldmont mgoldmontplus mcascadelake mcooperlake mtigerlake msapphirerapids mrocketlake malderlake )
 "
+RDEPEND="autofdo? ( dev-util/perf[libpfm] )"
 SRC_URI="
 	${KERNEL_URI}
 	${GENPATCHES_URI}
@@ -307,7 +308,7 @@ pkg_postinst() {
 	optfeature "NVIDIA module" x11-drivers/nvidia-drivers
 	optfeature "ZFS support" sys-fs/zfs-kmod
 	use zfs && ewarn "ZFS support build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573, and you can check linux/zfs/kernel-build-zsh.sh as example"
-	use autofdo && wearn "Install dev-util/perf[libpfm], and follow https://cachyos.org/blog/2411-kernel-autofdo/"
+	use autofdo && wearn "and follow https://cachyos.org/blog/2411-kernel-autofdo/"
 	ewarn "Install sys-kernel/scx to Enable sched_ext schedulers"
 	ewarn "You can find it in xarblu-overlay"
 	ewarn "Then enable/start scx service."

@@ -26,6 +26,7 @@ IUSE="
 	experimental
 	+bore bmq rt rt-bore eevdf
 	deckify hardened +auto-cpu-optimization kcfi
+	+autofdo
 	+llvm-lto-thin llvm-lto-full
 	zfs
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_625 hz_ticks_750 +hz_ticks_1000
@@ -40,6 +41,7 @@ IUSE="
 REQUIRED_USE="
 	^^ ( zfs kcfi )
 	^^ ( bore bmq rt rt-bore eevdf )
+	autofdo? ( || ( llvm-lto-thin llvm-lto-full ) )
 	?? ( llvm-lto-thin llvm-lto-full )
 	^^ ( hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_625 hz_ticks_750 hz_ticks_1000 )
 	^^ ( tickrate_perodic tickrate_idle tickrate_full )
@@ -63,7 +65,6 @@ _set_hztick_rate() {
 		scripts/config -d HZ_300 -e "HZ_${_HZ_ticks}" --set-val HZ "${_HZ_ticks}" || die
 	fi
 }
-
 
 src_unpack() {
 	kernel-2_src_unpack
@@ -286,6 +287,11 @@ src_prepare() {
 	### Enable USER_NS_UNPRIVILEGED
 	scripts/config -e USER_NS || die
 
+	### Enable Clang AutoFDO
+	if use autofdo; then
+		scripts/config -e AUTOFDO_CLANG || die
+	fi
+
 	### Change hostname
 	scripts/config --set-str DEFAULT_HOSTNAME "gentoo" || die
 
@@ -301,6 +307,7 @@ pkg_postinst() {
 	optfeature "NVIDIA module" x11-drivers/nvidia-drivers
 	optfeature "ZFS support" sys-fs/zfs-kmod
 	use zfs && ewarn "ZFS support build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573, and you can check linux/zfs/kernel-build-zsh.sh as example"
+	use autofdo && wearn "Install dev-util/perf[libpfm], and follow https://cachyos.org/blog/2411-kernel-autofdo/"
 	ewarn "Install sys-kernel/scx to Enable sched_ext schedulers"
 	ewarn "You can find it in xarblu-overlay"
 	ewarn "Then enable/start scx service."

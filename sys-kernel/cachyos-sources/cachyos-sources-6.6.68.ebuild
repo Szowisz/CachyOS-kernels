@@ -6,7 +6,7 @@ ETYPE="sources"
 EXTRAVERSION="-cachyos-lts" # Not used in kernel-2, just due to most ebuilds have it
 K_USEPV="1"
 K_WANT_GENPATCHES="base extras experimental"
-K_GENPATCHES_VER="76"
+K_GENPATCHES_VER="77"
 ZFS_COMMIT="e65f69e41f4a276d7d0d1800a2878308a0ba84a6"
 
 # make sure kernel-2 know right version without guess

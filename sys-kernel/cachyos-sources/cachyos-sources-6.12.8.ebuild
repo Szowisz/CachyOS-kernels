@@ -71,7 +71,7 @@ src_unpack() {
 	kernel-2_src_unpack
 	### Push ZFS to linux
 	use zfs && (unpack zfs-$ZFS_COMMIT.tar.gz && mv zfs-$ZFS_COMMIT zfs || die)
-	use zfs && (cp $FILESDIR/kernel-build-zsh.sh zfs/ || die)
+	use zfs && (cp $FILESDIR/kernel-build.sh . || die)
 }
 
 src_prepare() {
@@ -307,7 +307,8 @@ pkg_postinst() {
 	optfeature "NVIDIA opensource module" "x11-drivers/nvidia-drivers[kernel-open]"
 	optfeature "NVIDIA module" x11-drivers/nvidia-drivers
 	optfeature "ZFS support" sys-fs/zfs-kmod
-	use zfs && ewarn "ZFS support build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573, and you can check linux/zfs/kernel-build-zsh.sh as example"
+	use zfs && ewarn "ZFS support build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573, and you can check linux/kernel-build.sh as example"
+	use autofdo && ewarn "AutoFDO support build way: https://cachyos.org/blog/2411-kernel-autofdo, and you can check linux/kernel-build.sh as example"
 	use autofdo && wearn "and follow https://cachyos.org/blog/2411-kernel-autofdo/"
 	ewarn "Install sys-kernel/scx to Enable sched_ext schedulers"
 	ewarn "You can find it in xarblu-overlay"

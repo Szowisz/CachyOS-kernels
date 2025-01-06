@@ -5,11 +5,19 @@ set -e
 . /etc/profile
 #modprobe dm-crypt
 
-#export KERNEL_CC="gcc" UTILS_CC="gcc" UTILS_CXX="g++"
+#export CCACHE_DIR="/var/cache/ccache/kernel"
+#export KERNEL_CC="ccache clang" UTILS_CC="ccache clang" UTILS_CXX="ccache clang++"
+#export KERNEL_CC="ccache gcc" UTILS_CC="ccache gcc" UTILS_CXX="ccache g++"
 export KERNEL_CC="clang" UTILS_CC="clang" UTILS_CXX="clang++"
 
 KERNEL_ROOT="/usr/src/linux"
 MAKEOPTS="LLVM=1 LLVM_IAS=1 CC=clang LD=ld.lld"
+# check if tools/perf/kernel-compilation.afdo exists
+if [ -f $KERNEL_ROOT/tools/perf/kernel-compilation.afdo ]; then
+    echo "AutoFDO profile has been found..."
+    MAKEOPTS+=" CLANG_AUTOFDO_PROFILE=$KERNEL_ROOT/tools/perf/kernel-compilation.afdo"
+fi
+
 # make function with args
 kernel_make() {
     #make -j$(( $(nproc) + 1 )) ${MAKEOPTS} KCFLAGS="-O3 -march=native -pipe"
@@ -18,8 +26,10 @@ kernel_make() {
 
 
 cd $KERNEL_ROOT
-#make clean
-kernel_make olddefconfig
+kernel_make clean
+#kernel_make olddefconfig
+# https://github.com/openzfs/zfs/issues/15911
+./scripts/config -d CONFIG_CFI_CLANG -e CONFIG_CFI_PERMISSIVE
 
 kernel_make all
 kernel_make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1

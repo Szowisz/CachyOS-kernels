@@ -51,9 +51,8 @@ def get_config(version: str, files_path: str, tmp_path: str, lts: bool):
         "bmq": "bmq",
     }
     if lts:
-        config_map = {
-            "lts": "lts",
-        }
+        del config_map["bore"]
+        config_map["lts"] = "bore"
     for source, target in config_map.items():
         if source == "":
             source_dir_name = "linux-cachyos"

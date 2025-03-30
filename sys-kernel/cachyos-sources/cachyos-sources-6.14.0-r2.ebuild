@@ -4,6 +4,8 @@
 EAPI="8"
 ETYPE="sources"
 EXTRAVERSION="-cachyos" # Not used in kernel-2, just due to most ebuilds have it
+K_USEPV="1"
+K_PREPATCHED="1"
 K_WANT_GENPATCHES="base extras experimental"
 K_GENPATCHES_VER="1"
 ZFS_COMMIT="76fbaaa192f499a42c3c821f7346710c2d321af3"

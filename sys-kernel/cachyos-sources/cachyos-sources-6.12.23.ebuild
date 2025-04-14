@@ -78,7 +78,7 @@ src_prepare() {
 	eapply "${files_dir}/all/0001-cachyos-base-all.patch"
 
 	if use bore; then
-		eapply "${files_dir}/sched/0001-bore-cachy.patch"
+		eapply "${files_dir}/sched-dev/0001-bore-cachy.patch"
 		cp "${files_dir}/config-bore" .config || die
 	fi
 

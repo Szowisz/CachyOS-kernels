@@ -29,7 +29,7 @@ IUSE="
 	+bore bmq rt rt-bore eevdf
 	deckify hardened kcfi
 	+autofdo +propeller
-	+llvm-lto-thin llvm-lto-full
+	llvm-lto-thin llvm-lto-full +llvm-lto-thin-dist
 	zfs
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 +hz_ticks_1000
 	+per-gov tickrate_perodic tickrate_idle +tickrate_full +preempt_full preempt_lazy preempt_voluntary
@@ -42,7 +42,7 @@ REQUIRED_USE="
 	^^ ( zfs kcfi )
 	^^ ( bore bmq rt rt-bore eevdf )
 	propeller? ( !llvm-lto-full )
-	?? ( llvm-lto-thin llvm-lto-full )
+	?? ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist )
 	^^ ( hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 hz_ticks_1000 )
 	^^ ( tickrate_perodic tickrate_idle tickrate_full )
 	rt? ( ^^ ( preempt_full preempt_lazy preempt_voluntary ) )
@@ -149,20 +149,22 @@ src_prepare() {
 	### Select LLVM level
 	if use llvm-lto-thin; then
 		scripts/config -e LTO_CLANG_THIN || die
+	elif use llvm-lto-thin-dist; then
+		scripts/config -e LTO_CLANG_THIN_DIST || die
 	elif use llvm-lto-full; then
 		scripts/config -e LTO_CLANG_FULL || die
 	else
 		scripts/config -e LTO_NONE || die
 	fi
 
-	if ! use llvm-lto-thin && ! use llvm-lto-full; then
+	if ! use llvm-lto-thin && ! use llvm-lto-full && ! use llvm-lto-thin-dist; then
 		scripts/config --set-str DRM_PANIC_SCREEN qr-code -e DRM_PANIC_SCREEN_QR_CODE \
 			--set-str DRM_PANIC_SCREEN_QR_CODE_URL "https://panic.archlinux.org/panic_report#" \
             --set-val CONFIG_DRM_PANIC_SCREEN_QR_VERSION 40 || die
 	fi
 
 	## LLVM patch
-	if use kcfi || use llvm-lto-thin || use llvm-lto-full; then
+	if use kcfi || use llvm-lto-thin || use llvm-lto-full || use llvm-lto-thin-dist; then
 		eapply "${files_dir}/misc/dkms-clang.patch"
 	fi
 

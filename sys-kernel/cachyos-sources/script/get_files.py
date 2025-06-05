@@ -66,10 +66,13 @@ def get_config(version: str, files_path: str, tmp_path: str, lts: bool):
                 f"{files_path}/{version}/{target_name}",
             ]
         )
+    config_root = f"{tmp_path}/{repo_name}/linux-cachyos"
+    if lts:
+        config_root = f"{tmp_path}/{repo_name}/linux-cachyos-lts"
     subprocess.call(
         [
             "cp",
-            f"{tmp_path}/{repo_name}/linux-cachyos/auto-cpu-optimization.sh",
+            f"{config_root}/auto-cpu-optimization.sh",
             f"{files_path}/{version}/auto-cpu-optimization.sh",
         ]
     )

@@ -312,4 +312,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# c469392e0629a18b9d42b0022c44f3b54dfa200d
+# 028c7526500c8a3a065c95d3057da05390db26cc

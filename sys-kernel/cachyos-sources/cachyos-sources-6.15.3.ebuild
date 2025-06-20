@@ -39,7 +39,6 @@ IUSE="
 	+mnative mzen4
 "
 REQUIRED_USE="
-	^^ ( zfs kcfi )
 	^^ ( bore bmq rt rt-bore eevdf )
 	propeller? ( !llvm-lto-full )
 	?? ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist )

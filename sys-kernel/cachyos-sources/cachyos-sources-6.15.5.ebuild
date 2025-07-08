@@ -7,8 +7,8 @@ EXTRAVERSION="-cachyos" # Not used in kernel-2, just due to most ebuilds have it
 # If RC version, enable below 2 lines
 #K_USEPV="1"
 #K_PREPATCHED="1"
-#K_WANT_GENPATCHES="base extras"
-#K_GENPATCHES_VER="5"
+K_WANT_GENPATCHES="base extras"
+K_GENPATCHES_VER="6"
 ZFS_COMMIT="725d591cf34aca2a4b1f19f2a733def2c8c8dc41"
 
 # make sure kernel-2 know right version without guess

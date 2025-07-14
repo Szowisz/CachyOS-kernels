@@ -1,0 +1,21 @@
+diff --git a/sys-kernel/cachyos-sources/files/6.15.6/sched/0001-bore-cachy.patch b/sys-kernel/cachyos-sources/files/6.15.6/sched/0001-bore-cachy.patch
+index dc7f4e6..8edb091 100644
+--- a/sys-kernel/cachyos-sources/files/6.15.6/sched/0001-bore-cachy.patch
++++ b/sys-kernel/cachyos-sources/files/6.15.6/sched/0001-bore-cachy.patch
+@@ -730,7 +730,7 @@ index 56ae54e0ce6a..4302a4d60ab7 100644
+  #endif /* SMP */
+  
+  #ifdef CONFIG_PREEMPT_DYNAMIC
+-@@ -507,13 +553,20 @@ static __init int sched_init_debug(void)
++@@ -561,14 +561,21 @@ static __init int sched_init_debug(void)
+  	debugfs_create_file("preempt", 0644, debugfs_sched, NULL, &sched_dynamic_fops);
+  #endif
+  
+@@ -741,6 +741,7 @@ index 56ae54e0ce6a..4302a4d60ab7 100644
+  	debugfs_create_u32("base_slice_ns", 0644, debugfs_sched, &sysctl_sched_base_slice);
+ +#endif // CONFIG_SCHED_BORE
+  
++ #ifndef CONFIG_SCHED_ALT
+  	debugfs_create_u32("latency_warn_ms", 0644, debugfs_sched, &sysctl_resched_latency_warn_ms);
+  	debugfs_create_u32("latency_warn_once", 0644, debugfs_sched, &sysctl_resched_latency_warn_once);
+  

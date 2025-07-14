@@ -61,7 +61,7 @@ REQUIRED_USE="
 build_upstream_patch_urls() {
 	local urls=""
 	local range
-	
+
 	for range in ${ADDITIONAL_UPSTREAM_PATCH_VERSIONS}; do
 		urls+=" https://cdn.kernel.org/pub/linux/kernel/v6.x/incr/patch-${range}.xz"
 	done
@@ -88,7 +88,7 @@ _set_hztick_rate() {
 src_unpack() {
 	# Set up incremental patches to be applied by kernel-2.eclass during src_unpack
 	setup_incremental_patches
-	
+
 	kernel-2_src_unpack
 	### Push ZFS to linux
 	use zfs && (unpack zfs-$ZFS_COMMIT.tar.gz && mv zfs-$ZFS_COMMIT zfs || die)
@@ -100,11 +100,11 @@ setup_incremental_patches() {
 	# Build UNIPATCH_LIST from version ranges for kernel-2.eclass to apply during src_unpack
 	local patch_list=""
 	local range
-	
+
 	for range in ${ADDITIONAL_UPSTREAM_PATCH_VERSIONS}; do
 		patch_list+=" ${DISTDIR}/patch-${range}.xz"
 	done
-	
+
 	# Export for kernel-2.eclass to use in src_unpack (applied after genpatches)
 	export UNIPATCH_LIST="${patch_list}"
 }
@@ -112,13 +112,28 @@ setup_incremental_patches() {
 src_prepare() {
 	# Note: Incremental patches are now applied via UNIPATCH_LIST during src_unpack
 	# This ensures they are applied after genpatches but before custom CachyOS patches
-	
+
 	files_dir="${FILESDIR}/${PVR}"
 
 	eapply "${files_dir}/all/0001-cachyos-base-all.patch"
 
 	if use bore; then
-		eapply "${files_dir}/sched/0001-bore-cachy.patch"
+		local bore_patch="${files_dir}/sched/0001-bore-cachy.patch"
+
+		# If experimental flag is enabled, apply experimental-fix.patch to bore patch
+		if use experimental; then
+			local patched_bore="${T}/0001-bore-cachy-patched.patch"
+
+			# Copy original bore patch to temp location
+			cp "${bore_patch}" "${patched_bore}" || die "Failed to copy bore patch"
+
+			# Apply experimental fix to the bore patch (ex)
+			einfo "Applying experimental fix to bore scheduler patch"
+			patch "${patched_bore}" <"${files_dir}/experimental-fix.patch" || die "Failed to apply experimental fix"
+			bore_patch="${patched_bore}"
+		fi
+
+		eapply "${bore_patch}"
 		cp "${files_dir}/config-bore" .config || die
 	fi
 
@@ -198,7 +213,7 @@ src_prepare() {
 	if ! use llvm-lto-thin && ! use llvm-lto-full && ! use llvm-lto-thin-dist; then
 		scripts/config --set-str DRM_PANIC_SCREEN qr_code -e DRM_PANIC_SCREEN_QR_CODE \
 			--set-str DRM_PANIC_SCREEN_QR_CODE_URL "https://panic.archlinux.org/panic_report#" \
-            --set-val CONFIG_DRM_PANIC_SCREEN_QR_VERSION 40 || die
+			--set-val CONFIG_DRM_PANIC_SCREEN_QR_VERSION 40 || die
 	fi
 
 	## LLVM patch
@@ -307,16 +322,16 @@ src_prepare() {
 			MARCH_TRIMMED=${MMARCH:1}
 			MARCH=$(echo "$MARCH_TRIMMED" | tr '[:lower:]' '[:upper:]')
 			case "$MARCH" in
-				GENERIC_V[1-4])
-					scripts/config -e GENERIC_CPU -d MZEN4 -d X86_NATIVE_CPU \
-						--set-val X86_64_VERSION "${MARCH//GENERIC_V}" || die
-					;;
-				ZEN4)
-					scripts/config -d GENERIC_CPU -e MZEN4 -d X86_NATIVE_CPU || die
-					;;
-				NATIVE)
-					scripts/config -d GENERIC_CPU -d MZEN4 -e X86_NATIVE_CPU || die
-					;;
+			GENERIC_V[1-4])
+				scripts/config -e GENERIC_CPU -d MZEN4 -d X86_NATIVE_CPU \
+					--set-val X86_64_VERSION "${MARCH//GENERIC_V/}" || die
+				;;
+			ZEN4)
+				scripts/config -d GENERIC_CPU -e MZEN4 -d X86_NATIVE_CPU || die
+				;;
+			NATIVE)
+				scripts/config -d GENERIC_CPU -d MZEN4 -e X86_NATIVE_CPU || die
+				;;
 			esac
 			march_found=true
 			break

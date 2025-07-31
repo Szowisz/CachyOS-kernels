@@ -4,18 +4,8 @@
 EAPI="8"
 ETYPE="sources"
 EXTRAVERSION="-cachyos" # Not used in kernel-2, just due to most ebuilds have it
-# If RC version, enable below 2 lines
-#K_USEPV="1"
-#K_PREPATCHED="1"
-# Use genpatches-6.15-5 (latest available) + manual upstream patches
-#K_WANT_GENPATCHES="base extras experimental"
-#K_GENPATCHES_VER="1"
-
-# Manual list of additional upstream patch versions needed (genpatches-6.15-5 covers up to 6.15.4)
-# Format: "from-to" for incremental patches from /pub/linux/kernel/v6.x/incr/
-# These patches are applied via UNIPATCH_LIST during src_unpack, after genpatches
-# to ensure proper patch order and avoid Makefile version mismatches
-ADDITIONAL_UPSTREAM_PATCH_VERSIONS=""
+K_WANT_GENPATCHES="base extras"
+K_GENPATCHES_VER="45"
 ZFS_COMMIT="725d591cf34aca2a4b1f19f2a733def2c8c8dc41"
 
 # make sure kernel-2 know right version without guess
@@ -27,53 +17,41 @@ detect_version
 # disable all patch from kernel-2
 #UNIPATCH_LIST_DEFAULT=""
 
-DESCRIPTION="Linux BORE + LTO + AutoFDO + Propeller Cachy Sauce Kernel by CachyOS with other patches and improvements."
+DESCRIPTION="Linux BORE + Cachy Sauce Kernel by CachyOS with other patches and improvements - Long Term Service"
 HOMEPAGE="https://github.com/CachyOS/linux-cachyos"
 LICENSE="GPL-3"
-KEYWORDS="~amd64"
+KEYWORDS="amd64"
 IUSE="
-	experimental
 	+bore bmq rt rt-bore eevdf
-	deckify hardened kcfi
-	+autofdo +propeller
-	llvm-lto-thin llvm-lto-full +llvm-lto-thin-dist
+	deckify hardened +auto-cpu-optimization kcfi
+	+autofdo
+	+llvm-lto-thin llvm-lto-full
 	zfs
-	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 +hz_ticks_1000
-	+per-gov tickrate_perodic tickrate_idle +tickrate_full +preempt_full preempt_lazy preempt_voluntary
+	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_625 hz_ticks_750 +hz_ticks_1000
+	+per-gov tickrate_perodic tickrate_idle +tickrate_full preempt_full preempt_voluntary preempt_none
 	+o3 os debug +bbr3
 	+hugepage_always hugepage_madvise
 	mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4
-	+mnative mzen4
+	mnative_amd mnative_intel
+	mk8 mk8sse3 mk10 mbarcelona mbobcat mjaguar mbulldozer mpiledriver msteamroller mexcavator mzen mzen2 mzen3 mzen4
+	mmpsc matom mcore2 mnehalem mwestmere msilvermont msandybridge mivybridge mhaswell mbroadwell mskylake mskylakex mcannonlake micelake mgoldmont mgoldmontplus mcascadelake mcooperlake mtigerlake msapphirerapids mrocketlake malderlake
 "
 REQUIRED_USE="
 	^^ ( bore bmq rt rt-bore eevdf )
-	propeller? ( !llvm-lto-full )
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full ) )
-	?? ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist )
-	^^ ( hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 hz_ticks_1000 )
+	?? ( llvm-lto-thin llvm-lto-full )
+	^^ ( hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_625 hz_ticks_750 hz_ticks_1000 )
 	^^ ( tickrate_perodic tickrate_idle tickrate_full )
-	rt? ( ^^ ( preempt_full preempt_lazy preempt_voluntary ) )
-	rt-bore? ( ^^ ( preempt_full preempt_lazy preempt_voluntary ) )
+	rt? ( ^^ ( preempt_full preempt_voluntary preempt_none ) )
+	rt-bore? ( ^^ ( preempt_full preempt_voluntary preempt_none ) )
 	?? ( o3 os debug )
 	^^ ( hugepage_always hugepage_madvise )
-	?? ( mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative mzen4 )
+	?? ( auto-cpu-optimization mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative_amd mnative_intel mk8 mk8sse3 mk10 mbarcelona mbobcat mjaguar mbulldozer mpiledriver msteamroller mexcavator mzen mzen2 mzen3 mzen4 mmpsc matom mcore2 mnehalem mwestmere msilvermont msandybridge mivybridge mhaswell mbroadwell mskylake mskylakex mcannonlake micelake mgoldmont mgoldmontplus mcascadelake mcooperlake mtigerlake msapphirerapids mrocketlake malderlake )
 "
-# Helper function to build upstream incremental patch URLs
-build_upstream_patch_urls() {
-	local urls=""
-	local range
-
-	for range in ${ADDITIONAL_UPSTREAM_PATCH_VERSIONS}; do
-		urls+=" https://cdn.kernel.org/pub/linux/kernel/v6.x/incr/patch-${range}.xz"
-	done
-	echo "${urls}"
-}
-
 RDEPEND="autofdo? ( dev-util/perf[libpfm] )"
 SRC_URI="
 	${KERNEL_URI}
 	${GENPATCHES_URI}
-	$(build_upstream_patch_urls)
 	zfs? ( https://github.com/cachyos/zfs/archive/$ZFS_COMMIT.tar.gz -> zfs-$ZFS_COMMIT.tar.gz )
 "
 
@@ -87,54 +65,18 @@ _set_hztick_rate() {
 }
 
 src_unpack() {
-	# Set up incremental patches to be applied by kernel-2.eclass during src_unpack
-	setup_incremental_patches
-
 	kernel-2_src_unpack
 	### Push ZFS to linux
 	use zfs && (unpack zfs-$ZFS_COMMIT.tar.gz && mv zfs-$ZFS_COMMIT zfs || die)
 	use zfs && (cp $FILESDIR/kernel-build.sh . || die)
 }
 
-# Function to set up UNIPATCH_LIST with incremental patches for kernel-2.eclass
-setup_incremental_patches() {
-	# Build UNIPATCH_LIST from version ranges for kernel-2.eclass to apply during src_unpack
-	local patch_list=""
-	local range
-
-	for range in ${ADDITIONAL_UPSTREAM_PATCH_VERSIONS}; do
-		patch_list+=" ${DISTDIR}/patch-${range}.xz"
-	done
-
-	# Export for kernel-2.eclass to use in src_unpack (applied after genpatches)
-	export UNIPATCH_LIST="${patch_list}"
-}
-
 src_prepare() {
-	# Note: Incremental patches are now applied via UNIPATCH_LIST during src_unpack
-	# This ensures they are applied after genpatches but before custom CachyOS patches
-
 	files_dir="${FILESDIR}/${PVR}"
-
 	eapply "${files_dir}/all/0001-cachyos-base-all.patch"
 
 	if use bore; then
-		local bore_patch="${files_dir}/sched/0001-bore-cachy.patch"
-
-		# If experimental flag is enabled, apply experimental-fix.patch to bore patch
-		if use experimental; then
-			local patched_bore="${T}/0001-bore-cachy-patched.patch"
-
-			# Copy original bore patch to temp location
-			cp "${bore_patch}" "${patched_bore}" || die "Failed to copy bore patch"
-
-			# Apply experimental fix to the bore patch (ex)
-			einfo "Applying experimental fix to bore scheduler patch"
-			#patch "${patched_bore}" <"${FILESDIR}/6.15.6/experimental-fix.patch" || die "Failed to apply experimental fix"
-			bore_patch="${patched_bore}"
-		fi
-
-		eapply "${bore_patch}"
+		eapply "${files_dir}/sched/0001-bore-cachy.patch"
 		cp "${files_dir}/config-bore" .config || die
 	fi
 
@@ -149,7 +91,7 @@ src_prepare() {
 	fi
 
 	if use rt || use rt-bore; then
-		eapply "${files_dir}/misc/0001-rt-i915.patch"
+		eapply "${files_dir}/misc/0001-rt.patch"
 		cp "${files_dir}/config-rt-bore" .config || die
 	fi
 
@@ -166,6 +108,10 @@ src_prepare() {
 	fi
 
 	eapply_user
+
+	if use auto-cpu-optimization; then
+		sh "${files_dir}/auto-cpu-optimization.sh" || die
+	fi
 
 	# Remove CachyOS's localversion
 	#find . -name "localversion*" -delete || die
@@ -185,11 +131,11 @@ src_prepare() {
 	fi
 
 	if use rt; then
-		scripts/config -e PREEMPT_RT || die
+		scripts/config -d PREEMPT -d PREEMPT_DYNAMIC -e PREEMPT_RT || die
 	fi
 
 	if use rt-bore; then
-		scripts/config -e SCHED_BORE -e PREEMPT_RT || die
+		scripts/config -e SCHED_BORE -d PREEMPT -d PREEMPT_DYNAMIC -e PREEMPT_RT || die
 	fi
 
 	### Enable KCFI
@@ -202,23 +148,15 @@ src_prepare() {
 
 	### Select LLVM level
 	if use llvm-lto-thin; then
-		scripts/config -e LTO_CLANG_THIN || die
-	elif use llvm-lto-thin-dist; then
-		scripts/config -e LTO_CLANG_THIN_DIST || die
+		scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -d LTO_NONE -e HAS_LTO_CLANG -d LTO_CLANG_FULL -e LTO_CLANG_THIN -e HAVE_GCC_PLUGINS || die
 	elif use llvm-lto-full; then
-		scripts/config -e LTO_CLANG_FULL || die
+		scripts/config -e LTO -e LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG -e ARCH_SUPPORTS_LTO_CLANG_THIN -d LTO_NONE -e HAS_LTO_CLANG -e LTO_CLANG_FULL -d LTO_CLANG_THIN -e HAVE_GCC_PLUGINS || die
 	else
 		scripts/config -e LTO_NONE || die
 	fi
 
-	if ! use llvm-lto-thin && ! use llvm-lto-full && ! use llvm-lto-thin-dist; then
-		scripts/config --set-str DRM_PANIC_SCREEN qr_code -e DRM_PANIC_SCREEN_QR_CODE \
-			--set-str DRM_PANIC_SCREEN_QR_CODE_URL "https://panic.archlinux.org/panic_report#" \
-			--set-val CONFIG_DRM_PANIC_SCREEN_QR_VERSION 40 || die
-	fi
-
 	## LLVM patch
-	if use kcfi || use llvm-lto-thin || use llvm-lto-full || use llvm-lto-thin-dist; then
+	if use kcfi || use llvm-lto-thin || use llvm-lto-full; then
 		eapply "${files_dir}/misc/dkms-clang.patch"
 	fi
 
@@ -233,6 +171,8 @@ src_prepare() {
 		_set_hztick_rate 500
 	elif use hz_ticks_600; then
 		_set_hztick_rate 600
+	elif use hz_ticks_625; then
+		_set_hztick_rate 625
 	elif use hz_ticks_750; then
 		_set_hztick_rate 750
 	elif use hz_ticks_1000; then
@@ -262,11 +202,13 @@ src_prepare() {
 	### Select preempt type
 	if use preempt_full; then
 		scripts/config -e PREEMPT_DYNAMIC -e PREEMPT -d PREEMPT_VOLUNTARY -d PREEMPT_LAZY -d PREEMPT_NONE || die
-	elif use preempt_lazy; then
-		scripts/config -e PREEMPT_DYNAMIC -d PREEMPT -d PREEMPT_VOLUNTARY -e PREEMPT_LAZY -d PREEMPT_NONE || die
-	elif use preempt_voluntary; then
+	fi
+
+	if use preempt_voluntary; then
 		scripts/config -d PREEMPT_DYNAMIC -d PREEMPT -e PREEMPT_VOLUNTARY -d PREEMPT_LAZY -d PREEMPT_NONE || die
-	else
+	fi
+
+	if use preempt_none; then
 		scripts/config -d PREEMPT_DYNAMIC -d PREEMPT -d PREEMPT_VOLUNTARY -d PREEMPT_LAZY -e PREEMPT_NONE || die
 	fi
 
@@ -316,31 +258,23 @@ src_prepare() {
 	fi
 
 	### Select CPU optimization
-	march_list=(mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative mzen4)
-	march_found=false
+	march_list=(mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative_amd mnative_intel mk8 mk8sse3 mk10 mbarcelona mbobcat mjaguar mbulldozer mpiledriver msteamroller mexcavator mzen mzen2 mzen3 mzen4 mmpsc matom mcore2 mnehalem mwestmere msilvermont msandybridge mivybridge mhaswell mbroadwell mskylake mskylakex mcannonlake micelake mgoldmont mgoldmontplus mcascadelake mcooperlake mtigerlake msapphirerapids mrocketlake malderlake)
 	for MMARCH in "${march_list[@]}"; do
 		if use "${MMARCH}"; then
 			MARCH_TRIMMED=${MMARCH:1}
 			MARCH=$(echo "$MARCH_TRIMMED" | tr '[:lower:]' '[:upper:]')
-			case "$MARCH" in
-			GENERIC_V[1-4])
-				scripts/config -e GENERIC_CPU -d MZEN4 -d X86_NATIVE_CPU \
-					--set-val X86_64_VERSION "${MARCH//GENERIC_V/}" || die
-				;;
-			ZEN4)
-				scripts/config -d GENERIC_CPU -e MZEN4 -d X86_NATIVE_CPU || die
-				;;
-			NATIVE)
-				scripts/config -d GENERIC_CPU -d MZEN4 -e X86_NATIVE_CPU || die
-				;;
-			esac
-			march_found=true
+			if [ "$MARCH" != "GENERIC" ]; then
+				if [[ "$MARCH" =~ GENERIC_V[1-4] ]]; then
+					X86_64_LEVEL="${MARCH//GENERIC_V}"
+					scripts/config --set-val X86_64_VERSION "${X86_64_LEVEL}"
+				else
+					scripts/config -k -d CONFIG_GENERIC_CPU
+					scripts/config -k -e "CONFIG_M${MARCH}"
+				fi
+			 fi
 			break
 		fi
 	done
-	if [ "$march_found" = false ]; then
-		scripts/config -d GENERIC_CPU -d MZEN4 -e X86_NATIVE_CPU
-	fi
 
 	### Enable USER_NS_UNPRIVILEGED
 	scripts/config -e USER_NS || die
@@ -348,10 +282,6 @@ src_prepare() {
 	### Enable Clang AutoFDO
 	if use autofdo; then
 		scripts/config -e AUTOFDO_CLANG || die
-	fi
-	### Propeller Optimization
-	if use propeller; then
-		scripts/config -e PROPELLER_CLANG || die
 	fi
 
 	### Change hostname
@@ -369,7 +299,8 @@ pkg_postinst() {
 	optfeature "NVIDIA module" x11-drivers/nvidia-drivers
 	optfeature "ZFS support" sys-fs/zfs-kmod
 	use zfs && ewarn "ZFS support build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573, and you can check linux/kernel-build.sh as example"
-	(use autofdo || use propeller) && ewarn "AutoFDO support build way: https://cachyos.org/blog/2411-kernel-autofdo, and you can check https://github.com/xz-dev/kernel-autofdo-container as example"
+	use autofdo && ewarn "AutoFDO support build way: https://cachyos.org/blog/2411-kernel-autofdo, and you can check linux/kernel-build.sh as example"
+	use autofdo && wearn "and follow https://cachyos.org/blog/2411-kernel-autofdo/"
 	ewarn "Install sys-kernel/scx to Enable sched_ext schedulers"
 	ewarn "You can find it in xarblu-overlay"
 	ewarn "Then enable/start scx service."

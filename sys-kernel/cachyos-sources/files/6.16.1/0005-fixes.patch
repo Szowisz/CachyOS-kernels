@@ -1,0 +1,216 @@
+From 5de97c0422f50c409389465136cd87415dfb0138 Mon Sep 17 00:00:00 2001
+From: Peter Jung <admin@ptr1337.dev>
+Date: Fri, 15 Aug 2025 21:57:20 +0200
+Subject: [PATCH 5/6] fixes
+
+Signed-off-by: Peter Jung <admin@ptr1337.dev>
+---
+ drivers/bluetooth/btusb.c                |  2 +
+ drivers/gpu/drm/drm_atomic_uapi.c        | 51 ++++++++++++++++--------
+ drivers/gpu/drm/i915/display/intel_dsb.c |  4 ++
+ fs/btrfs/tree-log.c                      | 44 +++++++++++++-------
+ scripts/package/PKGBUILD                 |  5 +++
+ 5 files changed, 75 insertions(+), 31 deletions(-)
+
+diff --git a/drivers/bluetooth/btusb.c b/drivers/bluetooth/btusb.c
+index e8977fff4212..e608355f8349 100644
+--- a/drivers/bluetooth/btusb.c
++++ b/drivers/bluetooth/btusb.c
+@@ -709,6 +709,8 @@ static const struct usb_device_id quirks_table[] = {
+ 						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x0489, 0xe139), .driver_info = BTUSB_MEDIATEK |
+ 						     BTUSB_WIDEBAND_SPEECH },
++	{ USB_DEVICE(0x0489, 0xe14e), .driver_info = BTUSB_MEDIATEK |
++						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x0489, 0xe14f), .driver_info = BTUSB_MEDIATEK |
+ 						     BTUSB_WIDEBAND_SPEECH },
+ 	{ USB_DEVICE(0x0489, 0xe150), .driver_info = BTUSB_MEDIATEK |
+diff --git a/drivers/gpu/drm/drm_atomic_uapi.c b/drivers/gpu/drm/drm_atomic_uapi.c
+index c2726af6698e..2ae41a522e92 100644
+--- a/drivers/gpu/drm/drm_atomic_uapi.c
++++ b/drivers/gpu/drm/drm_atomic_uapi.c
+@@ -1068,7 +1068,6 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
+ 		struct drm_plane *plane = obj_to_plane(obj);
+ 		struct drm_plane_state *plane_state;
+ 		struct drm_mode_config *config = &plane->dev->mode_config;
+-		const struct drm_plane_helper_funcs *plane_funcs = plane->helper_private;
+ 
+ 		plane_state = drm_atomic_get_plane_state(state, plane);
+ 		if (IS_ERR(plane_state)) {
+@@ -1084,21 +1083,8 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
+ 				ret = drm_atomic_plane_get_property(plane, plane_state,
+ 								    prop, &old_val);
+ 				ret = drm_atomic_check_prop_changes(ret, old_val, prop_value, prop);
+-			}
+-
+-			/* ask the driver if this non-primary plane is supported */
+-			if (plane->type != DRM_PLANE_TYPE_PRIMARY) {
+-				ret = -EINVAL;
+-
+-				if (plane_funcs && plane_funcs->atomic_async_check)
+-					ret = plane_funcs->atomic_async_check(plane, state, true);
+-
+-				if (ret) {
+-					drm_dbg_atomic(prop->dev,
+-						       "[PLANE:%d:%s] does not support async flips\n",
+-						       obj->id, plane->name);
+-					break;
+-				}
++				if (ret)
++				    break;
+ 			}
+ 		}
+ 
+@@ -1394,6 +1380,10 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
+ 	int ret = 0;
+ 	unsigned int i, j, num_fences;
+ 	bool async_flip = false;
++	struct drm_plane *plane;
++	struct drm_plane_state *old_plane_state = NULL;
++	struct drm_plane_state *new_plane_state = NULL;
++	u64 fb_id = 0;
+ 
+ 	/* disallow for drivers not supporting atomic: */
+ 	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
+@@ -1521,6 +1511,35 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
+ 			copied_props++;
+ 		}
+ 
++		if (async_flip && obj->type == DRM_MODE_OBJECT_PLANE &&
++		    obj_to_plane(obj)->type != DRM_PLANE_TYPE_PRIMARY) {
++			/* need to ask the driver if this plane is supported */
++			plane = obj_to_plane(obj);
++			old_plane_state = drm_atomic_get_old_plane_state(state, plane);
++			new_plane_state = drm_atomic_get_new_plane_state(state, plane);
++			ret = drm_atomic_plane_get_property(plane, new_plane_state,
++							    dev->mode_config.prop_fb_id,
++							    &fb_id);
++			if (ret)
++				break;
++			/*
++			 * Only do the check if the plane was or is enabled.
++			 * Note that the new state doesn't have "visible" set yet,
++			 * so this uses fb_id instead.
++			 */
++			if (old_plane_state->visible || fb_id)
++				ret = -EINVAL;
++			if (ret && plane->helper_private &&
++			    plane->helper_private->atomic_async_check) {
++				ret = plane->helper_private->atomic_async_check(plane, state, true);
++			}
++			if (ret) {
++				drm_dbg_atomic(dev, "[PLANE:%d:%s] does not support async flips\n",
++						obj->id, plane->name);
++				break;
++			}
++		}
++
+ 		drm_mode_object_put(obj);
+ 	}
+ 
+diff --git a/drivers/gpu/drm/i915/display/intel_dsb.c b/drivers/gpu/drm/i915/display/intel_dsb.c
+index 481488d1fe67..271229500c62 100644
+--- a/drivers/gpu/drm/i915/display/intel_dsb.c
++++ b/drivers/gpu/drm/i915/display/intel_dsb.c
+@@ -808,6 +808,10 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
+ 	if (!display->params.enable_dsb)
+ 		return NULL;
+ 
++	/* TODO: DSB is broken in Xe KMD, so disabling it until fixed */
++	if (!IS_ENABLED(I915))
++		return NULL;
++
+ 	dsb = kzalloc(sizeof(*dsb), GFP_KERNEL);
+ 	if (!dsb)
+ 		goto out;
+diff --git a/fs/btrfs/tree-log.c b/fs/btrfs/tree-log.c
+index cea8a7e9d6d3..cd904f281489 100644
+--- a/fs/btrfs/tree-log.c
++++ b/fs/btrfs/tree-log.c
+@@ -2413,23 +2413,30 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
+ 
+ 	nritems = btrfs_header_nritems(eb);
+ 	for (i = 0; i < nritems; i++) {
+-		btrfs_item_key_to_cpu(eb, &key, i);
++		struct btrfs_inode_item *inode_item;
+ 
+-		/* inode keys are done during the first stage */
+-		if (key.type == BTRFS_INODE_ITEM_KEY &&
+-		    wc->stage == LOG_WALK_REPLAY_INODES) {
+-			struct btrfs_inode_item *inode_item;
+-			u32 mode;
++		btrfs_item_key_to_cpu(eb, &key, i);
+ 
+-			inode_item = btrfs_item_ptr(eb, i,
+-					    struct btrfs_inode_item);
++		if (key.type == BTRFS_INODE_ITEM_KEY) {
++			inode_item = btrfs_item_ptr(eb, i, struct btrfs_inode_item);
+ 			/*
+-			 * If we have a tmpfile (O_TMPFILE) that got fsync'ed
+-			 * and never got linked before the fsync, skip it, as
+-			 * replaying it is pointless since it would be deleted
+-			 * later. We skip logging tmpfiles, but it's always
+-			 * possible we are replaying a log created with a kernel
+-			 * that used to log tmpfiles.
++			 * An inode with no links is either:
++			 *
++			 * 1) A tmpfile (O_TMPFILE) that got fsync'ed and never
++			 *    got linked before the fsync, skip it, as replaying
++			 *    it is pointless since it would be deleted later.
++			 *    We skip logging tmpfiles, but it's always possible
++			 *    we are replaying a log created with a kernel that
++			 *    used to log tmpfiles;
++			 *
++			 * 2) A non-tmpfile which got its last link deleted
++			 *    while holding an open fd on it and later got
++			 *    fsynced through that fd. We always log the
++			 *    parent inodes when inode->last_unlink_trans is
++			 *    set to the current transaction, so ignore all the
++			 *    inode items for this inode. We will delete the
++			 *    inode when processing the parent directory with
++			 *    replay_dir_deletes().
+ 			 */
+ 			if (btrfs_inode_nlink(eb, inode_item) == 0) {
+ 				wc->ignore_cur_inode = true;
+@@ -2437,6 +2444,13 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
+ 			} else {
+ 				wc->ignore_cur_inode = false;
+ 			}
++		}
++
++		/* Inode keys are done during the first stage. */
++		if (key.type == BTRFS_INODE_ITEM_KEY &&
++		    wc->stage == LOG_WALK_REPLAY_INODES) {
++			u32 mode;
++
+ 			ret = replay_xattr_deletes(wc->trans, root, log,
+ 						   path, key.objectid);
+ 			if (ret)
+@@ -2875,7 +2889,7 @@ static inline void btrfs_remove_log_ctx(struct btrfs_root *root,
+ 	mutex_unlock(&root->log_mutex);
+ }
+ 
+-/* 
++/*
+  * Invoked in log mutex context, or be sure there is no other task which
+  * can access the list.
+  */
+diff --git a/scripts/package/PKGBUILD b/scripts/package/PKGBUILD
+index 452374d63c24..08f80d7c5df0 100644
+--- a/scripts/package/PKGBUILD
++++ b/scripts/package/PKGBUILD
+@@ -90,6 +90,11 @@ _package-headers() {
+ 		"${srctree}/scripts/package/install-extmod-build" "${builddir}"
+ 	fi
+ 
++	# required when DEBUG_INFO_BTF_MODULES is enabled
++	if [ -f tools/bpf/resolve_btfids/resolve_btfids ]; then
++		install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
++	fi
++
+ 	echo "Installing System.map and config..."
+ 	mkdir -p "${builddir}"
+ 	cp System.map "${builddir}/System.map"
+-- 
+2.50.1
+

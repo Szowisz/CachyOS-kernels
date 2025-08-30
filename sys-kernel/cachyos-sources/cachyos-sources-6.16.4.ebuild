@@ -37,7 +37,7 @@ IUSE="
 	deckify hardened kcfi
 	+autofdo +propeller
 	llvm-lto-thin llvm-lto-full +llvm-lto-thin-dist
-	zfs
+	kernel-builtin-zfs
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 +hz_ticks_1000
 	+per-gov tickrate_perodic tickrate_idle +tickrate_full +preempt_full preempt_lazy preempt_voluntary
 	+o3 os debug +bbr3
@@ -74,7 +74,7 @@ SRC_URI="
 	${KERNEL_URI}
 	${GENPATCHES_URI}
 	$(build_upstream_patch_urls)
-	zfs? ( https://github.com/cachyos/zfs/archive/$ZFS_COMMIT.tar.gz -> zfs-$ZFS_COMMIT.tar.gz )
+	kernel-builtin-zfs? ( https://github.com/cachyos/zfs/archive/$ZFS_COMMIT.tar.gz -> zfs-$ZFS_COMMIT.tar.gz )
 "
 
 _set_hztick_rate() {
@@ -92,8 +92,8 @@ src_unpack() {
 
 	kernel-2_src_unpack
 	### Push ZFS to linux
-	use zfs && (unpack zfs-$ZFS_COMMIT.tar.gz && mv zfs-$ZFS_COMMIT zfs || die)
-	use zfs && (cp $FILESDIR/kernel-build.sh . || die)
+	use kernel-builtin-zfs && (unpack zfs-$ZFS_COMMIT.tar.gz && mv zfs-$ZFS_COMMIT zfs || die)
+	use kernel-builtin-zfs && (cp $FILESDIR/kernel-build.sh . || die)
 }
 
 # Function to set up UNIPATCH_LIST with incremental patches for kernel-2.eclass
@@ -368,7 +368,12 @@ pkg_postinst() {
 	optfeature "NVIDIA opensource module" "x11-drivers/nvidia-drivers[kernel-open]"
 	optfeature "NVIDIA module" x11-drivers/nvidia-drivers
 	optfeature "ZFS support" sys-fs/zfs-kmod
-	use zfs && ewarn "ZFS support build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573, and you can check linux/kernel-build.sh as example"
+	if use kernel-builtin-zfs; then
+		ewarn "WARNING: You are using kernel-builtin-zfs USE flag."
+		ewarn "It is STRONGLY RECOMMENDED to use sys-fs/zfs-kmod instead of building ZFS into the kernel."
+		ewarn "sys-fs/zfs-kmod provides better compatibility and easier updates."
+		ewarn "ZFS support build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573, and you can check linux/kernel-build.sh as example"
+	fi
 	(use autofdo || use propeller) && ewarn "AutoFDO support build way: https://cachyos.org/blog/2411-kernel-autofdo, and you can check https://github.com/xz-dev/kernel-autofdo-container as example"
 	ewarn "Install sys-kernel/scx to Enable sched_ext schedulers"
 	ewarn "You can find it in xarblu-overlay"

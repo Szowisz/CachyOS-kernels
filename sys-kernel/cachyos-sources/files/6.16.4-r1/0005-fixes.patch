@@ -1,0 +1,451 @@
+From 5f25f97032586b1741f9603db23c479e6dc544c4 Mon Sep 17 00:00:00 2001
+From: Peter Jung <admin@ptr1337.dev>
+Date: Thu, 28 Aug 2025 18:20:28 +0200
+Subject: [PATCH 5/6] fixes
+
+Signed-off-by: Peter Jung <admin@ptr1337.dev>
+---
+ drivers/gpu/drm/drm_atomic_uapi.c        | 51 ++++++++++++++++--------
+ drivers/gpu/drm/i915/display/intel_dsb.c |  4 ++
+ drivers/watchdog/intel_oc_wdt.c          |  8 ++--
+ fs/proc/generic.c                        | 36 +++++++++--------
+ net/ipv4/route.c                         |  7 +++-
+ scripts/package/PKGBUILD                 |  5 +++
+ 6 files changed, 73 insertions(+), 38 deletions(-)
+
+diff --git a/drivers/gpu/drm/drm_atomic_uapi.c b/drivers/gpu/drm/drm_atomic_uapi.c
+index c2726af6698e..2ae41a522e92 100644
+--- a/drivers/gpu/drm/drm_atomic_uapi.c
++++ b/drivers/gpu/drm/drm_atomic_uapi.c
+@@ -1068,7 +1068,6 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
+ 		struct drm_plane *plane = obj_to_plane(obj);
+ 		struct drm_plane_state *plane_state;
+ 		struct drm_mode_config *config = &plane->dev->mode_config;
+-		const struct drm_plane_helper_funcs *plane_funcs = plane->helper_private;
+ 
+ 		plane_state = drm_atomic_get_plane_state(state, plane);
+ 		if (IS_ERR(plane_state)) {
+@@ -1084,21 +1083,8 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
+ 				ret = drm_atomic_plane_get_property(plane, plane_state,
+ 								    prop, &old_val);
+ 				ret = drm_atomic_check_prop_changes(ret, old_val, prop_value, prop);
+-			}
+-
+-			/* ask the driver if this non-primary plane is supported */
+-			if (plane->type != DRM_PLANE_TYPE_PRIMARY) {
+-				ret = -EINVAL;
+-
+-				if (plane_funcs && plane_funcs->atomic_async_check)
+-					ret = plane_funcs->atomic_async_check(plane, state, true);
+-
+-				if (ret) {
+-					drm_dbg_atomic(prop->dev,
+-						       "[PLANE:%d:%s] does not support async flips\n",
+-						       obj->id, plane->name);
+-					break;
+-				}
++				if (ret)
++				    break;
+ 			}
+ 		}
+ 
+@@ -1394,6 +1380,10 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
+ 	int ret = 0;
+ 	unsigned int i, j, num_fences;
+ 	bool async_flip = false;
++	struct drm_plane *plane;
++	struct drm_plane_state *old_plane_state = NULL;
++	struct drm_plane_state *new_plane_state = NULL;
++	u64 fb_id = 0;
+ 
+ 	/* disallow for drivers not supporting atomic: */
+ 	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
+@@ -1521,6 +1511,35 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
+ 			copied_props++;
+ 		}
+ 
++		if (async_flip && obj->type == DRM_MODE_OBJECT_PLANE &&
++		    obj_to_plane(obj)->type != DRM_PLANE_TYPE_PRIMARY) {
++			/* need to ask the driver if this plane is supported */
++			plane = obj_to_plane(obj);
++			old_plane_state = drm_atomic_get_old_plane_state(state, plane);
++			new_plane_state = drm_atomic_get_new_plane_state(state, plane);
++			ret = drm_atomic_plane_get_property(plane, new_plane_state,
++							    dev->mode_config.prop_fb_id,
++							    &fb_id);
++			if (ret)
++				break;
++			/*
++			 * Only do the check if the plane was or is enabled.
++			 * Note that the new state doesn't have "visible" set yet,
++			 * so this uses fb_id instead.
++			 */
++			if (old_plane_state->visible || fb_id)
++				ret = -EINVAL;
++			if (ret && plane->helper_private &&
++			    plane->helper_private->atomic_async_check) {
++				ret = plane->helper_private->atomic_async_check(plane, state, true);
++			}
++			if (ret) {
++				drm_dbg_atomic(dev, "[PLANE:%d:%s] does not support async flips\n",
++						obj->id, plane->name);
++				break;
++			}
++		}
++
+ 		drm_mode_object_put(obj);
+ 	}
+ 
+diff --git a/drivers/gpu/drm/i915/display/intel_dsb.c b/drivers/gpu/drm/i915/display/intel_dsb.c
+index 481488d1fe67..271229500c62 100644
+--- a/drivers/gpu/drm/i915/display/intel_dsb.c
++++ b/drivers/gpu/drm/i915/display/intel_dsb.c
+@@ -808,6 +808,10 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
+ 	if (!display->params.enable_dsb)
+ 		return NULL;
+ 
++	/* TODO: DSB is broken in Xe KMD, so disabling it until fixed */
++	if (!IS_ENABLED(I915))
++		return NULL;
++
+ 	dsb = kzalloc(sizeof(*dsb), GFP_KERNEL);
+ 	if (!dsb)
+ 		goto out;
+diff --git a/drivers/watchdog/intel_oc_wdt.c b/drivers/watchdog/intel_oc_wdt.c
+index 7c0551106981..a39892c10770 100644
+--- a/drivers/watchdog/intel_oc_wdt.c
++++ b/drivers/watchdog/intel_oc_wdt.c
+@@ -41,6 +41,7 @@
+ struct intel_oc_wdt {
+ 	struct watchdog_device wdd;
+ 	struct resource *ctrl_res;
++	struct watchdog_info info;
+ 	bool locked;
+ };
+ 
+@@ -115,7 +116,6 @@ static const struct watchdog_ops intel_oc_wdt_ops = {
+ 
+ static int intel_oc_wdt_setup(struct intel_oc_wdt *oc_wdt)
+ {
+-	struct watchdog_info *info;
+ 	unsigned long val;
+ 
+ 	val = inl(INTEL_OC_WDT_CTRL_REG(oc_wdt));
+@@ -134,7 +134,6 @@ static int intel_oc_wdt_setup(struct intel_oc_wdt *oc_wdt)
+ 		set_bit(WDOG_HW_RUNNING, &oc_wdt->wdd.status);
+ 
+ 		if (oc_wdt->locked) {
+-			info = (struct watchdog_info *)&intel_oc_wdt_info;
+ 			/*
+ 			 * Set nowayout unconditionally as we cannot stop
+ 			 * the watchdog.
+@@ -145,7 +144,7 @@ static int intel_oc_wdt_setup(struct intel_oc_wdt *oc_wdt)
+ 			 * and inform the core we can't change it.
+ 			 */
+ 			oc_wdt->wdd.timeout = (val & INTEL_OC_WDT_TOV) + 1;
+-			info->options &= ~WDIOF_SETTIMEOUT;
++			oc_wdt->info.options &= ~WDIOF_SETTIMEOUT;
+ 
+ 			dev_info(oc_wdt->wdd.parent,
+ 				 "Register access locked, heartbeat fixed at: %u s\n",
+@@ -193,7 +192,8 @@ static int intel_oc_wdt_probe(struct platform_device *pdev)
+ 	wdd->min_timeout = INTEL_OC_WDT_MIN_TOV;
+ 	wdd->max_timeout = INTEL_OC_WDT_MAX_TOV;
+ 	wdd->timeout = INTEL_OC_WDT_DEF_TOV;
+-	wdd->info = &intel_oc_wdt_info;
++	oc_wdt->info = intel_oc_wdt_info;
++	wdd->info = &oc_wdt->info;
+ 	wdd->ops = &intel_oc_wdt_ops;
+ 	wdd->parent = dev;
+ 
+diff --git a/fs/proc/generic.c b/fs/proc/generic.c
+index e0e50914ab25..8bc2b960614c 100644
+--- a/fs/proc/generic.c
++++ b/fs/proc/generic.c
+@@ -364,6 +364,23 @@ static const struct inode_operations proc_dir_inode_operations = {
+ 	.setattr	= proc_notify_change,
+ };
+ 
++static void pde_set_flags(struct proc_dir_entry *pde)
++{
++	if (!pde->proc_ops)
++		return;
++
++	if (pde->proc_ops->proc_flags & PROC_ENTRY_PERMANENT)
++		pde->flags |= PROC_ENTRY_PERMANENT;
++	if (pde->proc_ops->proc_read_iter)
++		pde->flags |= PROC_ENTRY_proc_read_iter;
++#ifdef CONFIG_COMPAT
++	if (pde->proc_ops->proc_compat_ioctl)
++		pde->flags |= PROC_ENTRY_proc_compat_ioctl;
++#endif
++	if (pde->proc_ops->proc_lseek)
++		pde->flags |= PROC_ENTRY_proc_lseek;
++}
++
+ /* returns the registered entry, or frees dp and returns NULL on failure */
+ struct proc_dir_entry *proc_register(struct proc_dir_entry *dir,
+ 		struct proc_dir_entry *dp)
+@@ -371,6 +388,8 @@ struct proc_dir_entry *proc_register(struct proc_dir_entry *dir,
+ 	if (proc_alloc_inum(&dp->low_ino))
+ 		goto out_free_entry;
+ 
++	pde_set_flags(dp);
++
+ 	write_lock(&proc_subdir_lock);
+ 	dp->parent = dir;
+ 	if (pde_subdir_insert(dir, dp) == false) {
+@@ -559,20 +578,6 @@ struct proc_dir_entry *proc_create_reg(const char *name, umode_t mode,
+ 	return p;
+ }
+ 
+-static void pde_set_flags(struct proc_dir_entry *pde)
+-{
+-	if (pde->proc_ops->proc_flags & PROC_ENTRY_PERMANENT)
+-		pde->flags |= PROC_ENTRY_PERMANENT;
+-	if (pde->proc_ops->proc_read_iter)
+-		pde->flags |= PROC_ENTRY_proc_read_iter;
+-#ifdef CONFIG_COMPAT
+-	if (pde->proc_ops->proc_compat_ioctl)
+-		pde->flags |= PROC_ENTRY_proc_compat_ioctl;
+-#endif
+-	if (pde->proc_ops->proc_lseek)
+-		pde->flags |= PROC_ENTRY_proc_lseek;
+-}
+-
+ struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
+ 		struct proc_dir_entry *parent,
+ 		const struct proc_ops *proc_ops, void *data)
+@@ -583,7 +588,6 @@ struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
+ 	if (!p)
+ 		return NULL;
+ 	p->proc_ops = proc_ops;
+-	pde_set_flags(p);
+ 	return proc_register(parent, p);
+ }
+ EXPORT_SYMBOL(proc_create_data);
+@@ -634,7 +638,6 @@ struct proc_dir_entry *proc_create_seq_private(const char *name, umode_t mode,
+ 	p->proc_ops = &proc_seq_ops;
+ 	p->seq_ops = ops;
+ 	p->state_size = state_size;
+-	pde_set_flags(p);
+ 	return proc_register(parent, p);
+ }
+ EXPORT_SYMBOL(proc_create_seq_private);
+@@ -665,7 +668,6 @@ struct proc_dir_entry *proc_create_single_data(const char *name, umode_t mode,
+ 		return NULL;
+ 	p->proc_ops = &proc_single_ops;
+ 	p->single_show = show;
+-	pde_set_flags(p);
+ 	return proc_register(parent, p);
+ }
+ EXPORT_SYMBOL(proc_create_single_data);
+diff --git a/net/ipv4/route.c b/net/ipv4/route.c
+index 7b8e80c4f1d9..25ee7907d212 100644
+--- a/net/ipv4/route.c
++++ b/net/ipv4/route.c
+@@ -2586,6 +2586,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
+ 	do_cache = true;
+ 	if (type == RTN_BROADCAST) {
+ 		flags |= RTCF_BROADCAST | RTCF_LOCAL;
++		fi = NULL;
+ 	} else if (type == RTN_MULTICAST) {
+ 		flags |= RTCF_MULTICAST | RTCF_LOCAL;
+ 		if (!ip_check_mc_rcu(in_dev, fl4->daddr, fl4->saddr,
+@@ -2655,8 +2656,12 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
+ 			rth->dst.output = ip_mc_output;
+ 			RT_CACHE_STAT_INC(out_slow_mc);
+ 		}
++		if (type == RTN_BROADCAST && res->fi) {
++			/* ensure MTU value for broadcast routes is retained */
++			ip_dst_init_metrics(&rth->dst, res->fi->fib_metrics);
++		}
+ #ifdef CONFIG_IP_MROUTE
+-		if (type == RTN_MULTICAST) {
++		else if (type == RTN_MULTICAST) {
+ 			if (IN_DEV_MFORWARD(in_dev) &&
+ 			    !ipv4_is_local_multicast(fl4->daddr)) {
+ 				rth->dst.input = ip_mr_input;
+diff --git a/scripts/package/PKGBUILD b/scripts/package/PKGBUILD
+index 452374d63c24..08f80d7c5df0 100644
+--- a/scripts/package/PKGBUILD
++++ b/scripts/package/PKGBUILD
+@@ -90,6 +90,11 @@ _package-headers() {
+ 		"${srctree}/scripts/package/install-extmod-build" "${builddir}"
+ 	fi
+ 
++	# required when DEBUG_INFO_BTF_MODULES is enabled
++	if [ -f tools/bpf/resolve_btfids/resolve_btfids ]; then
++		install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
++	fi
++
+ 	echo "Installing System.map and config..."
+ 	mkdir -p "${builddir}"
+ 	cp System.map "${builddir}/System.map"
+-- 
+2.51.0
+
+From efbe60263ec2eaa9bd75ce9d5f8eeeac7b2aa85d Mon Sep 17 00:00:00 2001
+From: Peter Jung <admin@ptr1337.dev>
+Date: Fri, 29 Aug 2025 20:24:51 +0200
+Subject: [PATCH] Revert "drm: don't run atomic_async_check for disabled
+ planes"
+
+This reverts commit f0c95743e147bbb98e8c81bd38e3bada8ae2d0f6.
+---
+ drivers/gpu/drm/drm_atomic_uapi.c | 51 ++++++++++---------------------
+ 1 file changed, 16 insertions(+), 35 deletions(-)
+
+diff --git a/drivers/gpu/drm/drm_atomic_uapi.c b/drivers/gpu/drm/drm_atomic_uapi.c
+index e8b6c87bdd45..ecc73d52bfae 100644
+--- a/drivers/gpu/drm/drm_atomic_uapi.c
++++ b/drivers/gpu/drm/drm_atomic_uapi.c
+@@ -1069,6 +1069,7 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
+ 		struct drm_plane *plane = obj_to_plane(obj);
+ 		struct drm_plane_state *plane_state;
+ 		struct drm_mode_config *config = &plane->dev->mode_config;
++		const struct drm_plane_helper_funcs *plane_funcs = plane->helper_private;
+ 
+ 		plane_state = drm_atomic_get_plane_state(state, plane);
+ 		if (IS_ERR(plane_state)) {
+@@ -1084,8 +1085,21 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
+ 				ret = drm_atomic_plane_get_property(plane, plane_state,
+ 								    prop, &old_val);
+ 				ret = drm_atomic_check_prop_changes(ret, old_val, prop_value, prop);
+-				if (ret)
+-				    break;
++			}
++
++			/* ask the driver if this non-primary plane is supported */
++			if (plane->type != DRM_PLANE_TYPE_PRIMARY) {
++				ret = -EINVAL;
++
++				if (plane_funcs && plane_funcs->atomic_async_check)
++					ret = plane_funcs->atomic_async_check(plane, state, true);
++
++				if (ret) {
++					drm_dbg_atomic(prop->dev,
++						       "[PLANE:%d:%s] does not support async flips\n",
++						       obj->id, plane->name);
++					break;
++				}
+ 			}
+ 		}
+ 
+@@ -1381,10 +1395,6 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
+ 	int ret = 0;
+ 	unsigned int i, j, num_fences;
+ 	bool async_flip = false;
+-	struct drm_plane *plane;
+-	struct drm_plane_state *old_plane_state = NULL;
+-	struct drm_plane_state *new_plane_state = NULL;
+-	u64 fb_id = 0;
+ 
+ 	/* disallow for drivers not supporting atomic: */
+ 	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
+@@ -1512,35 +1522,6 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
+ 			copied_props++;
+ 		}
+ 
+-		if (async_flip && obj->type == DRM_MODE_OBJECT_PLANE &&
+-		    obj_to_plane(obj)->type != DRM_PLANE_TYPE_PRIMARY) {
+-			/* need to ask the driver if this plane is supported */
+-			plane = obj_to_plane(obj);
+-			old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+-			new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+-			ret = drm_atomic_plane_get_property(plane, new_plane_state,
+-							    dev->mode_config.prop_fb_id,
+-							    &fb_id);
+-			if (ret)
+-				break;
+-			/*
+-			 * Only do the check if the plane was or is enabled.
+-			 * Note that the new state doesn't have "visible" set yet,
+-			 * so this uses fb_id instead.
+-			 */
+-			if (old_plane_state->visible || fb_id)
+-				ret = -EINVAL;
+-			if (ret && plane->helper_private &&
+-			    plane->helper_private->atomic_async_check) {
+-				ret = plane->helper_private->atomic_async_check(plane, state, true);
+-			}
+-			if (ret) {
+-				drm_dbg_atomic(dev, "[PLANE:%d:%s] does not support async flips\n",
+-						obj->id, plane->name);
+-				break;
+-			}
+-		}
+-
+ 		drm_mode_object_put(obj);
+ 	}
+ 
+-- 
+2.51.0
+
+From c910f69028975c111de6abe34f08fa1b41205711 Mon Sep 17 00:00:00 2001
+From: Xaver Hugl <xaver.hugl@kde.org>
+Date: Fri, 22 Aug 2025 17:28:49 +0200
+Subject: [PATCH] drm: re-allow no-op changes on non-primary planes in async
+ flips
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Commit fd40a63c63a1 ("drm/atomic: Let drivers decide which planes to
+async flip") unintentionally disallowed no-op changes on non-primary
+planes that the driver doesn't allow async flips on. This broke async
+flips for compositors that disable the cursor plane in every async
+atomic commit. To fix that, change drm_atomic_set_property to again
+only run atomic_async_check if the plane would actually be changed by
+the atomic commit.
+
+Fixes: fd40a63c63a1 ("drm/atomic: Let drivers decide which planes to async flip")
+Closes: https://gitlab.freedesktop.org/drm/amd/-/issues/4263
+Signed-off-by: Xaver Hugl <xaver.hugl@kde.org>
+Reviewed-by: André Almeida <andrealmeid@igalia.com>
+Link: https://lore.kernel.org/r/20250822152849.87843-1-xaver.hugl@kde.org
+[andrealmeid: fix checkpatch warning]
+Signed-off-by: André Almeida <andrealmeid@igalia.com>
+---
+ drivers/gpu/drm/drm_atomic_uapi.c | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/gpu/drm/drm_atomic_uapi.c b/drivers/gpu/drm/drm_atomic_uapi.c
+index ecc73d52bfae..85dbdaa4a2e2 100644
+--- a/drivers/gpu/drm/drm_atomic_uapi.c
++++ b/drivers/gpu/drm/drm_atomic_uapi.c
+@@ -1078,19 +1078,20 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
+ 		}
+ 
+ 		if (async_flip) {
+-			/* check if the prop does a nop change */
+-			if ((prop != config->prop_fb_id &&
+-			     prop != config->prop_in_fence_fd &&
+-			     prop != config->prop_fb_damage_clips)) {
+-				ret = drm_atomic_plane_get_property(plane, plane_state,
+-								    prop, &old_val);
+-				ret = drm_atomic_check_prop_changes(ret, old_val, prop_value, prop);
+-			}
++			/* no-op changes are always allowed */
++			ret = drm_atomic_plane_get_property(plane, plane_state,
++							    prop, &old_val);
++			ret = drm_atomic_check_prop_changes(ret, old_val, prop_value, prop);
+ 
+-			/* ask the driver if this non-primary plane is supported */
+-			if (plane->type != DRM_PLANE_TYPE_PRIMARY) {
+-				ret = -EINVAL;
++			/* fail everything that isn't no-op or a pure flip */
++			if (ret && prop != config->prop_fb_id &&
++			    prop != config->prop_in_fence_fd &&
++			    prop != config->prop_fb_damage_clips) {
++				break;
++			}
+ 
++			if (ret && plane->type != DRM_PLANE_TYPE_PRIMARY) {
++				/* ask the driver if this non-primary plane is supported */
+ 				if (plane_funcs && plane_funcs->atomic_async_check)
+ 					ret = plane_funcs->atomic_async_check(plane, state, true);
+ 
+-- 
+2.51.0
+

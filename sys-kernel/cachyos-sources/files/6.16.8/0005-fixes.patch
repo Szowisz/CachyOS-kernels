@@ -1,0 +1,189 @@
+From 52c770b098896f021c7bd1d7d24898132cf907c4 Mon Sep 17 00:00:00 2001
+From: Peter Jung <admin@ptr1337.dev>
+Date: Tue, 9 Sep 2025 20:13:04 +0200
+Subject: [PATCH 5/6] fixes
+
+Signed-off-by: Peter Jung <admin@ptr1337.dev>
+---
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c | 39 ++++++++++++++++++-
+ drivers/gpu/drm/drm_atomic_uapi.c             | 23 +++++------
+ drivers/gpu/drm/i915/display/intel_dsb.c      |  4 ++
+ drivers/watchdog/intel_oc_wdt.c               |  8 ++--
+ scripts/package/PKGBUILD                      |  5 +++
+ 5 files changed, 63 insertions(+), 16 deletions(-)
+
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+index e416155f46be..fc5c3ed733dc 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -8689,7 +8689,16 @@ static int amdgpu_dm_encoder_init(struct drm_device *dev,
+ static void manage_dm_interrupts(struct amdgpu_device *adev,
+ 				 struct amdgpu_crtc *acrtc,
+ 				 struct dm_crtc_state *acrtc_state)
+-{
++{	/*
++	 * We cannot be sure that the frontend index maps to the same
++	 * backend index - some even map to more than one.
++	 * So we have to go through the CRTC to find the right IRQ.
++	 */
++	int irq_type = amdgpu_display_crtc_idx_to_irq_type(
++			adev,
++			acrtc->crtc_id);
++	struct drm_device *dev = adev_to_drm(adev);
++
+ 	struct drm_vblank_crtc_config config = {0};
+ 	struct dc_crtc_timing *timing;
+ 	int offdelay;
+@@ -8742,7 +8751,35 @@ static void manage_dm_interrupts(struct amdgpu_device *adev,
+ 
+ 		drm_crtc_vblank_on_config(&acrtc->base,
+ 					  &config);
++		/* Allow RX6xxx, RX7700, RX7800 GPUs to call amdgpu_irq_get.*/
++		switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
++		case IP_VERSION(3, 0, 0):
++		case IP_VERSION(3, 0, 2):
++		case IP_VERSION(3, 0, 3):
++		case IP_VERSION(3, 2, 0):
++			if (amdgpu_irq_get(adev, &adev->pageflip_irq, irq_type))
++				drm_err(dev, "DM_IRQ: Cannot get pageflip irq!\n");
++#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
++			if (amdgpu_irq_get(adev, &adev->vline0_irq, irq_type))
++				drm_err(dev, "DM_IRQ: Cannot get vline0 irq!\n");
++#endif
++		}
++
+ 	} else {
++		/* Allow RX6xxx, RX7700, RX7800 GPUs to call amdgpu_irq_put.*/
++		switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
++		case IP_VERSION(3, 0, 0):
++		case IP_VERSION(3, 0, 2):
++		case IP_VERSION(3, 0, 3):
++		case IP_VERSION(3, 2, 0):
++#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
++			if (amdgpu_irq_put(adev, &adev->vline0_irq, irq_type))
++				drm_err(dev, "DM_IRQ: Cannot put vline0 irq!\n");
++#endif
++			if (amdgpu_irq_put(adev, &adev->pageflip_irq, irq_type))
++				drm_err(dev, "DM_IRQ: Cannot put pageflip irq!\n");
++		}
++
+ 		drm_crtc_vblank_off(&acrtc->base);
+ 	}
+ }
+diff --git a/drivers/gpu/drm/drm_atomic_uapi.c b/drivers/gpu/drm/drm_atomic_uapi.c
+index c2726af6698e..317303cf5b8c 100644
+--- a/drivers/gpu/drm/drm_atomic_uapi.c
++++ b/drivers/gpu/drm/drm_atomic_uapi.c
+@@ -1077,19 +1077,20 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
+ 		}
+ 
+ 		if (async_flip) {
+-			/* check if the prop does a nop change */
+-			if ((prop != config->prop_fb_id &&
+-			     prop != config->prop_in_fence_fd &&
+-			     prop != config->prop_fb_damage_clips)) {
+-				ret = drm_atomic_plane_get_property(plane, plane_state,
+-								    prop, &old_val);
+-				ret = drm_atomic_check_prop_changes(ret, old_val, prop_value, prop);
+-			}
++			/* no-op changes are always allowed */
++			ret = drm_atomic_plane_get_property(plane, plane_state,
++							    prop, &old_val);
++			ret = drm_atomic_check_prop_changes(ret, old_val, prop_value, prop);
+ 
+-			/* ask the driver if this non-primary plane is supported */
+-			if (plane->type != DRM_PLANE_TYPE_PRIMARY) {
+-				ret = -EINVAL;
++			/* fail everything that isn't no-op or a pure flip */
++			if (ret && prop != config->prop_fb_id &&
++			    prop != config->prop_in_fence_fd &&
++			    prop != config->prop_fb_damage_clips) {
++				break;
++			}
+ 
++			if (ret && plane->type != DRM_PLANE_TYPE_PRIMARY) {
++				/* ask the driver if this non-primary plane is supported */
+ 				if (plane_funcs && plane_funcs->atomic_async_check)
+ 					ret = plane_funcs->atomic_async_check(plane, state, true);
+ 
+diff --git a/drivers/gpu/drm/i915/display/intel_dsb.c b/drivers/gpu/drm/i915/display/intel_dsb.c
+index 481488d1fe67..271229500c62 100644
+--- a/drivers/gpu/drm/i915/display/intel_dsb.c
++++ b/drivers/gpu/drm/i915/display/intel_dsb.c
+@@ -808,6 +808,10 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
+ 	if (!display->params.enable_dsb)
+ 		return NULL;
+ 
++	/* TODO: DSB is broken in Xe KMD, so disabling it until fixed */
++	if (!IS_ENABLED(I915))
++		return NULL;
++
+ 	dsb = kzalloc(sizeof(*dsb), GFP_KERNEL);
+ 	if (!dsb)
+ 		goto out;
+diff --git a/drivers/watchdog/intel_oc_wdt.c b/drivers/watchdog/intel_oc_wdt.c
+index 7c0551106981..a39892c10770 100644
+--- a/drivers/watchdog/intel_oc_wdt.c
++++ b/drivers/watchdog/intel_oc_wdt.c
+@@ -41,6 +41,7 @@
+ struct intel_oc_wdt {
+ 	struct watchdog_device wdd;
+ 	struct resource *ctrl_res;
++	struct watchdog_info info;
+ 	bool locked;
+ };
+ 
+@@ -115,7 +116,6 @@ static const struct watchdog_ops intel_oc_wdt_ops = {
+ 
+ static int intel_oc_wdt_setup(struct intel_oc_wdt *oc_wdt)
+ {
+-	struct watchdog_info *info;
+ 	unsigned long val;
+ 
+ 	val = inl(INTEL_OC_WDT_CTRL_REG(oc_wdt));
+@@ -134,7 +134,6 @@ static int intel_oc_wdt_setup(struct intel_oc_wdt *oc_wdt)
+ 		set_bit(WDOG_HW_RUNNING, &oc_wdt->wdd.status);
+ 
+ 		if (oc_wdt->locked) {
+-			info = (struct watchdog_info *)&intel_oc_wdt_info;
+ 			/*
+ 			 * Set nowayout unconditionally as we cannot stop
+ 			 * the watchdog.
+@@ -145,7 +144,7 @@ static int intel_oc_wdt_setup(struct intel_oc_wdt *oc_wdt)
+ 			 * and inform the core we can't change it.
+ 			 */
+ 			oc_wdt->wdd.timeout = (val & INTEL_OC_WDT_TOV) + 1;
+-			info->options &= ~WDIOF_SETTIMEOUT;
++			oc_wdt->info.options &= ~WDIOF_SETTIMEOUT;
+ 
+ 			dev_info(oc_wdt->wdd.parent,
+ 				 "Register access locked, heartbeat fixed at: %u s\n",
+@@ -193,7 +192,8 @@ static int intel_oc_wdt_probe(struct platform_device *pdev)
+ 	wdd->min_timeout = INTEL_OC_WDT_MIN_TOV;
+ 	wdd->max_timeout = INTEL_OC_WDT_MAX_TOV;
+ 	wdd->timeout = INTEL_OC_WDT_DEF_TOV;
+-	wdd->info = &intel_oc_wdt_info;
++	oc_wdt->info = intel_oc_wdt_info;
++	wdd->info = &oc_wdt->info;
+ 	wdd->ops = &intel_oc_wdt_ops;
+ 	wdd->parent = dev;
+ 
+diff --git a/scripts/package/PKGBUILD b/scripts/package/PKGBUILD
+index 452374d63c24..08f80d7c5df0 100644
+--- a/scripts/package/PKGBUILD
++++ b/scripts/package/PKGBUILD
+@@ -90,6 +90,11 @@ _package-headers() {
+ 		"${srctree}/scripts/package/install-extmod-build" "${builddir}"
+ 	fi
+ 
++	# required when DEBUG_INFO_BTF_MODULES is enabled
++	if [ -f tools/bpf/resolve_btfids/resolve_btfids ]; then
++		install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
++	fi
++
+ 	echo "Installing System.map and config..."
+ 	mkdir -p "${builddir}"
+ 	cp System.map "${builddir}/System.map"
+-- 
+2.51.0
+

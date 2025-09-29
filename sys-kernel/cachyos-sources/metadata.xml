@@ -9,6 +9,76 @@
     <email>xz@xzos.net</email>
     <name>xz-dev</name>
   </maintainer>
+  <use>
+    <!-- CPU Schedulers -->
+    <flag name="bore">CachyOS Scheduler (BORE - Burst-Oriented Response Enhancer), optimized for desktop responsiveness</flag>
+    <flag name="bmq">Project C BMQ (BitMap Queue) scheduler, alternative CPU scheduler with different performance characteristics</flag>
+    <flag name="rt">EEVDF scheduler with realtime patches for low-latency applications</flag>
+    <flag name="rt-bore">BORE scheduler with realtime patches for low-latency applications</flag>
+    <flag name="eevdf">Default Linux EEVDF (Earliest Eligible Virtual Deadline First) scheduler</flag>
+
+    <!-- Hardware-specific patches -->
+    <flag name="deckify">Enable patches for handheld devices like Steam Deck (includes WiFi, ACPI, and handheld-specific patches)</flag>
+
+    <!-- Security features -->
+    <flag name="hardened">Enable hardened kernel patches for enhanced security</flag>
+    <flag name="kcfi">Enable kCFI (Kernel Control Flow Integrity) for additional security protection</flag>
+
+    <!-- Optimization features -->
+    <flag name="autofdo">Enable Clang AutoFDO (Automatic Feedback-Directed Optimization) support for profile-guided optimization</flag>
+    <flag name="propeller">Enable Clang Propeller optimization (basic block reordering) for better performance</flag>
+
+    <!-- LTO options -->
+    <flag name="llvm-lto-thin">Enable LLVM thin LTO (Link Time Optimization) - uses multiple threads, faster compilation, less memory usage</flag>
+    <flag name="llvm-lto-full">Enable LLVM full LTO - single threaded, slower compilation, more memory usage, potentially highest performance</flag>
+    <flag name="llvm-lto-thin-dist">Enable LLVM thin LTO with distributed model rather than in-process linking</flag>
+
+    <!-- ZFS support -->
+    <flag name="kernel-builtin-zfs">Build ZFS module directly into the kernel (not recommended, use sys-fs/zfs-kmod instead)</flag>
+
+    <!-- Timer frequency -->
+    <flag name="hz_ticks_100">Set kernel timer frequency to 100 Hz (server/battery optimized)</flag>
+    <flag name="hz_ticks_250">Set kernel timer frequency to 250 Hz (balanced)</flag>
+    <flag name="hz_ticks_300">Set kernel timer frequency to 300 Hz</flag>
+    <flag name="hz_ticks_500">Set kernel timer frequency to 500 Hz</flag>
+    <flag name="hz_ticks_600">Set kernel timer frequency to 600 Hz</flag>
+    <flag name="hz_ticks_750">Set kernel timer frequency to 750 Hz</flag>
+    <flag name="hz_ticks_1000">Set kernel timer frequency to 1000 Hz (desktop optimized, default)</flag>
+
+    <!-- Governor and power management -->
+    <flag name="per-gov">Set CPU frequency performance governor as default instead of schedutil</flag>
+
+    <!-- Tick rate configuration -->
+    <flag name="tickrate_perodic">Use periodic ticks (traditional approach)</flag>
+    <flag name="tickrate_idle">Use idle tickless mode (NO_HZ_IDLE)</flag>
+    <flag name="tickrate_full">Use full tickless mode (NO_HZ_FULL) - can provide higher performance but lower consistency depending on hardware</flag>
+
+    <!-- Preemption models -->
+    <flag name="preempt_full">Full preemption model for lowest latency (PREEMPT)</flag>
+    <flag name="preempt_lazy">Lazy preemption model (PREEMPT_LAZY)</flag>
+    <flag name="preempt_voluntary">Voluntary preemption model for server workloads (PREEMPT_VOLUNTARY)</flag>
+
+    <!-- Compiler optimization levels -->
+    <flag name="o3">Enable KBUILD_CFLAGS -O3 optimization for maximum performance</flag>
+    <flag name="os">Optimize for size (-Os) instead of performance</flag>
+    <flag name="debug">Enable debug-friendly optimizations and disable various debug features</flag>
+
+    <!-- Network optimization -->
+    <flag name="bbr3">Enable TCP BBR3 (Bottleneck Bandwidth and RTT) congestion control algorithm as default</flag>
+
+    <!-- Memory management -->
+    <flag name="hugepage_always">Always enable Transparent Huge Pages for better memory performance</flag>
+    <flag name="hugepage_madvise">Enable Transparent Huge Pages only when requested via madvise</flag>
+
+    <!-- CPU-specific optimizations -->
+    <flag name="mgeneric">Use generic x86-64 optimizations (default kernel optimizations, portable across machines)</flag>
+    <flag name="mgeneric_v1">Use x86-64-v1 generic optimizations (baseline x86-64)</flag>
+    <flag name="mgeneric_v2">Use x86-64-v2 generic optimizations (requires CMPXCHG16B, LAHF-SAHF, POPCNT, SSE3, SSE4.1, SSE4.2, SSSE3)</flag>
+    <flag name="mgeneric_v3">Use x86-64-v3 generic optimizations (requires AVX, AVX2, BMI1, BMI2, F16C, FMA, LZCNT, MOVBE, XSAVE)</flag>
+    <flag name="mgeneric_v4">Use x86-64-v4 generic optimizations (requires AVX512F, AVX512BW, AVX512CD, AVX512DQ, AVX512VL)</flag>
+    <flag name="mnative">Use compiler native CPU autodetection optimizations (recommended for local builds, not portable)</flag>
+    <flag name="mzen4">Use AMD Zen 4 specific optimizations (znver4) for AMD Ryzen 7000 series and newer</flag>
+  </use>
   <upstream>
     <remote-id type="github">CachyOS/linux-cachyos</remote-id>
     <bugs-to>https://github.com/CachyOS/linux-cachyos/issues</bugs-to>

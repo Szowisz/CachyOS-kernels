@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-from tempfile import TemporaryDirectory
 import subprocess
 from argparse import ArgumentParser
+from tempfile import TemporaryDirectory
 
 
 def clean_files(files_path: str, version: str):
@@ -40,7 +40,7 @@ def get_config(version: str, files_path: str, tmp_path: str, lts: bool):
     subprocess.call(["git", "clone", repo_url, f"{tmp_path}/{repo_name}"])
     # copy the config to the files_path
     config_map = {
-        #"": "bore-sched-ext",
+        # "": "bore-sched-ext",
         "deckify": "deckify",
         "bore": "bore",
         "hardened": "hardened",

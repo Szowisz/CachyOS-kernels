@@ -52,8 +52,16 @@ def get_genpatches_version_from_template(
         old_genpatches_version = int(match.group(1))
 
         # Parse versions to compare major.minor and patch
-        template_parts = template_version.split(".")
-        new_parts = new_version.split(".")
+        # Extract clean version numbers, removing any suffixes like -r1, -rc1, etc.
+        def clean_version(version):
+            # Extract only the numeric version part (e.g. "6.17.0" from "6.17.0-r3")
+            match = re.match(r'^(\d+\.\d+\.\d+(?:\.\d+)?)', version)
+            return match.group(1) if match else version
+            
+        clean_template_version = clean_version(template_version)
+        clean_new_version = clean_version(new_version)
+        template_parts = clean_template_version.split(".")
+        new_parts = clean_new_version.split(".")
 
         # Ensure we have at least major.minor.patch
         if len(template_parts) >= 3 and len(new_parts) >= 3:
@@ -441,8 +449,10 @@ def update_manifest(ebuild_path, dry_run=False):
 
 
 def validate_version(version):
-    """Validate kernel version format"""
-    pattern = r"^\d+\.\d+\.\d+(?:\.\d+)?(?:-rc\d+)?$"
+    """Validate kernel version format, ignoring revision suffixes"""
+    # Extract just the version part, ignore revision suffixes like -r1, -rc1, etc.
+    # Accept formats like: 6.17.0, 6.17.0-r3, 6.17.0-rc1, 6.17.0.1-r2
+    pattern = r"^\d+\.\d+\.\d+(?:\.\d+)?(?:-(?:rc\d+|r\d+))?$"
     return re.match(pattern, version) is not None
 
 

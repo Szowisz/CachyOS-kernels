@@ -35,8 +35,47 @@ def get_latest_kernel_version():
         return None
 
 
+def find_latest_ebuild_for_version_series(ebuild_dir, target_major_minor, exclude_version=None):
+    """Find the latest ebuild for the same major.minor version series"""
+    ebuild_files = list(Path(ebuild_dir).glob("cachyos-sources-*.ebuild"))
+    
+    if not ebuild_files:
+        return None
+    
+    # Exclude the target version if specified
+    if exclude_version:
+        exclude_name = f"cachyos-sources-{exclude_version}.ebuild"
+        ebuild_files = [f for f in ebuild_files if f.name != exclude_name]
+    
+    # Filter for same major.minor version
+    matching_files = []
+    for f in ebuild_files:
+        version = extract_version_from_ebuild_name(f)
+        if version:
+            clean_version = clean_version_helper(version)
+            version_parts = clean_version.split(".")
+            if len(version_parts) >= 2:
+                file_major_minor = f"{version_parts[0]}.{version_parts[1]}"
+                if file_major_minor == target_major_minor:
+                    matching_files.append(f)
+    
+    if not matching_files:
+        return None
+    
+    # Return the latest one
+    latest = max(matching_files, key=lambda x: parse_version(x.name))
+    return latest
+
+
+def clean_version_helper(version):
+    """Helper function to clean version numbers"""
+    # Extract only the numeric version part (e.g. "6.17.0" from "6.17.0-r3")
+    match = re.match(r'^(\d+\.\d+\.\d+(?:\.\d+)?)', version)
+    return match.group(1) if match else version
+
+
 def get_genpatches_version_from_template(
-    template_ebuild_path, template_version, new_version
+    template_ebuild_path, template_version, new_version, ebuild_dir=None, lts=False
 ):
     """Get genpatches version from template ebuild, increment by patch version difference or reset to 1 for major version change"""
     try:
@@ -53,13 +92,8 @@ def get_genpatches_version_from_template(
 
         # Parse versions to compare major.minor and patch
         # Extract clean version numbers, removing any suffixes like -r1, -rc1, etc.
-        def clean_version(version):
-            # Extract only the numeric version part (e.g. "6.17.0" from "6.17.0-r3")
-            match = re.match(r'^(\d+\.\d+\.\d+(?:\.\d+)?)', version)
-            return match.group(1) if match else version
-            
-        clean_template_version = clean_version(template_version)
-        clean_new_version = clean_version(new_version)
+        clean_template_version = clean_version_helper(template_version)
+        clean_new_version = clean_version_helper(new_version)
         template_parts = clean_template_version.split(".")
         new_parts = clean_new_version.split(".")
 
@@ -69,6 +103,39 @@ def get_genpatches_version_from_template(
             new_major_minor = f"{new_parts[0]}.{new_parts[1]}"
 
             if template_major_minor != new_major_minor:
+                if lts and ebuild_dir:
+                    # For LTS versions, try to find the latest ebuild in the same version series
+                    log(f"LTS version update: looking for latest ebuild in {new_major_minor} series")
+                    latest_ebuild = find_latest_ebuild_for_version_series(ebuild_dir, new_major_minor, new_version)
+                    if latest_ebuild:
+                        log(f"Found latest ebuild for {new_major_minor} series: {latest_ebuild.name}")
+                        # Use this ebuild as the new template
+                        latest_version = extract_version_from_ebuild_name(latest_ebuild)
+                        if latest_version:
+                            with open(latest_ebuild, "r") as f:
+                                latest_content = f.read()
+                            match = re.search(r'K_GENPATCHES_VER="(\d+)"', latest_content)
+                            if match:
+                                latest_genpatches_version = int(match.group(1))
+                                # Calculate patch version difference for increment
+                                latest_clean_version = clean_version_helper(latest_version)
+                                latest_parts = latest_clean_version.split(".")
+                                if len(latest_parts) >= 3:
+                                    latest_patch = int(latest_parts[2])
+                                    new_patch = int(new_parts[2])
+                                    patch_diff = new_patch - latest_patch
+                                    
+                                    if patch_diff <= 0:
+                                        new_genpatches_version = latest_genpatches_version + 1
+                                        log(f"Patch version not higher, incrementing genpatches version: {latest_genpatches_version} -> {new_genpatches_version}")
+                                    else:
+                                        new_genpatches_version = latest_genpatches_version + patch_diff
+                                        log(f"Same major version, incrementing genpatches version by patch diff ({patch_diff}): {latest_genpatches_version} -> {new_genpatches_version}")
+                                    
+                                    return str(new_genpatches_version)
+                    
+                    log(f"Could not find existing ebuild for {new_major_minor} series, resetting genpatches version to 1")
+                
                 # Major version change, reset to 1
                 log(
                     f"Major version change ({template_major_minor} -> {new_major_minor}), resetting genpatches version to 1"
@@ -220,7 +287,7 @@ def extract_version_from_ebuild_name(ebuild_path):
 
 
 def copy_and_update_ebuild(
-    template_path, new_version, ebuild_dir, dry_run=False, force=False
+    template_path, new_version, ebuild_dir, dry_run=False, force=False, lts=False
 ):
     """Copy and update ebuild for new version"""
     new_ebuild_name = f"cachyos-sources-{new_version}.ebuild"
@@ -241,7 +308,7 @@ def copy_and_update_ebuild(
         # Still calculate what genpatches version would be used
         template_version = extract_version_from_ebuild_name(template_path)
         genpatches_version = get_genpatches_version_from_template(
-            template_path, template_version, new_version
+            template_path, template_version, new_version, ebuild_dir, lts
         )
         log(
             f"DRY RUN: Would copy and update ebuild with genpatches version {genpatches_version}",
@@ -262,7 +329,7 @@ def copy_and_update_ebuild(
 
     # Update genpatches version (increment from template or reset for major version)
     genpatches_version = get_genpatches_version_from_template(
-        template_path, template_version, new_version
+        template_path, template_version, new_version, ebuild_dir, lts
     )
     # Handle both commented and uncommented K_GENPATCHES_VER lines
     if re.search(r'#K_GENPATCHES_VER=".*"', content):
@@ -425,6 +492,15 @@ def run_get_files(version, previous_commit, files_path, lts=False, dry_run=False
         return False, None
 
 
+def check_sudo_available():
+    """Check if sudo is available on the system"""
+    try:
+        result = subprocess.run(['which', 'sudo'], capture_output=True, text=True, check=False)
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def update_manifest(ebuild_path, dry_run=False):
     """Run ebuild manifest to update the Manifest file"""
     if dry_run:
@@ -433,16 +509,31 @@ def update_manifest(ebuild_path, dry_run=False):
 
     log("Updating manifest...")
 
+    # First try without sudo
     try:
         cmd = ["ebuild", str(ebuild_path), "manifest"]
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         log("Manifest updated successfully")
         return True
     except subprocess.CalledProcessError as e:
-        log(f"Manifest update failed: {e}", "ERROR")
-        if e.stderr:
-            print("STDERR:", e.stderr)
-        return False
+        # If failed and sudo is available, try with sudo
+        if check_sudo_available():
+            log("First attempt failed, trying with sudo...")
+            try:
+                cmd = ["sudo", "ebuild", str(ebuild_path), "manifest"]
+                result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+                log("Manifest updated successfully with sudo")
+                return True
+            except subprocess.CalledProcessError as e2:
+                log(f"Manifest update failed even with sudo: {e2}", "ERROR")
+                if e2.stderr:
+                    print("STDERR:", e2.stderr)
+                return False
+        else:
+            log(f"Manifest update failed: {e}", "ERROR")
+            if e.stderr:
+                print("STDERR:", e.stderr)
+            return False
     except FileNotFoundError:
         log("ebuild command not found. Please ensure portage is installed.", "ERROR")
         return False
@@ -530,7 +621,7 @@ def main():
 
     # Copy and update ebuild
     new_ebuild_path = copy_and_update_ebuild(
-        template_ebuild, target_version, ebuild_dir, args.dry_run, args.force
+        template_ebuild, target_version, ebuild_dir, args.dry_run, args.force, args.lts
     )
 
     if not new_ebuild_path:

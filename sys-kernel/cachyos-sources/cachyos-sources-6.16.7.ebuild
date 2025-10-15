@@ -128,18 +128,18 @@ src_prepare() {
 	fi
 
 	if use eevdf; then
-		eapply "${files_dir}/sched/0001-eevdf-next.patch"
 		cp "${files_dir}/config-eevdf" .config || die
 	fi
 
-	if use rt || use rt-bore; then
+	if use rt; then
 		eapply "${files_dir}/misc/0001-rt-i915.patch"
 		cp "${files_dir}/config-rt-bore" .config || die
 	fi
 
-	if use hardened; then
-		eapply "${files_dir}/misc/0001-hardened.patch"
-		cp "${files_dir}/config-hardened" .config || die
+	if use rt-bore; then
+		eapply "${files_dir}/sched/0001-bore-cachy.patch"
+		eapply "${files_dir}/misc/0001-rt-i915.patch"
+		cp "${files_dir}/config-rt-bore" .config || die
 	fi
 
 	if use deckify; then

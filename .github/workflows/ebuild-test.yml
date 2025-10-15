@@ -1,0 +1,251 @@
+name: Ebuild Merge Test
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'sys-kernel/cachyos-sources/**'
+      - '.github/workflows/ebuild-test.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'sys-kernel/cachyos-sources/**'
+      - '.github/workflows/ebuild-test.yml'
+  workflow_dispatch:
+
+jobs:
+  detect-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.detect.outputs.versions }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for git diff
+    
+    - name: Detect new ebuild versions
+      id: detect
+      run: |
+        # Get the base branch (main or master)
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+        else
+          # For push events and manual trigger, compare with previous commit
+          BASE_SHA="HEAD~1"
+        fi
+        
+        # Find new or modified ebuilds
+        NEW_EBUILDS=$(git diff --name-status "$BASE_SHA" HEAD | \
+          grep -E "^[AM].*sys-kernel/cachyos-sources/cachyos-sources-.*\.ebuild$" | \
+          grep -v "9999" | \
+          sed 's/.*cachyos-sources-\(.*\)\.ebuild$/\1/' | \
+          sort -V || true)
+        
+        # Also check if the workflow itself was modified
+        WORKFLOW_CHANGED=$(git diff --name-status "$BASE_SHA" HEAD | \
+          grep -E "^[AM].*\.github/workflows/ebuild-test\.yml$" || true)
+        
+        if [ -z "$NEW_EBUILDS" ] && [ -z "$WORKFLOW_CHANGED" ]; then
+          echo "::notice::No new or modified ebuilds detected, skipping tests"
+          echo "versions=[]" >> $GITHUB_OUTPUT
+        else
+          if [ -z "$NEW_EBUILDS" ] && [ -n "$WORKFLOW_CHANGED" ]; then
+            echo "Workflow changed, testing latest version"
+            LATEST=$(find sys-kernel/cachyos-sources -name "cachyos-sources-*.ebuild" | \
+              grep -v "9999" | \
+              sed 's/.*cachyos-sources-\(.*\)\.ebuild$/\1/' | \
+              sort -V | tail -1)
+            VERSIONS_JSON="[\"$LATEST\"]"
+          else
+            # Convert to JSON array
+            VERSIONS_JSON="["
+            first=true
+            for version in $NEW_EBUILDS; do
+              if [ "$first" = true ]; then
+                VERSIONS_JSON="${VERSIONS_JSON}\"$version\""
+                first=false
+              else
+                VERSIONS_JSON="${VERSIONS_JSON},\"$version\""
+              fi
+            done
+            VERSIONS_JSON="${VERSIONS_JSON}]"
+          fi
+          
+          echo "Versions to test: $VERSIONS_JSON"
+          echo "versions=$VERSIONS_JSON" >> $GITHUB_OUTPUT
+        fi
+
+  test:
+    needs: detect-versions
+    if: needs.detect-versions.outputs.versions != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{ fromJson(needs.detect-versions.outputs.versions) }}
+        # Comprehensive test matrix based on all USE flags in the ebuild
+        use_flags:
+          # Default USE flags (bore scheduler is default)
+          - ""
+          
+          # === Scheduler Tests (mutually exclusive) ===
+          - "bmq -bore"
+          - "eevdf -bore"
+          - "rt -bore"
+          - "rt-bore -bore"
+          
+          # === Special Configurations ===
+          - "kcfi"
+          - "deckify"
+          - "deckify kcfi"
+          
+          # === Hz Tick Rate Tests (mutually exclusive) ===
+          - "hz_ticks_100 -hz_ticks_1000"
+          - "hz_ticks_250 -hz_ticks_1000"
+          - "hz_ticks_300 -hz_ticks_1000"
+          - "hz_ticks_500 -hz_ticks_1000"
+          - "hz_ticks_600 -hz_ticks_1000"
+          - "hz_ticks_750 -hz_ticks_1000"
+          
+          # === Tick Type Tests (mutually exclusive) ===
+          - "tickrate_perodic -tickrate_full"
+          - "tickrate_idle -tickrate_full"
+          
+          # === Preemption Mode Tests ===
+          - "preempt_voluntary -preempt_full"
+          - "preempt_lazy -preempt_full"
+          # RT schedulers with different preemption
+          - "rt preempt_voluntary -bore -preempt_full"
+          - "rt preempt_lazy -bore -preempt_full"
+          - "rt-bore preempt_voluntary -bore -preempt_full"
+          - "rt-bore preempt_lazy -bore -preempt_full"
+          
+          # === Compiler Optimization Tests ===
+          - "o3"  # Default
+          - "os -o3"
+          - "debug -o3"
+          
+          # === Network and Performance ===
+          - "bbr3"  # Default
+          - "-bbr3"
+          - "per-gov"  # Default
+          - "-per-gov"
+          
+          # === Memory Management ===
+          - "hugepage_always"  # Default
+          - "hugepage_madvise -hugepage_always"
+          
+          # === CPU Architecture Optimization ===
+          - "mnative"  # Default
+          - "mgeneric -mnative"
+          - "mgeneric_v1 -mnative"
+          - "mgeneric_v2 -mnative"
+          - "mgeneric_v3 -mnative"
+          - "mgeneric_v4 -mnative"
+          - "mzen4 -mnative"
+          
+          # === LLVM LTO Tests (mutually exclusive) ===
+          - "llvm-lto-thin-dist"  # Default
+          - "llvm-lto-thin -llvm-lto-thin-dist"
+          - "llvm-lto-full -llvm-lto-thin-dist -propeller"
+          
+          # === Advanced Optimization ===
+          - "autofdo propeller llvm-lto-thin-dist"  # autofdo requires LTO, propeller conflicts with full LTO
+          - "-autofdo -propeller"
+          - "autofdo llvm-lto-thin -propeller -llvm-lto-thin-dist"
+          - "propeller llvm-lto-thin-dist"  # propeller without autofdo
+          - "autofdo llvm-lto-thin -llvm-lto-thin-dist"
+          - "autofdo llvm-lto-full -propeller -llvm-lto-thin-dist"  # propeller conflicts with full LTO
+          
+          # === ZFS Support ===
+          - "kernel-builtin-zfs"
+          
+          # === Complex Real-world Combinations ===
+          # Performance gaming setup
+          - "bmq o3 bbr3 hz_ticks_1000 per-gov mzen4 -bore -mnative"
+          # Low latency audio workstation
+          - "rt preempt_full hz_ticks_1000 tickrate_full -bore"
+          # Power saving laptop
+          - "eevdf os hz_ticks_250 tickrate_idle -per-gov -bore -tickrate_full -hz_ticks_1000 -o3"
+          # Steam Deck optimized
+          - "deckify bmq hz_ticks_500 o3 -bore -hz_ticks_1000"
+          # Development workstation with debugging
+          - "debug eevdf tickrate_perodic -o3 -bore -tickrate_full"
+          # Maximum optimization build
+          - "bore o3 bbr3 autofdo propeller llvm-lto-thin mzen4 -llvm-lto-thin-dist -mnative"
+          # Conservative stable build
+          - "eevdf mgeneric os -bore -o3 -autofdo -propeller -mnative"
+          # RT audio production
+          - "rt-bore preempt_full hz_ticks_1000 o3 -bore"
+          # Virtual machine host
+          - "eevdf hugepage_madvise tickrate_idle mgeneric_v3 -bore -hugepage_always -tickrate_full -mnative"
+          # Container host optimized
+          - "bore per-gov bbr3 hz_ticks_300 -hz_ticks_1000"
+          # Compile server optimized
+          - "bmq llvm-lto-full os mgeneric_v4 -bore -o3 -propeller -llvm-lto-thin-dist -mnative"
+          # Desktop with AutoFDO profiling
+          - "bore autofdo llvm-lto-thin hz_ticks_1000 o3 -llvm-lto-thin-dist"
+          # Maximum compatibility
+          - "eevdf mgeneric -bore -autofdo -propeller -kcfi -mnative"
+          # KCFI security feature with RT
+          - "kcfi rt-bore preempt_lazy -bore -preempt_full"
+          
+    container:
+      image: docker.io/gentoo/stage3:latest
+      options: --privileged
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Portage repository
+      run: |
+        # Create local overlay
+        mkdir -p /var/db/repos/cachyos-overlay
+        cp -r . /var/db/repos/cachyos-overlay/
+        
+        # Configure repos.conf
+        mkdir -p /etc/portage/repos.conf
+        cat > /etc/portage/repos.conf/cachyos.conf <<EOF
+        [CachyOS-kernels]
+        location = /var/db/repos/cachyos-overlay
+        auto-sync = no
+        priority = 50
+        EOF
+        
+        # Configure binhost for faster dependency installation
+        mkdir -p /etc/portage/binrepos.conf
+        cat > /etc/portage/binrepos.conf/gentoobinhost.conf <<EOF
+        [gentoobinhost]
+        priority = 10
+        sync-uri = https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64/
+        EOF
+        
+        # Enable binary packages and accept testing keywords globally
+        # Disable signature verification for CI environment
+        echo 'FEATURES="${FEATURES} getbinpkg -news"' >> /etc/portage/make.conf
+        echo 'ACCEPT_KEYWORDS="~amd64"' >> /etc/portage/make.conf
+        
+        # Sync main repo quietly (minimal output for speed)
+        emerge --sync -q
+        getuto
+        
+    - name: Configure package.use
+      run: |
+        mkdir -p /etc/portage/package.use
+        echo "sys-kernel/cachyos-sources ${{ matrix.use_flags }}" > /etc/portage/package.use/cachyos-sources
+        
+        # Show the USE flags that will be used
+        echo "Testing version ${{ matrix.version }} with USE flags:"
+        emerge --pretend --verbose =sys-kernel/cachyos-sources-${{ matrix.version }} | grep USE
+
+    - name: Install kernel sources
+      run: |
+        # Install the kernel sources package
+        # This is a sources package, it doesn't compile anything, just installs sources
+        # The ebuild should handle all dependencies correctly
+        # Use --autounmask to automatically handle dependency USE flag requirements
+        emerge --verbose --autounmask --autounmask-continue =sys-kernel/cachyos-sources-${{ matrix.version }}
+        
+        echo "✓ Successfully installed cachyos-sources-${{ matrix.version }} with USE='${{ matrix.use_flags }}'"

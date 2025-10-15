@@ -137,8 +137,8 @@ src_prepare() {
 	fi
 
 	if use rt-bore; then
-		eapply "${files_dir}/sched/0001-bore-cachy.patch"
 		eapply "${files_dir}/misc/0001-rt-i915.patch"
+		eapply "${files_dir}/sched/0001-bore-cachy.patch"
 		cp "${files_dir}/config-rt-bore" .config || die
 	fi
 
@@ -148,9 +148,6 @@ src_prepare() {
 	fi
 
 	if use deckify; then
-		eapply "${files_dir}/misc/0001-wifi-ath11k-Rename-QCA2066-fw-dir-to-QCA206X.patch"
-		eapply "${files_dir}/misc/0001-acpi-call.patch"
-		eapply "${files_dir}/misc/0001-handheld.patch"
 		cp "${files_dir}/config-deckify" .config || die
 	fi
 

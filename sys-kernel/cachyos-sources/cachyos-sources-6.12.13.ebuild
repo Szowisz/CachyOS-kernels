@@ -89,12 +89,17 @@ src_prepare() {
 	fi
 
 	if use eevdf; then
-		eapply "${files_dir}/sched/0001-eevdf-next.patch"
 		cp "${files_dir}/config-eevdf" .config || die
 	fi
 
-	if use rt || use rt-bore; then
+	if use rt; then
 		eapply "${files_dir}/misc/0001-rt.patch"
+		cp "${files_dir}/config-rt-bore" .config || die
+	fi
+
+	if use rt-bore; then
+		eapply "${files_dir}/misc/0001-rt.patch"
+		eapply "${files_dir}/sched/0001-bore-cachy-rt.patch"
 		cp "${files_dir}/config-rt-bore" .config || die
 	fi
 

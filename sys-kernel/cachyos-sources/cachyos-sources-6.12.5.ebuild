@@ -87,7 +87,6 @@ src_prepare() {
 	fi
 
 	if use eevdf; then
-		eapply "${files_dir}/sched/0001-eevdf-next.patch"
 		cp "${files_dir}/config-eevdf" .config || die
 	fi
 

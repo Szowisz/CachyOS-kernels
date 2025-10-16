@@ -132,12 +132,12 @@ src_prepare() {
 	fi
 
 	if use rt; then
-		eapply "${files_dir}/misc/0001-rt-i915.patch"
+		eapply "${files_dir}/misc/0001-rt.patch"
 		cp "${files_dir}/config-rt-bore" .config || die
 	fi
 
 	if use rt-bore; then
-		eapply "${files_dir}/misc/0001-rt-i915.patch"
+		eapply "${files_dir}/misc/0001-rt.patch"
 		eapply "${files_dir}/sched/0001-bore-cachy.patch"
 		cp "${files_dir}/config-rt-bore" .config || die
 	fi

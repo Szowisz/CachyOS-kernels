@@ -227,8 +227,34 @@ jobs:
         echo 'FEATURES="${FEATURES} getbinpkg -news"' >> /etc/portage/make.conf
         echo 'ACCEPT_KEYWORDS="~amd64"' >> /etc/portage/make.conf
         
-        # Sync main repo quietly (minimal output for speed)
-        emerge --sync -q
+        # Sync main repo with retry on Manifest verification failures
+        MAX_RETRIES=3
+        RETRY_DELAY=20
+        
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Syncing Gentoo repository..."
+          
+          if emerge --sync -q 2>&1 | tee /tmp/sync.log; then
+            echo "Repository sync successful"
+            break
+          else
+            if grep -q "Manifest verification failed" /tmp/sync.log; then
+              echo "Manifest verification failed (likely network issue)"
+              if [ $i -lt $MAX_RETRIES ]; then
+                echo "Waiting ${RETRY_DELAY} seconds before retry..."
+                sleep $RETRY_DELAY
+              else
+                echo "Max retries reached. Sync failed."
+                exit 1
+              fi
+            else
+              echo "Sync failed with non-Manifest error"
+              cat /tmp/sync.log
+              exit 1
+            fi
+          fi
+        done
+        
         getuto
         
     - name: Configure package.use

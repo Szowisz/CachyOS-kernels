@@ -10101,18 +10101,18 @@ index c6ba15388ea7..56590821f074 100644
  }
  
  /**
-@@ -364,8 +369,10 @@ static inline bool sugov_hold_freq(struct sugov_cpu *sg_cpu) { return false; }
+@@ -389,8 +394,10 @@ static inline bool sugov_hold_freq(struct sugov_cpu *sg_cpu) { return false; }
   */
  static inline void ignore_dl_rate_limit(struct sugov_cpu *sg_cpu)
  {
 +#ifndef CONFIG_SCHED_ALT
  	if (cpu_bw_dl(cpu_rq(sg_cpu->cpu)) > sg_cpu->bw_min)
- 		sg_cpu->sg_policy->limits_changed = true;
+ 		WRITE_ONCE(sg_cpu->sg_policy->limits_changed, true);
 +#endif
  }
  
  static inline bool sugov_update_single_common(struct sugov_cpu *sg_cpu,
-@@ -684,6 +691,7 @@ static int sugov_kthread_create(struct sugov_policy *sg_policy)
+@@ -710,6 +717,7 @@ static int sugov_kthread_create(struct sugov_policy *sg_policy)
  	}
  
  	ret = sched_setattr_nocheck(thread, &attr);

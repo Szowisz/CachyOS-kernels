@@ -276,7 +276,7 @@ src_prepare() {
 			-d ACPI_DEBUG \
 			-d LATENCYTOP \
 			-d SCHED_DEBUG \
-			-d DEBUG_PREEMPT
+			-d DEBUG_PREEMPT || die
 	fi
 
 	### Enable BBR3
@@ -325,7 +325,7 @@ src_prepare() {
 		fi
 	done
 	if [ "$march_found" = false ]; then
-		scripts/config -d GENERIC_CPU -d MZEN4 -e X86_NATIVE_CPU
+		scripts/config -d GENERIC_CPU -d MZEN4 -e X86_NATIVE_CPU || die
 	fi
 
 	### Enable USER_NS_UNPRIVILEGED

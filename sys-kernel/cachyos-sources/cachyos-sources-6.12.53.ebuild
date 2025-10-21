@@ -9,13 +9,13 @@ EXTRAVERSION="-cachyos" # Not used in kernel-2, just due to most ebuilds have it
 #K_PREPATCHED="1"
 # Use genpatches-6.15-5 (latest available) + manual upstream patches
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="5"
+K_GENPATCHES_VER="59"
 
 # Manual list of additional upstream patch versions needed (genpatches-6.15-5 covers up to 6.15.4)
 # Format: "from-to" for incremental patches from /pub/linux/kernel/v6.x/incr/
 # These patches are applied via UNIPATCH_LIST during src_unpack, after genpatches
 # to ensure proper patch order and avoid Makefile version mismatches
-ADDITIONAL_UPSTREAM_PATCH_VERSIONS="6.17.3-4"
+ADDITIONAL_UPSTREAM_PATCH_VERSIONS=""
 ZFS_COMMIT="ab48a488224b2a2ccb1d4082f401468a6fa429e8"
 
 # make sure kernel-2 know right version without guess
@@ -132,12 +132,12 @@ src_prepare() {
 	fi
 
 	if use rt; then
-		eapply "${files_dir}/misc/0001-rt-i915.patch"
+		eapply "${files_dir}/misc/0001-rt.patch"
 		cp "${files_dir}/config-rt-bore" .config || die
 	fi
 
 	if use rt-bore; then
-		eapply "${files_dir}/misc/0001-rt-i915.patch"
+		eapply "${files_dir}/misc/0001-rt.patch"
 		eapply "${files_dir}/sched/0001-bore-cachy.patch"
 		cp "${files_dir}/config-rt-bore" .config || die
 	fi
@@ -149,7 +149,6 @@ src_prepare() {
 
 	if use deckify; then
 		cp "${files_dir}/config-deckify" .config || die
-		scripts/config -d RCU_LAZY_DEFAULT_OFF -e AMD_PRIVATE_COLOR || die
 	fi
 
 	eapply_user
@@ -354,11 +353,11 @@ pkg_postinst() {
 	optfeature "userspace KSM helper" sys-process/uksmd
 	optfeature "NVIDIA opensource module" "x11-drivers/nvidia-drivers[kernel-open]"
 	optfeature "NVIDIA module" x11-drivers/nvidia-drivers
-	optfeature "ZFS support" sys-fs/zfs
+	optfeature "ZFS support" sys-fs/zfs-kmod
 	if use kernel-builtin-zfs; then
 		ewarn "WARNING: You are using kernel-builtin-zfs USE flag."
-		ewarn "It is STRONGLY RECOMMENDED to use sys-fs/zfs instead of building ZFS into the kernel."
-		ewarn "sys-fs/zfs provides better compatibility and easier updates."
+		ewarn "It is STRONGLY RECOMMENDED to use sys-fs/zfs-kmod instead of building ZFS into the kernel."
+		ewarn "sys-fs/zfs-kmod provides better compatibility and easier updates."
 		ewarn "ZFS support build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573, and you can check linux/kernel-build.sh as example"
 	fi
 	(use autofdo || use propeller) && ewarn "AutoFDO support build way: https://cachyos.org/blog/2411-kernel-autofdo, and you can check https://github.com/xz-dev/kernel-autofdo-container as example"

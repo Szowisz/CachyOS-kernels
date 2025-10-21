@@ -606,7 +606,21 @@ def main():
         sys.exit(1)
 
     # Find template ebuild (excluding target version)
-    template_ebuild = find_latest_ebuild(ebuild_dir, target_version)
+    # For LTS versions, prefer finding the latest ebuild in the same version series
+    if args.lts:
+        clean_target_version = clean_version_helper(target_version)
+        target_parts = clean_target_version.split(".")
+        if len(target_parts) >= 2:
+            target_major_minor = f"{target_parts[0]}.{target_parts[1]}"
+            template_ebuild = find_latest_ebuild_for_version_series(ebuild_dir, target_major_minor, target_version)
+            if not template_ebuild:
+                log(f"No existing ebuild found for {target_major_minor} series, falling back to latest ebuild", "WARN")
+                template_ebuild = find_latest_ebuild(ebuild_dir, target_version)
+        else:
+            template_ebuild = find_latest_ebuild(ebuild_dir, target_version)
+    else:
+        template_ebuild = find_latest_ebuild(ebuild_dir, target_version)
+    
     if not template_ebuild:
         sys.exit(1)
 

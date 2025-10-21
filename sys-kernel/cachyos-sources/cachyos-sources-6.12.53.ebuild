@@ -16,7 +16,7 @@ K_GENPATCHES_VER="59"
 # These patches are applied via UNIPATCH_LIST during src_unpack, after genpatches
 # to ensure proper patch order and avoid Makefile version mismatches
 ADDITIONAL_UPSTREAM_PATCH_VERSIONS=""
-ZFS_COMMIT="ab48a488224b2a2ccb1d4082f401468a6fa429e8"
+ZFS_COMMIT="7e331239953e9fbe39491092361b0e73030ba49b"
 
 # make sure kernel-2 know right version without guess
 CKV="$(ver_cut 1-3)"
@@ -370,4 +370,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# 52efab029ec056543406835615474a5f6421bc4e
+# c68f31af0bd7526d3c1f2b70d4f059ae4ad64c52

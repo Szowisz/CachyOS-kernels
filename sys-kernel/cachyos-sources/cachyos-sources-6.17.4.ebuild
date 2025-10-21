@@ -9,14 +9,14 @@ EXTRAVERSION="-cachyos" # Not used in kernel-2, just due to most ebuilds have it
 #K_PREPATCHED="1"
 # Use genpatches-6.15-5 (latest available) + manual upstream patches
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="5"
+K_GENPATCHES_VER="6"
 
 # Manual list of additional upstream patch versions needed (genpatches-6.15-5 covers up to 6.15.4)
 # Format: "from-to" for incremental patches from /pub/linux/kernel/v6.x/incr/
 # These patches are applied via UNIPATCH_LIST during src_unpack, after genpatches
 # to ensure proper patch order and avoid Makefile version mismatches
-ADDITIONAL_UPSTREAM_PATCH_VERSIONS="6.17.3-4"
-ZFS_COMMIT="ab48a488224b2a2ccb1d4082f401468a6fa429e8"
+ADDITIONAL_UPSTREAM_PATCH_VERSIONS=""
+ZFS_COMMIT="7e331239953e9fbe39491092361b0e73030ba49b"
 
 # make sure kernel-2 know right version without guess
 CKV="$(ver_cut 1-3)"
@@ -371,4 +371,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# 52efab029ec056543406835615474a5f6421bc4e
+# c68f31af0bd7526d3c1f2b70d4f059ae4ad64c52

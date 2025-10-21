@@ -1,32 +1,51 @@
-From 55263ddd651a3d7e6005ebcc5aef311c39c4e331 Mon Sep 17 00:00:00 2001
-From: Peter Jung <admin@ptr1337.dev>
-Date: Wed, 15 Oct 2025 15:42:49 +0200
-Subject: [PATCH 1/6] asus
+From bde14b68c41f3cc5515ab7463e3669da8c841706 Mon Sep 17 00:00:00 2001
+From: Eric Naim <dnaim@cachyos.org>
+Date: Wed, 8 Jan 2025 12:17:54 +0700
+Subject: [PATCH] handheld
 
-Signed-off-by: Peter Jung <admin@ptr1337.dev>
+Signed-off-by: Eric Naim <dnaim@cachyos.org>
 ---
  .../ABI/testing/sysfs-platform-asus-wmi       |   17 +
+ drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h      |    2 -
+ .../gpu/drm/amd/amdgpu/atombios_encoders.c    |   10 +-
+ drivers/gpu/drm/amd/amdgpu/sdma_v5_2.c        |    2 +-
+ .../gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c |   38 +-
+ .../amd/display/dc/hwss/dce110/dce110_hwseq.c |    9 +
+ .../drm/amd/display/dc/link/link_validation.c |   11 +
  drivers/hid/Kconfig                           |    9 +
  drivers/hid/Makefile                          |    1 +
- drivers/hid/hid-asus-ally.c                   | 2197 +++++++++++++++++
+ drivers/hid/hid-asus-ally.c                   | 2251 +++++++++++++++++
  drivers/hid/hid-asus-ally.h                   |  398 +++
- drivers/hid/hid-asus.c                        |   30 +-
- drivers/hid/hid-asus.h                        |   13 +
- drivers/hid/hid-ids.h                         |    1 +
- drivers/platform/x86/Kconfig                  |   23 +
+ drivers/hid/hid-asus.c                        |   21 +-
+ drivers/hwmon/Kconfig                         |   11 +
+ drivers/hwmon/Makefile                        |    1 +
+ drivers/hwmon/steamdeck-hwmon.c               |  294 +++
+ drivers/leds/Kconfig                          |    7 +
+ drivers/leds/Makefile                         |    1 +
+ drivers/leds/leds-steamdeck.c                 |   74 +
+ drivers/mfd/Kconfig                           |   11 +
+ drivers/mfd/Makefile                          |    2 +
+ drivers/mfd/steamdeck.c                       |  147 ++
+ drivers/net/wireless/ath/ath11k/core.c        |    2 +-
+ drivers/platform/x86/Kconfig                  |   21 +
  drivers/platform/x86/Makefile                 |    1 +
- drivers/platform/x86/asus-armoury.c           | 1172 +++++++++
- drivers/platform/x86/asus-armoury.h           | 1402 +++++++++++
- drivers/platform/x86/asus-wmi.c               |  176 +-
- .../platform_data/x86/asus-wmi-leds-ids.h     |   50 +
- include/linux/platform_data/x86/asus-wmi.h    |   62 +-
- 15 files changed, 5468 insertions(+), 84 deletions(-)
+ drivers/platform/x86/asus-armoury.c           | 1075 ++++++++
+ drivers/platform/x86/asus-armoury.h           |  258 ++
+ drivers/platform/x86/asus-wmi.c               |  270 +-
+ drivers/video/backlight/backlight.c           |    2 +
+ include/linux/platform_data/x86/asus-wmi.h    |   22 +
+ include/sound/tas2781.h                       |    1 +
+ sound/pci/hda/tas2781_hda_i2c.c               |   63 +-
+ sound/soc/amd/acp/acp-mach.h                  |    2 +-
+ sound/soc/codecs/max98388.c                   |   24 +-
+ 33 files changed, 4958 insertions(+), 100 deletions(-)
  create mode 100644 drivers/hid/hid-asus-ally.c
  create mode 100644 drivers/hid/hid-asus-ally.h
- create mode 100644 drivers/hid/hid-asus.h
+ create mode 100644 drivers/hwmon/steamdeck-hwmon.c
+ create mode 100644 drivers/leds/leds-steamdeck.c
+ create mode 100644 drivers/mfd/steamdeck.c
  create mode 100644 drivers/platform/x86/asus-armoury.c
  create mode 100644 drivers/platform/x86/asus-armoury.h
- create mode 100644 include/linux/platform_data/x86/asus-wmi-leds-ids.h
 
 diff --git a/Documentation/ABI/testing/sysfs-platform-asus-wmi b/Documentation/ABI/testing/sysfs-platform-asus-wmi
 index 28144371a0f1..765d50b0d9df 100644
@@ -168,11 +187,224 @@ index 28144371a0f1..765d50b0d9df 100644
  		Set if the MCU can go in to low-power mode on system sleep
  			* 0 - False,
  			* 1 - True
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h b/drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h
+index 5e3faefc5510..09748a2c5aba 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mode.h
+@@ -435,8 +435,6 @@ struct amdgpu_mode_info {
+ 	struct drm_property *regamma_tf_property;
+ };
+ 
+-#define AMDGPU_MAX_BL_LEVEL 0xFF
+-
+ struct amdgpu_backlight_privdata {
+ 	struct amdgpu_encoder *encoder;
+ 	uint8_t negative;
+diff --git a/drivers/gpu/drm/amd/amdgpu/atombios_encoders.c b/drivers/gpu/drm/amd/amdgpu/atombios_encoders.c
+index a51f3414b65d..bc0f9759c5c5 100644
+--- a/drivers/gpu/drm/amd/amdgpu/atombios_encoders.c
++++ b/drivers/gpu/drm/amd/amdgpu/atombios_encoders.c
+@@ -39,6 +39,10 @@
+ #include <linux/backlight.h>
+ #include "bif/bif_4_1_d.h"
+ 
++
++/* Maximum backlight level. */
++#define AMDGPU_ATOM_MAX_BL_LEVEL 0xFF
++
+ u8
+ amdgpu_atombios_encoder_get_backlight_level_from_reg(struct amdgpu_device *adev)
+ {
+@@ -127,8 +131,8 @@ static u8 amdgpu_atombios_encoder_backlight_level(struct backlight_device *bd)
+ 	/* Convert brightness to hardware level */
+ 	if (bd->props.brightness < 0)
+ 		level = 0;
+-	else if (bd->props.brightness > AMDGPU_MAX_BL_LEVEL)
+-		level = AMDGPU_MAX_BL_LEVEL;
++	else if (bd->props.brightness > AMDGPU_ATOM_MAX_BL_LEVEL)
++		level = AMDGPU_ATOM_MAX_BL_LEVEL;
+ 	else
+ 		level = bd->props.brightness;
+ 
+@@ -198,7 +202,7 @@ void amdgpu_atombios_encoder_init_backlight(struct amdgpu_encoder *amdgpu_encode
+ 	}
+ 
+ 	memset(&props, 0, sizeof(props));
+-	props.max_brightness = AMDGPU_MAX_BL_LEVEL;
++	props.max_brightness = AMDGPU_ATOM_MAX_BL_LEVEL;
+ 	props.type = BACKLIGHT_RAW;
+ 	snprintf(bl_name, sizeof(bl_name),
+ 		 "amdgpu_bl%d", dev->primary->index);
+diff --git a/drivers/gpu/drm/amd/amdgpu/sdma_v5_2.c b/drivers/gpu/drm/amd/amdgpu/sdma_v5_2.c
+index bc9b240a3488..6e65dfa224cc 100644
+--- a/drivers/gpu/drm/amd/amdgpu/sdma_v5_2.c
++++ b/drivers/gpu/drm/amd/amdgpu/sdma_v5_2.c
+@@ -1288,7 +1288,7 @@ static int sdma_v5_2_sw_init(void *handle)
+ 	for (i = 0; i < adev->sdma.num_instances; i++) {
+ 		ring = &adev->sdma.instance[i].ring;
+ 		ring->ring_obj = NULL;
+-		ring->use_doorbell = true;
++		ring->use_doorbell = false;
+ 		ring->me = i;
+ 
+ 		DRM_INFO("use_doorbell being set to: [%s]\n",
+diff --git a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+index a80f8c9fc324..418a2644337a 100644
+--- a/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
++++ b/drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c
+@@ -162,6 +162,9 @@ MODULE_FIRMWARE(FIRMWARE_DCN_401_DMUB);
+ /* Number of bytes in PSP footer for firmware. */
+ #define PSP_FOOTER_BYTES 0x100
+ 
++/* Maximum backlight level. */
++#define AMDGPU_MAX_BL_LEVEL 0xFFFF
++
+ /**
+  * DOC: overview
+  *
+@@ -4519,7 +4522,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
+ 	return 0;
+ }
+ 
+-#define AMDGPU_DM_DEFAULT_MIN_BACKLIGHT 12
++#define AMDGPU_DM_DEFAULT_MIN_BACKLIGHT 0
+ #define AMDGPU_DM_DEFAULT_MAX_BACKLIGHT 255
+ #define AMDGPU_DM_MIN_SPREAD ((AMDGPU_DM_DEFAULT_MAX_BACKLIGHT - AMDGPU_DM_DEFAULT_MIN_BACKLIGHT) / 2)
+ #define AUX_BL_DEFAULT_TRANSITION_TIME_MS 50
+@@ -4553,11 +4556,27 @@ static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
+ 
+ 	if (caps.caps_valid) {
+ 		dm->backlight_caps[bl_idx].caps_valid = true;
++
++		printk(KERN_NOTICE"VLV Successfully queried backlight range over ACPI: %d %d\n",
++		       (int) caps.min_input_signal, (int) caps.max_input_signal);
++
++		if ( caps.min_input_signal != AMDGPU_DM_DEFAULT_MIN_BACKLIGHT ||
++			caps.max_input_signal != AMDGPU_DM_DEFAULT_MAX_BACKLIGHT )
++		{
++			caps.min_input_signal = AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
++			caps.max_input_signal = AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
++
++			printk(KERN_NOTICE"VLV OVERRIDE backlight range: %d %d\n",
++			       (int) caps.min_input_signal, (int) caps.max_input_signal);
++		}
++
+ 		if (caps.aux_support)
+ 			return;
+ 		dm->backlight_caps[bl_idx].min_input_signal = caps.min_input_signal;
+ 		dm->backlight_caps[bl_idx].max_input_signal = caps.max_input_signal;
+ 	} else {
++		printk(KERN_NOTICE"VLV ACPI does not provide backlight range, using defaults: %d %d\n",
++		       AMDGPU_DM_DEFAULT_MIN_BACKLIGHT, AMDGPU_DM_DEFAULT_MAX_BACKLIGHT);
+ 		dm->backlight_caps[bl_idx].min_input_signal =
+ 				AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
+ 		dm->backlight_caps[bl_idx].max_input_signal =
+@@ -4567,6 +4586,9 @@ static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
+ 	if (dm->backlight_caps[bl_idx].aux_support)
+ 		return;
+ 
++	printk(KERN_NOTICE"VLV Kernel built without ACPI. using backlight range defaults: %d %d\n",
++	       AMDGPU_DM_DEFAULT_MIN_BACKLIGHT, AMDGPU_DM_DEFAULT_MAX_BACKLIGHT);
++
+ 	dm->backlight_caps[bl_idx].min_input_signal = AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
+ 	dm->backlight_caps[bl_idx].max_input_signal = AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
+ #endif
+@@ -4598,9 +4620,9 @@ static u32 convert_brightness_from_user(const struct amdgpu_dm_backlight_caps *c
+ 	if (!get_brightness_range(caps, &min, &max))
+ 		return brightness;
+ 
+-	// Rescale 0..255 to min..max
+-	return min + DIV_ROUND_CLOSEST((max - min) * brightness,
+-				       AMDGPU_MAX_BL_LEVEL);
++	// Rescale 0..AMDGPU_MAX_BL_LEVEL to min..max
++	return min + DIV_ROUND_CLOSEST_ULL((u64)(max - min) * brightness,
++					   AMDGPU_MAX_BL_LEVEL);
+ }
+ 
+ static u32 convert_brightness_to_user(const struct amdgpu_dm_backlight_caps *caps,
+@@ -4613,9 +4635,9 @@ static u32 convert_brightness_to_user(const struct amdgpu_dm_backlight_caps *cap
+ 
+ 	if (brightness < min)
+ 		return 0;
+-	// Rescale min..max to 0..255
+-	return DIV_ROUND_CLOSEST(AMDGPU_MAX_BL_LEVEL * (brightness - min),
+-				 max - min);
++	// Rescale min..max to 0..AMDGPU_MAX_BL_LEVEL
++	return DIV_ROUND_CLOSEST_ULL((u64)AMDGPU_MAX_BL_LEVEL * (brightness - min),
++				     max - min);
+ }
+ 
+ static void amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
+@@ -8981,7 +9003,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
+ 	int planes_count = 0, vpos, hpos;
+ 	unsigned long flags;
+ 	u32 target_vblank, last_flip_vblank;
+-	bool vrr_active = amdgpu_dm_crtc_vrr_active(acrtc_state);
++	bool vrr_active = true;//amdgpu_dm_crtc_vrr_active(acrtc_state);
+ 	bool cursor_update = false;
+ 	bool pflip_present = false;
+ 	bool dirty_rects_changed = false;
+diff --git a/drivers/gpu/drm/amd/display/dc/hwss/dce110/dce110_hwseq.c b/drivers/gpu/drm/amd/display/dc/hwss/dce110/dce110_hwseq.c
+index 4fbed0298adf..e67435163766 100644
+--- a/drivers/gpu/drm/amd/display/dc/hwss/dce110/dce110_hwseq.c
++++ b/drivers/gpu/drm/amd/display/dc/hwss/dce110/dce110_hwseq.c
+@@ -95,6 +95,8 @@
+ #define FN(reg_name, field_name) \
+ 	hws->shifts->field_name, hws->masks->field_name
+ 
++static const uint8_t DP_SINK_BRANCH_DEV_NAME_KT50X0[] = "KT50X0!";
++
+ struct dce110_hw_seq_reg_offsets {
+ 	uint32_t crtc;
+ };
+@@ -3241,6 +3243,13 @@ void dce110_enable_dp_link_output(
+ 			link->dc->res_pool->dp_clock_source;
+ 	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
+ 	unsigned int i;
++	if (link->ctx->dce_version == DCN_VERSION_3_01 &&
++	    link->dpcd_caps.sink_dev_id == DP_BRANCH_DEVICE_ID_0060AD &&
++	    memcmp(&link->dpcd_caps.branch_dev_name,
++		   DP_SINK_BRANCH_DEV_NAME_KT50X0,
++		   sizeof(link->dpcd_caps.branch_dev_name)) == 0) {
++		msleep(2000);
++	}
+ 
+ 	/*
+ 	 * Add the logic to extract BOTH power up and power down sequences
+diff --git a/drivers/gpu/drm/amd/display/dc/link/link_validation.c b/drivers/gpu/drm/amd/display/dc/link/link_validation.c
+index 60f15a9ba7a5..c3da48c213d4 100644
+--- a/drivers/gpu/drm/amd/display/dc/link/link_validation.c
++++ b/drivers/gpu/drm/amd/display/dc/link/link_validation.c
+@@ -35,6 +35,8 @@
+ 
+ #define DC_LOGGER_INIT(logger)
+ 
++static const uint8_t DP_SINK_BRANCH_DEV_NAME_KT50X0[] = "KT50X0!";
++
+ static uint32_t get_tmds_output_pixel_clock_100hz(const struct dc_crtc_timing *timing)
+ {
+ 
+@@ -276,6 +278,15 @@ static bool dp_validate_mode_timing(
+ 		timing->v_addressable == (uint32_t) 480)
+ 		return true;
+ 
++	if (link->ctx->dce_version == DCN_VERSION_3_01 &&
++	    link->dpcd_caps.sink_dev_id == DP_BRANCH_DEVICE_ID_0060AD &&
++	    memcmp(&link->dpcd_caps.branch_dev_name,
++		   DP_SINK_BRANCH_DEV_NAME_KT50X0,
++		   sizeof(link->dpcd_caps.branch_dev_name)) == 0) {
++		if (timing->pix_clk_100hz / 10 >= (uint32_t) 1200000)
++			return false; /* KT50X0 does not support Pxl clock >= 1200MHz */
++	}
++
+ 	link_setting = dp_get_verified_link_cap(link);
+ 
+ 	/* TODO: DYNAMIC_VALIDATION needs to be implemented */
 diff --git a/drivers/hid/Kconfig b/drivers/hid/Kconfig
-index b934523593d9..7f9f2d7b82d2 100644
+index 6c8e9e004907..809d5f2684ff 100644
 --- a/drivers/hid/Kconfig
 +++ b/drivers/hid/Kconfig
-@@ -191,6 +191,15 @@ config HID_ASUS
+@@ -185,6 +185,15 @@ config HID_ASUS
  	- GL553V series
  	- GL753V series
  
@@ -189,7 +421,7 @@ index b934523593d9..7f9f2d7b82d2 100644
  	tristate "Aureal"
  	help
 diff --git a/drivers/hid/Makefile b/drivers/hid/Makefile
-index 10ae5dedbd84..958f67193c85 100644
+index 13d32f55e5d4..c4b93a15a4d5 100644
 --- a/drivers/hid/Makefile
 +++ b/drivers/hid/Makefile
 @@ -33,6 +33,7 @@ obj-$(CONFIG_HID_APPLETB_BL)	+= hid-appletb-bl.o
@@ -202,10 +434,10 @@ index 10ae5dedbd84..958f67193c85 100644
  obj-$(CONFIG_HID_BETOP_FF)	+= hid-betopff.o
 diff --git a/drivers/hid/hid-asus-ally.c b/drivers/hid/hid-asus-ally.c
 new file mode 100644
-index 000000000000..e78625f70c44
+index 000000000000..d59316001f50
 --- /dev/null
 +++ b/drivers/hid/hid-asus-ally.c
-@@ -0,0 +1,2197 @@
+@@ -0,0 +1,2251 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later
 +/*
 + *  HID driver for Asus ROG laptops and Ally
@@ -215,8 +447,6 @@ index 000000000000..e78625f70c44
 +
 +#include "linux/compiler_attributes.h"
 +#include "linux/device.h"
-+#include <linux/platform_data/x86/asus-wmi.h>
-+#include <linux/platform_device.h>
 +#include "linux/pm.h"
 +#include "linux/printk.h"
 +#include "linux/slab.h"
@@ -227,7 +457,6 @@ index 000000000000..e78625f70c44
 +#include <linux/led-class-multicolor.h>
 +
 +#include "hid-ids.h"
-+#include "hid-asus.h"
 +#include "hid-asus-ally.h"
 +
 +#define DEBUG
@@ -240,12 +469,15 @@ index 000000000000..e78625f70c44
 +#define ALLY_X_INPUT_REPORT_USB 0x0B
 +#define ALLY_X_INPUT_REPORT_USB_SIZE 16
 +
-+#define ROG_ALLY_REPORT_SIZE 64
-+#define ROG_ALLY_X_MIN_MCU 313
-+#define ROG_ALLY_MIN_MCU 319
++#define ALLY_CFG_INTF_IN_ADDRESS 0x83
++#define ALLY_CFG_INTF_OUT_ADDRESS 0x04
++#define ALLY_X_INTERFACE_ADDRESS 0x87
 +
 +#define FEATURE_KBD_LED_REPORT_ID1 0x5d
 +#define FEATURE_KBD_LED_REPORT_ID2 0x5e
++
++#define ALLY_MIN_BIOS 319
++#define ALLY_X_MIN_BIOS 313
 +
 +#define BTN_DATA_LEN 11;
 +#define BTN_CODE_BYTES_LEN 8
@@ -612,7 +844,6 @@ index 000000000000..e78625f70c44
 +	struct ally_gamepad_cfg *gamepad_cfg;
 +	struct ally_rgb_dev *led_rgb_dev;
 +	struct ally_rgb_data led_rgb_data;
-+	uint mcu_version;
 +} drvdata;
 +
 +static void reverse_bytes_in_pairs(u8 *buf, size_t size) {
@@ -625,6 +856,12 @@ index 000000000000..e78625f70c44
 +			*word_ptr = cpu_to_be16(*word_ptr);
 +		}
 +	}
++}
++
++static int asus_dev_get_report(struct hid_device *hdev, u8 *out_buf, size_t out_buf_size)
++{
++	return hid_hw_raw_request(hdev, FEATURE_REPORT_ID, out_buf, out_buf_size,
++				  HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 +}
 +
 +/**
@@ -652,23 +889,6 @@ index 000000000000..e78625f70c44
 +	kfree(dmabuf);
 +
 +	return ret;
-+}
-+
-+/**
-+ * asus_dev_get_report - send get report request to device.
-+ *
-+ * @hdev: hid device
-+ * @out: buffer to write output data in to
-+ * @len: length the output buffer provided
-+ *
-+ * Return: count of data transferred, negative if error
-+ *
-+ * Same behavior as hid_hw_raw_request.
-+ */
-+static int asus_dev_get_report(struct hid_device *hdev, u8 *out, size_t len)
-+{
-+	return hid_hw_raw_request(hdev, FEATURE_REPORT_ID, out, len,
-+		HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 +}
 +
 +static u8 get_endpoint_address(struct hid_device *hdev)
@@ -1497,13 +1717,6 @@ index 000000000000..e78625f70c44
 +
 +DEVICE_ATTR_RW(gamepad_mode);
 +
-+static ssize_t mcu_version_show(struct device *dev, struct device_attribute *attr, char *buf)
-+{
-+	return sysfs_emit(buf, "%d\n", drvdata.mcu_version);
-+}
-+
-+DEVICE_ATTR_RO(mcu_version);
-+
 +/* ROOT LEVEL ATTRS *******************************************************************************/
 +static struct attribute *gamepad_device_attrs[] = {
 +	&dev_attr_btn_mapping_reset.attr,
@@ -1511,7 +1724,6 @@ index 000000000000..e78625f70c44
 +	&dev_attr_gamepad_apply_all.attr,
 +	&dev_attr_gamepad_vibration_intensity.attr,
 +	&dev_attr_gamepad_vibration_intensity_index.attr,
-+	&dev_attr_mcu_version.attr,
 +	NULL
 +};
 +
@@ -2154,7 +2366,7 @@ index 000000000000..e78625f70c44
 +	int ep;
 +
 +	ep = get_endpoint_address(hdev);
-+	if (ep != ROG_ALLY_CFG_INTF_IN)
++	if (ep != ALLY_CFG_INTF_IN_ADDRESS)
 +		return;
 +
 +	if (!drvdata.led_rgb_dev || led_rgb->removed)
@@ -2189,7 +2401,6 @@ index 000000000000..e78625f70c44
 +			return -1;
 +		}
 +	}
-+
 +	if (cfg && !ally_x) {
 +		input_report_key(cfg->input, KEY_PROG1, data[1] == 0x38);
 +		input_report_key(cfg->input, KEY_F16, data[1] == 0xA6);
@@ -2199,6 +2410,92 @@ index 000000000000..e78625f70c44
 +	}
 +
 +	return 0;
++}
++
++/*
++ * Very simple parse. We don't care about any other part of the string except the version section.
++ * Example strings: FGA80100.RC72LA.312_T01, FGA80100.RC71LS.318_T01
++ */
++static int mcu_parse_version_string(const u8 *response, size_t response_size)
++{
++	int dot_count = 0;
++	size_t i;
++
++	// Look for the second '.' to identify the start of the version
++	for (i = 0; i < response_size; i++) {
++		if (response[i] == '.') {
++			dot_count++;
++			if (dot_count == 2) {
++				int version =
++					simple_strtol((const char *)&response[i + 1], NULL, 10);
++				return (version >= 0) ? version : -EINVAL;
++			}
++		}
++	}
++
++	return -EINVAL;
++}
++
++static int mcu_request_version(struct hid_device *hdev)
++{
++	const u8 request[] = { 0x5a, 0x05, 0x03, 0x31, 0x00, 0x20 };
++	size_t response_size = FEATURE_ROG_ALLY_REPORT_SIZE;
++	u8 *response;
++	int ret;
++
++	response = kzalloc(response_size, GFP_KERNEL);
++	if (!response) {
++		kfree(request);
++		return -ENOMEM;
++	}
++
++	ret = asus_dev_set_report(hdev, request, sizeof(request));
++	if (ret < 0)
++		goto error;
++
++	ret = asus_dev_get_report(hdev, response, response_size);
++	if (ret < 0)
++		goto error;
++
++	ret = mcu_parse_version_string(response, response_size);
++	if (ret < 0)
++		goto error;
++
++	goto cleanup;
++
++error:
++	hid_err(hdev, "Failed to get MCU version: %d\n", ret);
++cleanup:
++	kfree(response);
++
++	return ret;
++}
++
++static void mcu_maybe_warn_version(struct hid_device *hdev, int idProduct)
++{
++	int min_version, version;
++
++	min_version = 0;
++	version = mcu_request_version(hdev);
++	if (version) {
++		switch (idProduct) {
++		case USB_DEVICE_ID_ASUSTEK_ROG_NKEY_ALLY:
++			min_version = ALLY_MIN_BIOS;
++			break;
++		case USB_DEVICE_ID_ASUSTEK_ROG_NKEY_ALLY_X:
++			min_version = ALLY_X_MIN_BIOS;
++			break;
++		}
++	}
++
++	hid_info(hdev, "Ally device MCU version: %d\n", version);
++	if (version <= min_version) {
++		hid_warn(hdev,
++			 "The MCU version must be %d or greater\n"
++			 "Please update your MCU with official ASUS firmware release "
++			 "which has bug fixes to make the Linux experience better\n",
++			 min_version);
++	}
 +}
 +
 +static int ally_hid_init(struct hid_device *hdev)
@@ -2229,8 +2526,8 @@ index 000000000000..e78625f70c44
 +	if (ep < 0)
 +		return ep;
 +
-+	if (ep != ROG_ALLY_CFG_INTF_IN &&
-+	    ep != ROG_ALLY_X_INTF_IN)
++	if (ep != ALLY_CFG_INTF_IN_ADDRESS &&
++	    ep != ALLY_X_INTERFACE_ADDRESS)
 +		return -ENODEV;
 +
 +	ret = hid_parse(hdev);
@@ -2260,8 +2557,8 @@ index 000000000000..e78625f70c44
 +	hid_set_drvdata(hdev, &drvdata);
 +
 +	/* This should almost always exist */
-+	if (ep == ROG_ALLY_CFG_INTF_IN) {
-+		validate_mcu_fw_version(hdev, idProduct);
++	if (ep == ALLY_CFG_INTF_IN_ADDRESS) {
++		mcu_maybe_warn_version(hdev, idProduct);
 +
 +		drvdata.led_rgb_dev = ally_rgb_create(hdev);
 +		if (IS_ERR(drvdata.led_rgb_dev))
@@ -2280,7 +2577,7 @@ index 000000000000..e78625f70c44
 +	}
 +
 +	/* May or may not exist */
-+	if (ep == ROG_ALLY_X_INTF_IN) {
++	if (ep == ALLY_X_INTERFACE_ADDRESS) {
 +		drvdata.ally_x = ally_x_create(hdev);
 +		if (IS_ERR(drvdata.ally_x)) {
 +			hid_err(hdev, "Failed to create Ally X gamepad.\n");
@@ -2322,15 +2619,7 @@ index 000000000000..e78625f70c44
 +
 +static int ally_hid_resume(struct hid_device *hdev)
 +{
-+	struct ally_gamepad_cfg *ally_cfg = drvdata.gamepad_cfg;
-+	int err;
-+
-+	if (!ally_cfg)
-+		return 0;
-+
-+	err = _gamepad_apply_all(hdev, ally_cfg);
-+	if (err)
-+		return err;
++	ally_rgb_resume();
 +
 +	return 0;
 +}
@@ -2338,13 +2627,13 @@ index 000000000000..e78625f70c44
 +static int ally_hid_reset_resume(struct hid_device *hdev)
 +{
 +	int ep = get_endpoint_address(hdev);
-+	if (ep != ROG_ALLY_CFG_INTF_IN)
++	if (ep != ALLY_CFG_INTF_IN_ADDRESS)
 +		return 0;
 +
 +	ally_hid_init(hdev);
 +	ally_rgb_resume();
 +
-+	return ally_hid_resume(hdev);
++	return 0;
 +}
 +
 +static int ally_pm_thaw(struct device *dev)
@@ -2371,19 +2660,18 @@ index 000000000000..e78625f70c44
 +
 +MODULE_DEVICE_TABLE(hid, rog_ally_devices);
 +
-+static struct hid_driver rog_ally_cfg = { .name = "asus_rog_ally",
-+		.id_table = rog_ally_devices,
-+		.probe = ally_hid_probe,
-+		.remove = ally_hid_remove,
-+		.raw_event = ally_raw_event,
-+		/* HID is the better place for resume functions, not pm_ops */
-+		.resume = ally_hid_resume,
-+		/* ALLy 1 requires this to reset device state correctly */
-+		.reset_resume = ally_hid_reset_resume,
-+		.driver = {
-+			.pm = &ally_pm_ops,
-+		}
-+};
++static struct hid_driver
++	rog_ally_cfg = { .name = "asus_rog_ally",
++			 .id_table = rog_ally_devices,
++			 .probe = ally_hid_probe,
++			 .remove = ally_hid_remove,
++			 .raw_event = ally_raw_event,
++			 /* HID is the better place for resume functions, not pm_ops */
++			 .resume = ally_hid_resume,
++			 .reset_resume = ally_hid_reset_resume,
++			 .driver = {
++				 .pm = &ally_pm_ops,
++			 } };
 +
 +static int __init rog_ally_init(void)
 +{
@@ -2398,8 +2686,6 @@ index 000000000000..e78625f70c44
 +module_init(rog_ally_init);
 +module_exit(rog_ally_exit);
 +
-+MODULE_IMPORT_NS("ASUS_WMI");
-+MODULE_IMPORT_NS("HID_ASUS");
 +MODULE_AUTHOR("Luke D. Jones");
 +MODULE_DESCRIPTION("HID Driver for ASUS ROG Ally gamepad configuration.");
 +MODULE_LICENSE("GPL");
@@ -2808,136 +3094,711 @@ index 000000000000..c83817589082
 +		.attrs = _fname##_turbo_attrs,                                    \
 +	}
 diff --git a/drivers/hid/hid-asus.c b/drivers/hid/hid-asus.c
-index 8db9d4e7c3b0..6d6201b7ea82 100644
+index a4b47319ad8e..7c5269cd4d76 100644
 --- a/drivers/hid/hid-asus.c
 +++ b/drivers/hid/hid-asus.c
-@@ -23,16 +23,19 @@
- /*
-  */
+@@ -52,6 +52,10 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
+ #define FEATURE_KBD_LED_REPORT_ID1 0x5d
+ #define FEATURE_KBD_LED_REPORT_ID2 0x5e
  
-+#include "linux/export.h"
- #include <linux/dmi.h>
- #include <linux/hid.h>
- #include <linux/module.h>
- #include <linux/platform_data/x86/asus-wmi.h>
-+#include <linux/platform_data/x86/asus-wmi-leds-ids.h>
- #include <linux/input/mt.h>
- #include <linux/usb.h> /* For to_usb_interface for T100 touchpad intf check */
- #include <linux/power_supply.h>
- #include <linux/leds.h>
++#define ALLY_CFG_INTF_IN_ADDRESS 0x83
++#define ALLY_CFG_INTF_OUT_ADDRESS 0x04
++#define ALLY_X_INTERFACE_ADDRESS 0x87
++
+ #define SUPPORT_KBD_BACKLIGHT BIT(0)
  
- #include "hid-ids.h"
-+#include "hid-asus.h"
+ #define MAX_TOUCH_MAJOR 8
+@@ -84,6 +88,7 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
+ #define QUIRK_MEDION_E1239T		BIT(10)
+ #define QUIRK_ROG_NKEY_KEYBOARD		BIT(11)
+ #define QUIRK_ROG_CLAYMORE_II_KEYBOARD BIT(12)
++#define QUIRK_ROG_ALLY_XPAD		BIT(13)
  
- MODULE_AUTHOR("Yusuke Fujimaki <usk.fujimaki@gmail.com>");
- MODULE_AUTHOR("Brendan McGrath <redmcg@redmandi.dyndns.org>");
-@@ -601,7 +604,7 @@ static int mcu_request_version(struct hid_device *hdev)
- 	return ret;
- }
- 
--static void validate_mcu_fw_version(struct hid_device *hdev, int idProduct)
-+void validate_mcu_fw_version(struct hid_device *hdev, int idProduct)
- {
- 	int min_version, version;
- 
-@@ -629,12 +632,11 @@ static void validate_mcu_fw_version(struct hid_device *hdev, int idProduct)
- 		set_ally_mcu_powersave(true);
- 	}
- }
-+EXPORT_SYMBOL_NS(validate_mcu_fw_version, "HID_ASUS");
- 
- static int asus_kbd_register_leds(struct hid_device *hdev)
- {
- 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
--	struct usb_interface *intf;
--	struct usb_device *udev;
- 	unsigned char kbd_func;
- 	int ret;
- 
-@@ -659,12 +661,14 @@ static int asus_kbd_register_leds(struct hid_device *hdev)
- 				return ret;
- 		}
- 
-+		#if !IS_REACHABLE(CONFIG_HID_ASUS_ALLY)
- 		if (drvdata->quirks & QUIRK_ROG_ALLY_XPAD) {
--			intf = to_usb_interface(hdev->dev.parent);
--			udev = interface_to_usbdev(intf);
-+			struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
-+			struct usb_device *udev = interface_to_usbdev(intf);
- 			validate_mcu_fw_version(hdev,
- 				le16_to_cpu(udev->descriptor.idProduct));
- 		}
-+		#endif /* !IS_REACHABLE(CONFIG_HID_ASUS_ALLY) */
- 
- 	} else {
- 		/* Initialize keyboard */
-@@ -1125,8 +1129,10 @@ static int __maybe_unused asus_reset_resume(struct hid_device *hdev)
- 
- static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
- {
--	int ret;
- 	struct asus_drvdata *drvdata;
-+	struct usb_host_endpoint *ep;
-+	struct usb_interface *intf;
-+	int ret;
- 
- 	drvdata = devm_kzalloc(&hdev->dev, sizeof(*drvdata), GFP_KERNEL);
- 	if (drvdata == NULL) {
-@@ -1138,6 +1144,18 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
+ #define I2C_KEYBOARD_QUIRKS			(QUIRK_FIX_NOTEBOOK_REPORT | \
+ 						 QUIRK_NO_INIT_REPORTS | \
+@@ -1003,6 +1008,17 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
  
  	drvdata->quirks = id->driver_data;
  
-+	/* Ignore these endpoints as they are used by hid-asus-ally */
-+	#if IS_REACHABLE(CONFIG_HID_ASUS_ALLY)
++	/* Ignore these endpoints as they will be used by other drivers */
 +	if (drvdata->quirks & QUIRK_ROG_ALLY_XPAD) {
-+		intf = to_usb_interface(hdev->dev.parent);
-+		ep = intf->cur_altsetting->endpoint;
-+		if (ep->desc.bEndpointAddress == ROG_ALLY_X_INTF_IN ||
-+			ep->desc.bEndpointAddress == ROG_ALLY_CFG_INTF_IN ||
-+			ep->desc.bEndpointAddress == ROG_ALLY_CFG_INTF_OUT)
++		struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
++		struct usb_host_endpoint *ep = intf->cur_altsetting->endpoint;
++
++		if (ep->desc.bEndpointAddress == ALLY_X_INTERFACE_ADDRESS ||
++			ep->desc.bEndpointAddress == ALLY_CFG_INTF_IN_ADDRESS ||
++			ep->desc.bEndpointAddress == ALLY_CFG_INTF_OUT_ADDRESS)
 +			return -ENODEV;
 +	}
-+	#endif /* IS_REACHABLE(CONFIG_HID_ASUS_ALLY) */
 +
  	/*
  	 * T90CHI's keyboard dock returns same ID values as T100CHI's dock.
  	 * Thus, identify T90CHI dock with product name string.
-diff --git a/drivers/hid/hid-asus.h b/drivers/hid/hid-asus.h
+@@ -1254,10 +1270,10 @@ static const struct hid_device_id asus_devices[] = {
+ 	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD },
+ 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
+ 	    USB_DEVICE_ID_ASUSTEK_ROG_NKEY_ALLY),
+-	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD },
++	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD | QUIRK_ROG_ALLY_XPAD},
+ 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
+ 	    USB_DEVICE_ID_ASUSTEK_ROG_NKEY_ALLY_X),
+-	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD },
++	  QUIRK_USE_KBD_BACKLIGHT | QUIRK_ROG_NKEY_KEYBOARD | QUIRK_ROG_ALLY_XPAD },
+ 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
+ 	    USB_DEVICE_ID_ASUSTEK_ROG_CLAYMORE_II_KEYBOARD),
+ 	  QUIRK_ROG_CLAYMORE_II_KEYBOARD },
+@@ -1301,4 +1317,5 @@ static struct hid_driver asus_driver = {
+ };
+ module_hid_driver(asus_driver);
+ 
++MODULE_IMPORT_NS(ASUS_WMI);
+ MODULE_LICENSE("GPL");
+diff --git a/drivers/hwmon/Kconfig b/drivers/hwmon/Kconfig
+index 08a3c863f80a..2e9b739d9ad6 100644
+--- a/drivers/hwmon/Kconfig
++++ b/drivers/hwmon/Kconfig
+@@ -2053,6 +2053,17 @@ config SENSORS_SCH5636
+ 	  This driver can also be built as a module. If so, the module
+ 	  will be called sch5636.
+ 
++config SENSORS_STEAMDECK
++	tristate "Steam Deck EC sensors"
++	depends on MFD_STEAMDECK
++	help
++	  If you say yes here you get support for the hardware
++	  monitoring features exposed by EC firmware on Steam Deck
++	  devices
++
++	  This driver can also be built as a module. If so, the module
++	  will be called steamdeck-hwmon.
++
+ config SENSORS_STTS751
+ 	tristate "ST Microelectronics STTS751"
+ 	depends on I2C
+diff --git a/drivers/hwmon/Makefile b/drivers/hwmon/Makefile
+index 9554d2fdcf7b..21111114e3dc 100644
+--- a/drivers/hwmon/Makefile
++++ b/drivers/hwmon/Makefile
+@@ -207,6 +207,7 @@ obj-$(CONFIG_SENSORS_SMSC47B397)+= smsc47b397.o
+ obj-$(CONFIG_SENSORS_SMSC47M1)	+= smsc47m1.o
+ obj-$(CONFIG_SENSORS_SMSC47M192)+= smsc47m192.o
+ obj-$(CONFIG_SENSORS_SPARX5)	+= sparx5-temp.o
++obj-$(CONFIG_SENSORS_STEAMDECK) += steamdeck-hwmon.o
+ obj-$(CONFIG_SENSORS_SPD5118)	+= spd5118.o
+ obj-$(CONFIG_SENSORS_STTS751)	+= stts751.o
+ obj-$(CONFIG_SENSORS_SURFACE_FAN)+= surface_fan.o
+diff --git a/drivers/hwmon/steamdeck-hwmon.c b/drivers/hwmon/steamdeck-hwmon.c
 new file mode 100644
-index 000000000000..f67dd5a3a1bc
+index 000000000000..9d0a5471b181
 --- /dev/null
-+++ b/drivers/hid/hid-asus.h
-@@ -0,0 +1,13 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+#ifndef __HID_ASUS_H
-+#define __HID_ASUS_H
++++ b/drivers/hwmon/steamdeck-hwmon.c
+@@ -0,0 +1,294 @@
++// SPDX-License-Identifier: GPL-2.0+
++/*
++ * Steam Deck EC sensors driver
++ *
++ * Copyright (C) 2021-2022 Valve Corporation
++ */
 +
-+#include <linux/hid.h>
++#include <linux/acpi.h>
++#include <linux/hwmon.h>
++#include <linux/platform_device.h>
 +
-+#define ROG_ALLY_CFG_INTF_IN 0x83
-+#define ROG_ALLY_CFG_INTF_OUT 0x04
-+#define ROG_ALLY_X_INTF_IN 0x87
++#define STEAMDECK_HWMON_NAME	"steamdeck-hwmon"
 +
-+void validate_mcu_fw_version(struct hid_device *hdev, int idProduct);
++struct steamdeck_hwmon {
++	struct acpi_device *adev;
++};
 +
-+#endif	/* __HID_ASUS_H */
-diff --git a/drivers/hid/hid-ids.h b/drivers/hid/hid-ids.h
-index ded5348d190c..4c0c0cbcd06b 100644
---- a/drivers/hid/hid-ids.h
-+++ b/drivers/hid/hid-ids.h
-@@ -225,6 +225,7 @@
- #define USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD2	0x19b6
- #define USB_DEVICE_ID_ASUSTEK_ROG_NKEY_KEYBOARD3	0x1a30
- #define USB_DEVICE_ID_ASUSTEK_ROG_Z13_LIGHTBAR		0x18c6
-+#define USB_DEVICE_ID_ASUSTEK_ROG_RAIKIRI_PAD		0x1abb
- #define USB_DEVICE_ID_ASUSTEK_ROG_NKEY_ALLY		0x1abe
- #define USB_DEVICE_ID_ASUSTEK_ROG_NKEY_ALLY_X		0x1b4c
- #define USB_DEVICE_ID_ASUSTEK_ROG_CLAYMORE_II_KEYBOARD	0x196b
++static long
++steamdeck_hwmon_get(struct steamdeck_hwmon *sd, const char *method)
++{
++	unsigned long long val;
++	if (ACPI_FAILURE(acpi_evaluate_integer(sd->adev->handle,
++					       (char *)method, NULL, &val)))
++		return -EIO;
++
++	return val;
++}
++
++static int
++steamdeck_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
++		     u32 attr, int channel, long *out)
++{
++	struct steamdeck_hwmon *sd = dev_get_drvdata(dev);
++
++	switch (type) {
++	case hwmon_curr:
++		if (attr != hwmon_curr_input)
++			return -EOPNOTSUPP;
++
++		*out = steamdeck_hwmon_get(sd, "PDAM");
++		if (*out < 0)
++			return *out;
++		break;
++	case hwmon_in:
++		if (attr != hwmon_in_input)
++			return -EOPNOTSUPP;
++
++		*out = steamdeck_hwmon_get(sd, "PDVL");
++		if (*out < 0)
++			return *out;
++		break;
++	case hwmon_temp:
++		if (attr != hwmon_temp_input)
++			return -EOPNOTSUPP;
++
++		*out = steamdeck_hwmon_get(sd, "BATT");
++		if (*out < 0)
++			return *out;
++		/*
++		 * Assuming BATT returns deg C we need to mutiply it
++		 * by 1000 to convert to mC
++		 */
++		*out *= 1000;
++		break;
++	case hwmon_fan:
++		switch (attr) {
++		case hwmon_fan_input:
++			*out = steamdeck_hwmon_get(sd, "FANR");
++			if (*out < 0)
++				return *out;
++			break;
++		case hwmon_fan_target:
++			*out = steamdeck_hwmon_get(sd, "FSSR");
++			if (*out < 0)
++				return *out;
++			break;
++		case hwmon_fan_fault:
++			*out = steamdeck_hwmon_get(sd, "FANC");
++			if (*out < 0)
++				return *out;
++			/*
++			 * FANC (Fan check):
++			 * 0: Abnormal
++			 * 1: Normal
++			 */
++			*out = !*out;
++			break;
++		default:
++			return -EOPNOTSUPP;
++		}
++		break;
++	default:
++		return -EOPNOTSUPP;
++	}
++
++	return 0;
++}
++
++static int
++steamdeck_hwmon_read_string(struct device *dev, enum hwmon_sensor_types type,
++			    u32 attr, int channel, const char **str)
++{
++	switch (type) {
++		/*
++		 * These two aren't, strictly speaking, measured. EC
++		 * firmware just reports what PD negotiation resulted
++		 * in.
++		 */
++	case hwmon_curr:
++		*str = "PD Contract Current";
++		break;
++	case hwmon_in:
++		*str = "PD Contract Voltage";
++		break;
++	case hwmon_temp:
++		*str = "Battery Temp";
++		break;
++	case hwmon_fan:
++		*str = "System Fan";
++		break;
++	default:
++		return -EOPNOTSUPP;
++	}
++
++	return 0;
++}
++
++static int
++steamdeck_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
++		      u32 attr, int channel, long val)
++{
++	struct steamdeck_hwmon *sd = dev_get_drvdata(dev);
++
++	if (type != hwmon_fan ||
++	    attr != hwmon_fan_target)
++		return -EOPNOTSUPP;
++
++	val = clamp_val(val, 0, 7300);
++
++	if (ACPI_FAILURE(acpi_execute_simple_method(sd->adev->handle,
++						    "FANS", val)))
++		return -EIO;
++
++	return 0;
++}
++
++static umode_t
++steamdeck_hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
++			   u32 attr, int channel)
++{
++	if (type == hwmon_fan &&
++	    attr == hwmon_fan_target)
++		return 0644;
++
++	return 0444;
++}
++
++static const struct hwmon_channel_info *steamdeck_hwmon_info[] = {
++	HWMON_CHANNEL_INFO(in,
++			   HWMON_I_INPUT | HWMON_I_LABEL),
++	HWMON_CHANNEL_INFO(curr,
++			   HWMON_C_INPUT | HWMON_C_LABEL),
++	HWMON_CHANNEL_INFO(temp,
++			   HWMON_T_INPUT | HWMON_T_LABEL),
++	HWMON_CHANNEL_INFO(fan,
++			   HWMON_F_INPUT | HWMON_F_LABEL |
++			   HWMON_F_TARGET | HWMON_F_FAULT),
++	NULL
++};
++
++static const struct hwmon_ops steamdeck_hwmon_ops = {
++	.is_visible = steamdeck_hwmon_is_visible,
++	.read = steamdeck_hwmon_read,
++	.read_string = steamdeck_hwmon_read_string,
++	.write = steamdeck_hwmon_write,
++};
++
++static const struct hwmon_chip_info steamdeck_hwmon_chip_info = {
++	.ops = &steamdeck_hwmon_ops,
++	.info = steamdeck_hwmon_info,
++};
++
++
++static ssize_t
++steamdeck_hwmon_simple_store(struct device *dev, const char *buf, size_t count,
++			     const char *method,
++			     unsigned long upper_limit)
++{
++	struct steamdeck_hwmon *sd = dev_get_drvdata(dev);
++	unsigned long value;
++
++	if (kstrtoul(buf, 10, &value) || value >= upper_limit)
++		return -EINVAL;
++
++	if (ACPI_FAILURE(acpi_execute_simple_method(sd->adev->handle,
++						    (char *)method, value)))
++		return -EIO;
++
++	return count;
++}
++
++static ssize_t
++steamdeck_hwmon_simple_show(struct device *dev, char *buf,
++			    const char *method)
++{
++	struct steamdeck_hwmon *sd = dev_get_drvdata(dev);
++	unsigned long value;
++
++	value = steamdeck_hwmon_get(sd, method);
++	if (value < 0)
++		return value;
++
++	return sprintf(buf, "%ld\n", value);
++}
++
++#define STEAMDECK_HWMON_ATTR_RW(_name, _set_method, _get_method,	\
++				_upper_limit)				\
++	static ssize_t _name##_show(struct device *dev,			\
++				    struct device_attribute *attr,	\
++				    char *buf)				\
++	{								\
++		return steamdeck_hwmon_simple_show(dev, buf,		\
++						   _get_method);	\
++	}								\
++	static ssize_t _name##_store(struct device *dev,		\
++				     struct device_attribute *attr,	\
++				     const char *buf, size_t count)	\
++	{								\
++		return steamdeck_hwmon_simple_store(dev, buf, count,	\
++						    _set_method,	\
++						    _upper_limit);	\
++	}								\
++	static DEVICE_ATTR_RW(_name)
++
++STEAMDECK_HWMON_ATTR_RW(max_battery_charge_level, "FCBL", "SFBL", 101);
++STEAMDECK_HWMON_ATTR_RW(max_battery_charge_rate,  "CHGR", "GCHR", 101);
++
++static struct attribute *steamdeck_hwmon_attributes[] = {
++	&dev_attr_max_battery_charge_level.attr,
++	&dev_attr_max_battery_charge_rate.attr,
++	NULL
++};
++
++static const struct attribute_group steamdeck_hwmon_group = {
++	.attrs = steamdeck_hwmon_attributes,
++};
++
++static const struct attribute_group *steamdeck_hwmon_groups[] = {
++	&steamdeck_hwmon_group,
++	NULL
++};
++
++static int steamdeck_hwmon_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct steamdeck_hwmon *sd;
++	struct device *hwmon;
++
++	sd = devm_kzalloc(dev, sizeof(*sd), GFP_KERNEL);
++	if (!sd)
++		return -ENOMEM;
++
++	sd->adev = ACPI_COMPANION(dev->parent);
++	hwmon = devm_hwmon_device_register_with_info(dev,
++						     "steamdeck_hwmon",
++						     sd,
++						     &steamdeck_hwmon_chip_info,
++						     steamdeck_hwmon_groups);
++	if (IS_ERR(hwmon)) {
++		dev_err(dev, "Failed to register HWMON device");
++		return PTR_ERR(hwmon);
++	}
++
++	return 0;
++}
++
++static const struct platform_device_id steamdeck_hwmon_id_table[] = {
++	{ .name = STEAMDECK_HWMON_NAME },
++	{}
++};
++MODULE_DEVICE_TABLE(platform, steamdeck_hwmon_id_table);
++
++static struct platform_driver steamdeck_hwmon_driver = {
++	.probe = steamdeck_hwmon_probe,
++	.driver = {
++		.name = STEAMDECK_HWMON_NAME,
++	},
++	.id_table = steamdeck_hwmon_id_table,
++};
++module_platform_driver(steamdeck_hwmon_driver);
++
++MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
++MODULE_DESCRIPTION("Steam Deck EC sensors driver");
++MODULE_LICENSE("GPL");
+diff --git a/drivers/leds/Kconfig b/drivers/leds/Kconfig
+index b784bb74a837..fb3d45acfd9d 100644
+--- a/drivers/leds/Kconfig
++++ b/drivers/leds/Kconfig
+@@ -959,6 +959,13 @@ config LEDS_ACER_A500
+ 	  This option enables support for the Power Button LED of
+ 	  Acer Iconia Tab A500.
+ 
++config LEDS_STEAMDECK
++	tristate "LED support for Steam Deck"
++	depends on LEDS_CLASS && MFD_STEAMDECK
++	help
++	  This option enabled support for the status LED (next to the
++	  power button) on Steam Deck
++
+ source "drivers/leds/blink/Kconfig"
+ 
+ comment "Flash and Torch LED drivers"
+diff --git a/drivers/leds/Makefile b/drivers/leds/Makefile
+index 18afbb5a23ee..b0ff19d14419 100644
+--- a/drivers/leds/Makefile
++++ b/drivers/leds/Makefile
+@@ -81,6 +81,7 @@ obj-$(CONFIG_LEDS_POWERNV)		+= leds-powernv.o
+ obj-$(CONFIG_LEDS_PWM)			+= leds-pwm.o
+ obj-$(CONFIG_LEDS_REGULATOR)		+= leds-regulator.o
+ obj-$(CONFIG_LEDS_SC27XX_BLTC)		+= leds-sc27xx-bltc.o
++obj-$(CONFIG_LEDS_STEAMDECK)		+= leds-steamdeck.o
+ obj-$(CONFIG_LEDS_SUN50I_A100)		+= leds-sun50i-a100.o
+ obj-$(CONFIG_LEDS_SUNFIRE)		+= leds-sunfire.o
+ obj-$(CONFIG_LEDS_SYSCON)		+= leds-syscon.o
+diff --git a/drivers/leds/leds-steamdeck.c b/drivers/leds/leds-steamdeck.c
+new file mode 100644
+index 000000000000..56d31d2dd099
+--- /dev/null
++++ b/drivers/leds/leds-steamdeck.c
+@@ -0,0 +1,74 @@
++// SPDX-License-Identifier: GPL-2.0+
++
++/*
++ * Steam Deck EC MFD LED cell driver
++ *
++ * Copyright (C) 2021-2022 Valve Corporation
++ *
++ */
++
++#include <linux/acpi.h>
++#include <linux/leds.h>
++#include <linux/platform_device.h>
++
++struct steamdeck_led {
++	struct acpi_device *adev;
++	struct led_classdev cdev;
++};
++
++static int steamdeck_leds_brightness_set(struct led_classdev *cdev,
++					 enum led_brightness value)
++{
++	struct steamdeck_led *sd = container_of(cdev, struct steamdeck_led,
++						cdev);
++
++	if (ACPI_FAILURE(acpi_execute_simple_method(sd->adev->handle,
++						    "CHBV", value)))
++		return -EIO;
++
++	return 0;
++}
++
++static int steamdeck_leds_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct steamdeck_led *sd;
++	int ret;
++
++	sd = devm_kzalloc(dev, sizeof(*sd), GFP_KERNEL);
++	if (!sd)
++		return -ENOMEM;
++
++	sd->adev = ACPI_COMPANION(dev->parent);
++
++	sd->cdev.name = "status:white";
++	sd->cdev.brightness_set_blocking = steamdeck_leds_brightness_set;
++	sd->cdev.max_brightness = 100;
++
++	ret = devm_led_classdev_register(dev, &sd->cdev);
++	if (ret) {
++		dev_err(dev, "Failed to register LEDs device: %d\n", ret);
++		return ret;
++	}
++
++	return 0;
++}
++
++static const struct platform_device_id steamdeck_leds_id_table[] = {
++	{ .name = "steamdeck-leds" },
++	{}
++};
++MODULE_DEVICE_TABLE(platform, steamdeck_leds_id_table);
++
++static struct platform_driver steamdeck_leds_driver = {
++	.probe = steamdeck_leds_probe,
++	.driver = {
++		.name = "steamdeck-leds",
++	},
++	.id_table = steamdeck_leds_id_table,
++};
++module_platform_driver(steamdeck_leds_driver);
++
++MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
++MODULE_DESCRIPTION("Steam Deck LEDs driver");
++MODULE_LICENSE("GPL");
+diff --git a/drivers/mfd/Kconfig b/drivers/mfd/Kconfig
+index f9325bcce1b9..8e7c9b64b077 100644
+--- a/drivers/mfd/Kconfig
++++ b/drivers/mfd/Kconfig
+@@ -2402,5 +2402,16 @@ config MFD_RSMU_SPI
+ 	  Additional drivers must be enabled in order to use the functionality
+ 	  of the device.
+ 
++config MFD_STEAMDECK
++	tristate "Valve Steam Deck"
++	select MFD_CORE
++	depends on ACPI
++	depends on X86_64 || COMPILE_TEST
++	help
++	  This driver registers various MFD cells that expose aspects
++	  of Steam Deck specific ACPI functionality.
++
++	  Say N here, unless you are running on Steam Deck hardware.
++
+ endmenu
+ endif
+diff --git a/drivers/mfd/Makefile b/drivers/mfd/Makefile
+index 2a9f91e81af8..8950b482f267 100644
+--- a/drivers/mfd/Makefile
++++ b/drivers/mfd/Makefile
+@@ -289,3 +289,5 @@ obj-$(CONFIG_MFD_ATC260X_I2C)	+= atc260x-i2c.o
+ 
+ obj-$(CONFIG_MFD_RSMU_I2C)	+= rsmu_i2c.o rsmu_core.o
+ obj-$(CONFIG_MFD_RSMU_SPI)	+= rsmu_spi.o rsmu_core.o
++
++obj-$(CONFIG_MFD_STEAMDECK)	+= steamdeck.o
+diff --git a/drivers/mfd/steamdeck.c b/drivers/mfd/steamdeck.c
+new file mode 100644
+index 000000000000..a60fa7db9141
+--- /dev/null
++++ b/drivers/mfd/steamdeck.c
+@@ -0,0 +1,147 @@
++// SPDX-License-Identifier: GPL-2.0+
++
++/*
++ * Steam Deck EC MFD core driver
++ *
++ * Copyright (C) 2021-2022 Valve Corporation
++ *
++ */
++
++#include <linux/acpi.h>
++#include <linux/platform_device.h>
++#include <linux/mfd/core.h>
++
++#define STEAMDECK_STA_OK			\
++	(ACPI_STA_DEVICE_ENABLED |		\
++	 ACPI_STA_DEVICE_PRESENT |		\
++	 ACPI_STA_DEVICE_FUNCTIONING)
++
++struct steamdeck {
++	struct acpi_device *adev;
++	struct device *dev;
++};
++
++#define STEAMDECK_ATTR_RO(_name, _method)				\
++	static ssize_t _name##_show(struct device *dev,			\
++				    struct device_attribute *attr,	\
++				    char *buf)				\
++	{								\
++		struct steamdeck *sd = dev_get_drvdata(dev);		\
++		unsigned long long val;					\
++									\
++		if (ACPI_FAILURE(acpi_evaluate_integer(			\
++					 sd->adev->handle,		\
++					 _method, NULL, &val)))		\
++			return -EIO;					\
++									\
++		return sysfs_emit(buf, "%llu\n", val);			\
++	}								\
++	static DEVICE_ATTR_RO(_name)
++
++STEAMDECK_ATTR_RO(firmware_version, "PDFW");
++STEAMDECK_ATTR_RO(board_id, "BOID");
++
++static ssize_t controller_board_power_store(struct device *dev,
++					    struct device_attribute *attr,
++					    const char *buf, size_t count)
++{
++	struct steamdeck *sd = dev_get_drvdata(dev);
++	bool enabled;
++	ssize_t ret = kstrtobool(buf, &enabled);
++
++	if (ret)
++		return ret;
++
++	if (ACPI_FAILURE(acpi_execute_simple_method(sd->adev->handle,
++						    "SCBP", enabled)))
++		return -EIO;
++
++	return count;
++}
++static DEVICE_ATTR_WO(controller_board_power);
++
++static struct attribute *steamdeck_attrs[] = {
++	&dev_attr_firmware_version.attr,
++	&dev_attr_board_id.attr,
++	&dev_attr_controller_board_power.attr,
++	NULL
++};
++
++ATTRIBUTE_GROUPS(steamdeck);
++
++static const struct mfd_cell steamdeck_cells[] = {
++	{ .name = "steamdeck-hwmon"  },
++	{ .name = "steamdeck-leds"   },
++	{ .name = "steamdeck-extcon" },
++};
++
++static void steamdeck_remove_sysfs_groups(void *data)
++{
++	struct steamdeck *sd = data;
++
++	sysfs_remove_groups(&sd->dev->kobj, steamdeck_groups);
++}
++
++static int steamdeck_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	unsigned long long sta;
++	struct steamdeck *sd;
++	acpi_status status;
++	int ret;
++
++	sd = devm_kzalloc(dev, sizeof(*sd), GFP_KERNEL);
++	if (!sd)
++		return -ENOMEM;
++	sd->adev = ACPI_COMPANION(dev);
++	sd->dev = dev;
++	platform_set_drvdata(pdev, sd);
++
++	status = acpi_evaluate_integer(sd->adev->handle, "_STA",
++				       NULL, &sta);
++	if (ACPI_FAILURE(status)) {
++		dev_err(dev, "Status check failed (0x%x)\n", status);
++		return -EINVAL;
++	}
++
++	if ((sta & STEAMDECK_STA_OK) != STEAMDECK_STA_OK) {
++		dev_err(dev, "Device is not ready\n");
++		return -EINVAL;
++	}
++
++	ret = sysfs_create_groups(&dev->kobj, steamdeck_groups);
++	if (ret) {
++		dev_err(dev, "Failed to create sysfs group\n");
++		return ret;
++	}
++
++	ret = devm_add_action_or_reset(dev, steamdeck_remove_sysfs_groups,
++				       sd);
++	if (ret) {
++		dev_err(dev, "Failed to register devres action\n");
++		return ret;
++	}
++
++	return devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE,
++				    steamdeck_cells, ARRAY_SIZE(steamdeck_cells),
++				    NULL, 0, NULL);
++}
++
++static const struct acpi_device_id steamdeck_device_ids[] = {
++	{ "VLV0100", 0 },
++	{ "", 0 },
++};
++MODULE_DEVICE_TABLE(acpi, steamdeck_device_ids);
++
++static struct platform_driver steamdeck_driver = {
++	.probe = steamdeck_probe,
++	.driver = {
++		.name = "steamdeck",
++		.acpi_match_table = steamdeck_device_ids,
++	},
++};
++module_platform_driver(steamdeck_driver);
++
++MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
++MODULE_DESCRIPTION("Steam Deck EC MFD core driver");
++MODULE_LICENSE("GPL");
+diff --git a/drivers/net/wireless/ath/ath11k/core.c b/drivers/net/wireless/ath/ath11k/core.c
+index ccf4ad35fdc3..ee935c23ca6a 100644
+--- a/drivers/net/wireless/ath/ath11k/core.c
++++ b/drivers/net/wireless/ath/ath11k/core.c
+@@ -724,7 +724,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
+ 		.name = "qca2066 hw2.1",
+ 		.hw_rev = ATH11K_HW_QCA2066_HW21,
+ 		.fw = {
+-			.dir = "QCA2066/hw2.1",
++			.dir = "QCA206X/hw2.1",
+ 			.board_size = 256 * 1024,
+ 			.cal_offset = 128 * 1024,
+ 		},
 diff --git a/drivers/platform/x86/Kconfig b/drivers/platform/x86/Kconfig
-index 6d238e120dce..fc45a7c8c201 100644
+index 3875abba5a79..d0fc68d93f48 100644
 --- a/drivers/platform/x86/Kconfig
 +++ b/drivers/platform/x86/Kconfig
-@@ -250,6 +250,18 @@ config ASUS_WIRELESS
+@@ -265,6 +265,18 @@ config ASUS_WIRELESS
  	  If you choose to compile this driver as a module the module will be
  	  called asus-wireless.
  
@@ -2956,7 +3817,7 @@ index 6d238e120dce..fc45a7c8c201 100644
  config ASUS_WMI
  	tristate "ASUS WMI Driver"
  	depends on ACPI_WMI
-@@ -272,6 +284,17 @@ config ASUS_WMI
+@@ -287,6 +299,15 @@ config ASUS_WMI
  	  To compile this driver as a module, choose M here: the module will
  	  be called asus-wmi.
  
@@ -2966,16 +3827,14 @@ index 6d238e120dce..fc45a7c8c201 100644
 +	default y
 +	help
 +	  Say Y to expose the configurable BIOS options through the asus-wmi
-+	  driver.
-+
-+	  This can be used with or without the asus-armoury driver which
++	  driver. This can be used with or without the asus-armoury driver which
 +	  has the same attributes, but more, and better features.
 +
  config ASUS_NB_WMI
  	tristate "Asus Notebook WMI Driver"
  	depends on ASUS_WMI
 diff --git a/drivers/platform/x86/Makefile b/drivers/platform/x86/Makefile
-index a0c5848513e3..4279f5443f30 100644
+index e1b142947067..fe3e7e7dede8 100644
 --- a/drivers/platform/x86/Makefile
 +++ b/drivers/platform/x86/Makefile
 @@ -32,6 +32,7 @@ obj-$(CONFIG_APPLE_GMUX)	+= apple-gmux.o
@@ -2988,27 +3847,22 @@ index a0c5848513e3..4279f5443f30 100644
  obj-$(CONFIG_ASUS_TF103C_DOCK)	+= asus-tf103c-dock.o
 diff --git a/drivers/platform/x86/asus-armoury.c b/drivers/platform/x86/asus-armoury.c
 new file mode 100644
-index 000000000000..43a1e7017d16
+index 000000000000..fb4ae804521d
 --- /dev/null
 +++ b/drivers/platform/x86/asus-armoury.c
-@@ -0,0 +1,1172 @@
+@@ -0,0 +1,1075 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later
 +/*
-+ * Asus Armoury (WMI) attributes driver.
-+ *
-+ * This driver uses the fw_attributes class to expose various WMI functions
-+ * that are present in many gaming and some non-gaming ASUS laptops.
-+ *
++ * Asus Armoury (WMI) attributes driver. This driver uses the fw_attributes
++ * class to expose the various WMI functions that many gaming and some
++ * non-gaming ASUS laptops have available.
 + * These typically don't fit anywhere else in the sysfs such as under LED class,
-+ * hwmon or others, and are set in Windows using the ASUS Armoury Crate tool.
++ * hwmon or other, and are set in Windows using the ASUS Armoury Crate tool.
 + *
 + * Copyright(C) 2024 Luke Jones <luke@ljones.dev>
 + */
 +
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+
-+#include <linux/acpi.h>
-+#include <linux/array_size.h>
++#include "linux/cleanup.h"
 +#include <linux/bitfield.h>
 +#include <linux/device.h>
 +#include <linux/dmi.h>
@@ -3020,12 +3874,13 @@ index 000000000000..43a1e7017d16
 +#include <linux/module.h>
 +#include <linux/mutex.h>
 +#include <linux/platform_data/x86/asus-wmi.h>
-+#include <linux/printk.h>
-+#include <linux/power_supply.h>
 +#include <linux/types.h>
++#include <linux/acpi.h>
 +
 +#include "asus-armoury.h"
 +#include "firmware_attributes_class.h"
++
++#define DEBUG
 +
 +#define ASUS_NB_WMI_EVENT_GUID "0B3CBB35-E3C2-45ED-91C2-4C5A6D195D1C"
 +
@@ -3040,19 +3895,8 @@ index 000000000000..43a1e7017d16
 +#define ASUS_MINI_LED_2024_STRONG 0x01
 +#define ASUS_MINI_LED_2024_OFF    0x02
 +
-+/* Power tunable attribute name defines */
-+#define ATTR_PPT_PL1_SPL        "ppt_pl1_spl"
-+#define ATTR_PPT_PL2_SPPT       "ppt_pl2_sppt"
-+#define ATTR_PPT_PL3_FPPT       "ppt_pl3_fppt"
-+#define ATTR_PPT_APU_SPPT       "ppt_apu_sppt"
-+#define ATTR_PPT_PLATFORM_SPPT  "ppt_platform_sppt"
-+#define ATTR_NV_DYNAMIC_BOOST   "nv_dynamic_boost"
-+#define ATTR_NV_TEMP_TARGET     "nv_temp_target"
-+#define ATTR_NV_BASE_TGP        "nv_base_tgp"
-+#define ATTR_NV_TGP             "nv_tgp"
-+
-+#define ASUS_POWER_CORE_MASK	GENMASK(15, 8)
-+#define ASUS_PERF_CORE_MASK		GENMASK(7, 0)
++#define ASUS_POWER_CORE_MASK GENMASK(15, 8)
++#define ASUS_PERF_CORE_MASK GENMASK(7, 0)
 +
 +enum cpu_core_type {
 +	CPU_CORE_PERF = 0,
@@ -3069,8 +3913,52 @@ index 000000000000..43a1e7017d16
 +#define CPU_PERF_CORE_COUNT_MIN 4
 +#define CPU_POWR_CORE_COUNT_MIN 0
 +
++/* Default limits for tunables available on ASUS ROG laptops */
++#define NVIDIA_BOOST_MIN      5
++#define NVIDIA_BOOST_MAX      25
++#define NVIDIA_TEMP_MIN       75
++#define NVIDIA_TEMP_MAX       87
++#define NVIDIA_POWER_MIN      0
++#define NVIDIA_POWER_MAX      70
++#define NVIDIA_POWER_DEFAULT  70
++#define PPT_CPU_LIMIT_MIN     5
++#define PPT_CPU_LIMIT_MAX     150
++#define PPT_CPU_LIMIT_DEFAULT 80
++#define PPT_PLATFORM_MIN      5
++#define PPT_PLATFORM_MAX      100
++#define PPT_PLATFORM_DEFAULT  80
++
 +/* Tunables provided by ASUS for gaming laptops */
-+struct cpu_cores {
++struct rog_tunables {
++	u32 cpu_default;
++	u32 cpu_min;
++	u32 cpu_max;
++
++	u32 platform_default;
++	u32 platform_min;
++	u32 platform_max;
++
++	u32 ppt_pl1_spl; // cpu
++	u32 ppt_pl2_sppt; // cpu
++	u32 ppt_apu_sppt; // plat
++	u32 ppt_platform_sppt; // plat
++	u32 ppt_fppt; // cpu
++
++	u32 nv_boost_default;
++	u32 nv_boost_min;
++	u32 nv_boost_max;
++	u32 nv_dynamic_boost;
++
++	u32 nv_temp_default;
++	u32 nv_temp_min;
++	u32 nv_temp_max;
++	u32 nv_temp_target;
++
++	u32 dgpu_tgp_default;
++	u32 dgpu_tgp_min;
++	u32 dgpu_tgp_max;
++	u32 dgpu_tgp;
++
 +	u32 cur_perf_cores;
 +	u32 min_perf_cores;
 +	u32 max_perf_cores;
@@ -3079,35 +3967,21 @@ index 000000000000..43a1e7017d16
 +	u32 max_power_cores;
 +};
 +
-+struct rog_tunables {
-+	const struct power_limits *power_limits;
-+	u32 ppt_pl1_spl;			// cpu
-+	u32 ppt_pl2_sppt;			// cpu
-+	u32 ppt_pl3_fppt;			// cpu
-+	u32 ppt_apu_sppt;			// plat
-+	u32 ppt_platform_sppt;		// plat
++static const struct class *fw_attr_class;
 +
-+	u32 nv_dynamic_boost;
-+	u32 nv_temp_target;
-+	u32 nv_tgp;
-+};
-+
-+static struct asus_armoury_priv {
++struct asus_armoury_priv {
 +	struct device *fw_attr_dev;
 +	struct kset *fw_attr_kset;
 +
-+	struct cpu_cores *cpu_cores;
-+	/* Index 0 for DC, 1 for AC */
-+	struct rog_tunables *rog_tunables[2];
++	struct rog_tunables *rog_tunables;
 +	u32 mini_led_dev_id;
 +	u32 gpu_mux_dev_id;
-+	/*
-+	 * Mutex to prevent big/little core count changes writing to same
-+	 * endpoint at the same time. Must lock during attr store.
-+	 */
-+	struct mutex cpu_core_mutex;
-+} asus_armoury = {
-+	.cpu_core_mutex = __MUTEX_INITIALIZER(asus_armoury.cpu_core_mutex)
++
++	struct mutex mutex;
++};
++
++static struct asus_armoury_priv asus_armoury = {
++	.mutex = __MUTEX_INITIALIZER(asus_armoury.mutex)
 +};
 +
 +struct fw_attrs_group {
@@ -3160,6 +4034,7 @@ index 000000000000..43a1e7017d16
 +	u32 result;
 +	int err;
 +
++	guard(mutex)(&asus_armoury.mutex);
 +	err = asus_wmi_set_devstate(wmi_dev, value, &result);
 +	if (err) {
 +		pr_err("Failed to set %s: %d\n", attr->attr.name, err);
@@ -3178,10 +4053,10 @@ index 000000000000..43a1e7017d16
 +}
 +
 +/**
-+ * attr_uint_store() - Send an uint to wmi method, checks if within min/max exclusive.
++ * attr_int_store() - Send an int to wmi method, checks if within min/max exclusive.
 + * @kobj: Pointer to the driver object.
 + * @attr: Pointer to the attribute calling this function.
-+ * @buf: The buffer to read from, this is parsed to `uint` type.
++ * @buf: The buffer to read from, this is parsed to `int` type.
 + * @count: Required by sysfs attribute macros, pass in from the callee attr.
 + * @min: Minimum accepted value. Below this returns -EINVAL.
 + * @max: Maximum accepted value. Above this returns -EINVAL.
@@ -3222,18 +4097,6 @@ index 000000000000..43a1e7017d16
 +		asus_set_reboot_and_signal_event();
 +
 +	return count;
-+}
-+
-+static ssize_t enum_type_show(struct kobject *kobj, struct kobj_attribute *attr,
-+			      char *buf)
-+{
-+	return sysfs_emit(buf, "enumeration\n");
-+}
-+
-+static ssize_t int_type_show(struct kobject *kobj, struct kobj_attribute *attr,
-+			     char *buf)
-+{
-+	return sysfs_emit(buf, "integer\n");
 +}
 +
 +/* Mini-LED mode **************************************************************/
@@ -3323,9 +4186,9 @@ index 000000000000..43a1e7017d16
 +		return sysfs_emit(buf, "0;1\n");
 +	case ASUS_WMI_DEVID_MINI_LED_MODE2:
 +		return sysfs_emit(buf, "0;1;2\n");
-+	default:
-+		return -ENODEV;
 +	}
++
++	return sysfs_emit(buf, "0\n");
 +}
 +
 +ATTR_GROUP_ENUM_CUSTOM(mini_led_mode, "mini_led_mode", "Set the mini-LED backlight mode");
@@ -3349,9 +4212,10 @@ index 000000000000..43a1e7017d16
 +		if (err)
 +			return err;
 +		if (result && !optimus) {
-+			pr_warn("Can not switch MUX to dGPU mode when dGPU is disabled: %02X %02X\n",
-+				result, optimus);
-+			return -ENODEV;
++			err = -ENODEV;
++			pr_warn("Can not switch MUX to dGPU mode when dGPU is disabled: %02X %02X %d\n",
++				result, optimus, err);
++			return err;
 +		}
 +	}
 +
@@ -3360,8 +4224,10 @@ index 000000000000..43a1e7017d16
 +		if (err)
 +			return err;
 +		if (result && !optimus) {
-+			pr_warn("Can not switch MUX to dGPU mode when eGPU is enabled\n");
-+			return -EBUSY;
++			err = -ENODEV;
++			pr_warn("Can not switch MUX to dGPU mode when eGPU is enabled: %d\n",
++				err);
++			return err;
 +		}
 +	}
 +
@@ -3374,7 +4240,7 @@ index 000000000000..43a1e7017d16
 +
 +	return count;
 +}
-+WMI_SHOW_INT(gpu_mux_mode_current_value, "%u\n", asus_armoury.gpu_mux_dev_id);
++WMI_SHOW_INT(gpu_mux_mode_current_value, "%d\n", asus_armoury.gpu_mux_dev_id);
 +ATTR_GROUP_BOOL_CUSTOM(gpu_mux_mode, "gpu_mux_mode", "Set the GPU display MUX mode");
 +
 +/*
@@ -3400,9 +4266,11 @@ index 000000000000..43a1e7017d16
 +		if (err)
 +			return err;
 +		if (!result && disable) {
-+			pr_warn("Can not disable dGPU when the MUX is in dGPU mode\n");
-+			return -EBUSY;
++			err = -ENODEV;
++			pr_warn("Can not disable dGPU when the MUX is in dGPU mode: %d\n", err);
++			return err;
 +		}
++		// TODO: handle a > 1 result, shouold do a PCI rescan and run again
 +	}
 +
 +	err = armoury_wmi_set_devstate(attr, disable, ASUS_WMI_DEVID_DGPU);
@@ -3440,11 +4308,12 @@ index 000000000000..43a1e7017d16
 +		err = asus_wmi_get_devstate_dsts(asus_armoury.gpu_mux_dev_id, &result);
 +		if (err) {
 +			pr_warn("Failed to get GPU MUX status: %d\n", result);
-+			return err;
++			return result;
 +		}
 +		if (!result && enable) {
-+			pr_warn("Can not enable eGPU when the MUX is in dGPU mode\n");
-+			return -ENODEV;
++			err = -ENODEV;
++			pr_warn("Can not enable eGPU when the MUX is in dGPU mode: %d\n", err);
++			return err;
 +		}
 +	}
 +
@@ -3461,19 +4330,6 @@ index 000000000000..43a1e7017d16
 +
 +/* Device memory available to APU */
 +
-+/* Values map for APU memory: some looks out of order but are actually correct */
-+static u32 apu_mem_map[] = {
-+	[0] = 0x000, /* called "AUTO" on the BIOS, is the minimum available */
-+	[1] = 0x102,
-+	[2] = 0x103,
-+	[3] = 0x104,
-+	[4] = 0x105,
-+	[5] = 0x107,
-+	[6] = 0x108,
-+	[7] = 0x109,
-+	[8] = 0x106,
-+};
-+
 +static ssize_t apu_mem_current_value_show(struct kobject *kobj, struct kobj_attribute *attr,
 +					  char *buf)
 +{
@@ -3484,21 +4340,40 @@ index 000000000000..43a1e7017d16
 +	if (err)
 +		return err;
 +
-+	if ((mem & ASUS_WMI_DSTS_PRESENCE_BIT) == 0)
-+		return -ENODEV;
-+
-+	mem &= ~ASUS_WMI_DSTS_PRESENCE_BIT;
-+
-+	/* After 0x000 is set, a read will return 0x100 */
-+	if (mem == 0x100)
-+		return sysfs_emit(buf, "0\n");
-+
-+	for (unsigned int i = 0; i < ARRAY_SIZE(apu_mem_map); i++) {
-+		if (apu_mem_map[i] == mem)
-+			return sysfs_emit(buf, "%u\n", i);
++	switch (mem) {
++	case 0x100:
++		mem = 0;
++		break;
++	case 0x102:
++		mem = 1;
++		break;
++	case 0x103:
++		mem = 2;
++		break;
++	case 0x104:
++		mem = 3;
++		break;
++	case 0x105:
++		mem = 4;
++		break;
++	case 0x106:
++		/* This is out of order and looks wrong but is correct */
++		mem = 8;
++		break;
++	case 0x107:
++		mem = 5;
++		break;
++	case 0x108:
++		mem = 6;
++		break;
++	case 0x109:
++		mem = 7;
++		break;
++	default:
++		mem = 4;
++		break;
 +	}
 +
-+	pr_warn("Unrecognised value for APU mem 0x%08x\n", mem);
 +	return sysfs_emit(buf, "%u\n", mem);
 +}
 +
@@ -3512,10 +4387,38 @@ index 000000000000..43a1e7017d16
 +	if (result)
 +		return result;
 +
-+	if (requested >= ARRAY_SIZE(apu_mem_map))
-+		return -EINVAL;
-+
-+	mem = apu_mem_map[requested];
++	switch (requested) {
++	case 0:
++		mem = 0x000;
++		break;
++	case 1:
++		mem = 0x102;
++		break;
++	case 2:
++		mem = 0x103;
++		break;
++	case 3:
++		mem = 0x104;
++		break;
++	case 4:
++		mem = 0x105;
++		break;
++	case 5:
++		mem = 0x107;
++		break;
++	case 6:
++		mem = 0x108;
++		break;
++	case 7:
++		mem = 0x109;
++		break;
++	case 8:
++		/* This is out of order and looks wrong but is correct */
++		mem = 0x106;
++		break;
++	default:
++		return -EIO;
++	}
 +
 +	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_APU_MEM, mem, &result);
 +	if (err) {
@@ -3523,7 +4426,7 @@ index 000000000000..43a1e7017d16
 +		return err;
 +	}
 +
-+	pr_info("APU memory changed to %uGB, reboot required\n", requested+1);
++	pr_info("APU memory changed to %uGB, reboot required\n", requested);
 +	sysfs_notify(kobj, NULL, attr->attr.name);
 +
 +	asus_set_reboot_and_signal_event();
@@ -3534,7 +4437,6 @@ index 000000000000..43a1e7017d16
 +static ssize_t apu_mem_possible_values_show(struct kobject *kobj, struct kobj_attribute *attr,
 +					    char *buf)
 +{
-+	BUILD_BUG_ON(ARRAY_SIZE(apu_mem_map) != 9);
 +	return sysfs_emit(buf, "0;1;2;3;4;5;6;7;8\n");
 +}
 +ATTR_GROUP_ENUM_CUSTOM(apu_mem, "apu_mem", "Set available system RAM (in GB) for the APU to use");
@@ -3544,40 +4446,27 @@ index 000000000000..43a1e7017d16
 +	u32 cores;
 +	int err;
 +
-+	asus_armoury.cpu_cores = kzalloc(sizeof(struct cpu_cores), GFP_KERNEL);
-+	if (!asus_armoury.cpu_cores)
-+		return -ENOMEM;
-+
 +	err = asus_wmi_get_devstate_dsts(ASUS_WMI_DEVID_CORES_MAX, &cores);
 +	if (err)
 +		return err;
 +
-+	if ((cores & ASUS_WMI_DSTS_PRESENCE_BIT) == 0) {
-+		pr_err("ACPI does not support CPU core count control\n");
-+		err = -ENODEV;
-+		goto init_max_cpu_cores_err;
-+	}
-+
-+	asus_armoury.cpu_cores->max_power_cores = FIELD_GET(ASUS_POWER_CORE_MASK, cores);
-+	asus_armoury.cpu_cores->max_perf_cores = FIELD_GET(ASUS_PERF_CORE_MASK, cores);
++	cores &= ~ASUS_WMI_DSTS_PRESENCE_BIT;
++	asus_armoury.rog_tunables->max_power_cores = FIELD_GET(ASUS_POWER_CORE_MASK, cores);
++	asus_armoury.rog_tunables->max_perf_cores = FIELD_GET(ASUS_PERF_CORE_MASK, cores);
 +
 +	err = asus_wmi_get_devstate_dsts(ASUS_WMI_DEVID_CORES, &cores);
 +	if (err) {
-+		pr_err("Could not get CPU core count: error %d\n", err);
-+		goto init_max_cpu_cores_err;
++		pr_err("Could not get CPU core count: error %d", err);
++		return err;
 +	}
 +
-+	asus_armoury.cpu_cores->cur_perf_cores = FIELD_GET(ASUS_PERF_CORE_MASK, cores);
-+	asus_armoury.cpu_cores->cur_power_cores = FIELD_GET(ASUS_POWER_CORE_MASK, cores);
++	asus_armoury.rog_tunables->cur_perf_cores = FIELD_GET(ASUS_PERF_CORE_MASK, cores);
++	asus_armoury.rog_tunables->cur_power_cores = FIELD_GET(ASUS_POWER_CORE_MASK, cores);
 +
-+	asus_armoury.cpu_cores->min_perf_cores = CPU_PERF_CORE_COUNT_MIN;
-+	asus_armoury.cpu_cores->min_power_cores = CPU_POWR_CORE_COUNT_MIN;
++	asus_armoury.rog_tunables->min_perf_cores = CPU_PERF_CORE_COUNT_MIN;
++	asus_armoury.rog_tunables->min_power_cores = CPU_POWR_CORE_COUNT_MIN;
 +
 +	return 0;
-+
-+init_max_cpu_cores_err:
-+	kfree(asus_armoury.cpu_cores);
-+	return err;
 +}
 +
 +static ssize_t cores_value_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf,
@@ -3589,28 +4478,28 @@ index 000000000000..43a1e7017d16
 +	case CPU_CORE_DEFAULT:
 +	case CPU_CORE_MAX:
 +		if (core_type == CPU_CORE_PERF)
-+			return sysfs_emit(buf, "%u\n",
-+					  asus_armoury.cpu_cores->max_perf_cores);
++			return sysfs_emit(buf, "%d\n",
++					  asus_armoury.rog_tunables->max_perf_cores);
 +		else
-+			return sysfs_emit(buf, "%u\n",
-+					  asus_armoury.cpu_cores->max_power_cores);
++			return sysfs_emit(buf, "%d\n",
++					  asus_armoury.rog_tunables->max_power_cores);
 +	case CPU_CORE_MIN:
 +		if (core_type == CPU_CORE_PERF)
-+			return sysfs_emit(buf, "%u\n",
-+					  asus_armoury.cpu_cores->min_perf_cores);
++			return sysfs_emit(buf, "%d\n",
++					  asus_armoury.rog_tunables->min_perf_cores);
 +		else
-+			return sysfs_emit(buf, "%u\n",
-+					  asus_armoury.cpu_cores->min_power_cores);
++			return sysfs_emit(buf, "%d\n",
++					  asus_armoury.rog_tunables->min_power_cores);
 +	default:
 +		break;
 +	}
 +
 +	if (core_type == CPU_CORE_PERF)
-+		cores = asus_armoury.cpu_cores->cur_perf_cores;
++		cores = asus_armoury.rog_tunables->cur_perf_cores;
 +	else
-+		cores = asus_armoury.cpu_cores->cur_power_cores;
++		cores = asus_armoury.rog_tunables->cur_power_cores;
 +
-+	return sysfs_emit(buf, "%u\n", cores);
++	return sysfs_emit(buf, "%d\n", cores);
 +}
 +
 +static ssize_t cores_current_value_store(struct kobject *kobj, struct kobj_attribute *attr,
@@ -3623,39 +4512,40 @@ index 000000000000..43a1e7017d16
 +	if (result)
 +		return result;
 +
-+	scoped_guard(mutex, &asus_armoury.cpu_core_mutex) {
-+		if (core_type == CPU_CORE_PERF) {
-+			perf_cores = new_cores;
-+			power_cores = asus_armoury.cpu_cores->cur_power_cores;
-+			min = asus_armoury.cpu_cores->min_perf_cores;
-+			max = asus_armoury.cpu_cores->max_perf_cores;
-+		} else {
-+			perf_cores = asus_armoury.cpu_cores->cur_perf_cores;
-+			power_cores = new_cores;
-+			min = asus_armoury.cpu_cores->min_power_cores;
-+			max = asus_armoury.cpu_cores->max_power_cores;
-+		}
++	if (core_type == CPU_CORE_PERF) {
++		perf_cores = new_cores;
++		power_cores = out_val = asus_armoury.rog_tunables->cur_power_cores;
++		min = asus_armoury.rog_tunables->min_perf_cores;
++		max = asus_armoury.rog_tunables->max_perf_cores;
++	} else {
++		perf_cores = asus_armoury.rog_tunables->cur_perf_cores;
++		power_cores = out_val = new_cores;
++		min = asus_armoury.rog_tunables->min_power_cores;
++		max = asus_armoury.rog_tunables->max_power_cores;
++	}
 +
-+		if (new_cores < min || new_cores > max)
-+			return -EINVAL;
++	if (new_cores < min || new_cores > max)
++		return -EINVAL;
 +
-+		out_val = FIELD_PREP(ASUS_PERF_CORE_MASK, perf_cores) |
-+			FIELD_PREP(ASUS_POWER_CORE_MASK, power_cores);
++	out_val = 0;
++	out_val |= FIELD_PREP(ASUS_PERF_CORE_MASK, perf_cores);
++	out_val |= FIELD_PREP(ASUS_POWER_CORE_MASK, power_cores);
 +
-+		err = asus_wmi_set_devstate(ASUS_WMI_DEVID_CORES, out_val, &result);
-+		if (err) {
-+			pr_warn("Failed to set CPU core count: %d\n", err);
-+			return err;
-+		}
++	mutex_lock(&asus_armoury.mutex);
++	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_CORES, out_val, &result);
++	mutex_unlock(&asus_armoury.mutex);
 +
-+		if (result > 1) {
-+			pr_warn("Failed to set CPU core count (result): 0x%x\n", result);
-+			return -EIO;
-+		}
++	if (err) {
++		pr_warn("Failed to set CPU core count: %d\n", err);
++		return err;
++	}
++
++	if (result > 1) {
++		pr_warn("Failed to set CPU core count (result): 0x%x\n", result);
++		return -EIO;
 +	}
 +
 +	pr_info("CPU core count changed, reboot required\n");
-+
 +	sysfs_notify(kobj, NULL, attr->attr.name);
 +	asus_set_reboot_and_signal_event();
 +
@@ -3740,33 +4630,31 @@ index 000000000000..43a1e7017d16
 +ATTR_GROUP_CORES_RW(cores_efficiency, "cores_efficiency",
 +		    "Set the max available efficiency cores");
 +
-+/* Define helper to access the current power mode tunable values */
-+static inline struct rog_tunables *get_current_tunables(void)
-+{
-+	return asus_armoury
-+		.rog_tunables[power_supply_is_system_supplied() ? 1 : 0];
-+}
-+
 +/* Simple attribute creation */
-+ATTR_GROUP_ROG_TUNABLE(ppt_pl1_spl, ATTR_PPT_PL1_SPL, ASUS_WMI_DEVID_PPT_PL1_SPL,
++ATTR_GROUP_ROG_TUNABLE(ppt_pl1_spl, "ppt_pl1_spl", ASUS_WMI_DEVID_PPT_PL1_SPL, cpu_default,
++		       cpu_min, cpu_max, 1, "Set the CPU slow package limit");
++ATTR_GROUP_ROG_TUNABLE(ppt_pl2_sppt, "ppt_pl2_sppt", ASUS_WMI_DEVID_PPT_PL2_SPPT, cpu_default,
++		       cpu_min, cpu_max, 1, "Set the CPU fast package limit");
++ATTR_GROUP_ROG_TUNABLE(ppt_apu_sppt, "ppt_apu_sppt", ASUS_WMI_DEVID_PPT_APU_SPPT,
++		       platform_default, platform_min, platform_max, 1,
 +		       "Set the CPU slow package limit");
-+ATTR_GROUP_ROG_TUNABLE(ppt_pl2_sppt, ATTR_PPT_PL2_SPPT, ASUS_WMI_DEVID_PPT_PL2_SPPT,
-+		       "Set the CPU fast package limit");
-+ATTR_GROUP_ROG_TUNABLE(ppt_pl3_fppt, ATTR_PPT_PL3_FPPT, ASUS_WMI_DEVID_PPT_PL3_FPPT,
-+		       "Set the CPU fastest package limit");
-+ATTR_GROUP_ROG_TUNABLE(ppt_apu_sppt, ATTR_PPT_APU_SPPT, ASUS_WMI_DEVID_PPT_APU_SPPT,
-+		       "Set the APU package limit");
-+ATTR_GROUP_ROG_TUNABLE(ppt_platform_sppt, ATTR_PPT_PLATFORM_SPPT, ASUS_WMI_DEVID_PPT_PLAT_SPPT,
-+		       "Set the platform package limit");
-+ATTR_GROUP_ROG_TUNABLE(nv_dynamic_boost, ATTR_NV_DYNAMIC_BOOST, ASUS_WMI_DEVID_NV_DYN_BOOST,
++ATTR_GROUP_ROG_TUNABLE(ppt_platform_sppt, "ppt_platform_sppt", ASUS_WMI_DEVID_PPT_PLAT_SPPT,
++		       platform_default, platform_min, platform_max, 1,
++		       "Set the CPU slow package limit");
++ATTR_GROUP_ROG_TUNABLE(ppt_fppt, "ppt_fppt", ASUS_WMI_DEVID_PPT_FPPT, cpu_default, cpu_min,
++		       cpu_max, 1, "Set the CPU slow package limit");
++ATTR_GROUP_ROG_TUNABLE(nv_dynamic_boost, "nv_dynamic_boost", ASUS_WMI_DEVID_NV_DYN_BOOST,
++		       nv_boost_default, nv_boost_min, nv_boost_max, 1,
 +		       "Set the Nvidia dynamic boost limit");
-+ATTR_GROUP_ROG_TUNABLE(nv_temp_target, ATTR_NV_TEMP_TARGET, ASUS_WMI_DEVID_NV_THERM_TARGET,
++ATTR_GROUP_ROG_TUNABLE(nv_temp_target, "nv_temp_target", ASUS_WMI_DEVID_NV_THERM_TARGET,
++		       nv_temp_default, nv_boost_min, nv_temp_max, 1,
 +		       "Set the Nvidia max thermal limit");
-+ATTR_GROUP_ROG_TUNABLE(nv_tgp, "nv_tgp", ASUS_WMI_DEVID_DGPU_SET_TGP,
++ATTR_GROUP_ROG_TUNABLE(dgpu_tgp, "dgpu_tgp", ASUS_WMI_DEVID_DGPU_SET_TGP, dgpu_tgp_default,
++		       dgpu_tgp_min, dgpu_tgp_max, 1,
 +		       "Set the additional TGP on top of the base TGP");
-+ATTR_GROUP_INT_VALUE_ONLY_RO(nv_base_tgp, ATTR_NV_BASE_TGP, ASUS_WMI_DEVID_DGPU_BASE_TGP,
-+			     "Read the base TGP value");
 +
++ATTR_GROUP_INT_VALUE_ONLY_RO(dgpu_base_tgp, "dgpu_base_tgp", ASUS_WMI_DEVID_DGPU_BASE_TGP,
++			     "Read the base TGP value");
 +
 +ATTR_GROUP_ENUM_INT_RO(charge_mode, "charge_mode", ASUS_WMI_DEVID_CHARGE_MODE, "0;1;2",
 +		       "Show the current mode of charging");
@@ -3779,9 +4667,6 @@ index 000000000000..43a1e7017d16
 +		   "Set the panel refresh overdrive");
 +ATTR_GROUP_BOOL_RW(panel_hd_mode, "panel_hd_mode", ASUS_WMI_DEVID_PANEL_HD,
 +		   "Set the panel HD mode to UHD<0> or FHD<1>");
-+ATTR_GROUP_BOOL_RW(screen_auto_brightness, "screen_auto_brightness",
-+		   ASUS_WMI_DEVID_SCREEN_AUTO_BRIGHTNESS,
-+		   "Set the panel brightness to Off<0> or On<1>");
 +ATTR_GROUP_BOOL_RO(egpu_connected, "egpu_connected", ASUS_WMI_DEVID_EGPU_CONNECTED,
 +		   "Show the eGPU connection status");
 +
@@ -3790,100 +4675,36 @@ index 000000000000..43a1e7017d16
 +	{ &egpu_connected_attr_group, ASUS_WMI_DEVID_EGPU_CONNECTED },
 +	{ &egpu_enable_attr_group, ASUS_WMI_DEVID_EGPU },
 +	{ &dgpu_disable_attr_group, ASUS_WMI_DEVID_DGPU },
-+	{ &apu_mem_attr_group, ASUS_WMI_DEVID_APU_MEM },
-+	{ &cores_efficiency_attr_group, ASUS_WMI_DEVID_CORES_MAX },
-+	{ &cores_performance_attr_group, ASUS_WMI_DEVID_CORES_MAX },
 +
 +	{ &ppt_pl1_spl_attr_group, ASUS_WMI_DEVID_PPT_PL1_SPL },
 +	{ &ppt_pl2_sppt_attr_group, ASUS_WMI_DEVID_PPT_PL2_SPPT },
-+	{ &ppt_pl3_fppt_attr_group, ASUS_WMI_DEVID_PPT_PL3_FPPT },
 +	{ &ppt_apu_sppt_attr_group, ASUS_WMI_DEVID_PPT_APU_SPPT },
 +	{ &ppt_platform_sppt_attr_group, ASUS_WMI_DEVID_PPT_PLAT_SPPT },
++	{ &ppt_fppt_attr_group, ASUS_WMI_DEVID_PPT_FPPT },
 +	{ &nv_dynamic_boost_attr_group, ASUS_WMI_DEVID_NV_DYN_BOOST },
 +	{ &nv_temp_target_attr_group, ASUS_WMI_DEVID_NV_THERM_TARGET },
-+	{ &nv_base_tgp_attr_group, ASUS_WMI_DEVID_DGPU_BASE_TGP },
-+	{ &nv_tgp_attr_group, ASUS_WMI_DEVID_DGPU_SET_TGP },
++	{ &dgpu_base_tgp_attr_group, ASUS_WMI_DEVID_DGPU_BASE_TGP },
++	{ &dgpu_tgp_attr_group, ASUS_WMI_DEVID_DGPU_SET_TGP },
++	{ &apu_mem_attr_group, ASUS_WMI_DEVID_APU_MEM },
++	{ &cores_efficiency_attr_group, ASUS_WMI_DEVID_CORES_MAX },
++	{ &cores_performance_attr_group, ASUS_WMI_DEVID_CORES_MAX },
 +
 +	{ &charge_mode_attr_group, ASUS_WMI_DEVID_CHARGE_MODE },
 +	{ &boot_sound_attr_group, ASUS_WMI_DEVID_BOOT_SOUND },
 +	{ &mcu_powersave_attr_group, ASUS_WMI_DEVID_MCU_POWERSAVE },
 +	{ &panel_od_attr_group, ASUS_WMI_DEVID_PANEL_OD },
 +	{ &panel_hd_mode_attr_group, ASUS_WMI_DEVID_PANEL_HD },
-+	{ &screen_auto_brightness_attr_group, ASUS_WMI_DEVID_SCREEN_AUTO_BRIGHTNESS },
 +};
-+
-+/**
-+ * is_power_tunable_attr - Determines if an attribute is a power-related tunable
-+ * @name: The name of the attribute to check
-+ *
-+ * This function checks if the given attribute name is related to power tuning.
-+ *
-+ * Return: true if the attribute is a power-related tunable, false otherwise
-+ */
-+static bool is_power_tunable_attr(const char *name)
-+{
-+	static const char * const power_tunable_attrs[] = {
-+		ATTR_PPT_PL1_SPL,	ATTR_PPT_PL2_SPPT,
-+		ATTR_PPT_PL3_FPPT,	ATTR_PPT_APU_SPPT,
-+		ATTR_PPT_PLATFORM_SPPT, ATTR_NV_DYNAMIC_BOOST,
-+		ATTR_NV_TEMP_TARGET,	ATTR_NV_BASE_TGP,
-+		ATTR_NV_TGP
-+	};
-+
-+	for (unsigned int i = 0; i < ARRAY_SIZE(power_tunable_attrs); i++) {
-+		if (!strcmp(name, power_tunable_attrs[i]))
-+			return true;
-+	}
-+
-+	return false;
-+}
-+
-+/**
-+ * has_valid_limit - Checks if a power-related attribute has a valid limit value
-+ * @name: The name of the attribute to check
-+ * @limits: Pointer to the power_limits structure containing limit values
-+ *
-+ * This function checks if a power-related attribute has a valid limit value.
-+ * It returns false if limits is NULL or if the corresponding limit value is zero.
-+ *
-+ * Return: true if the attribute has a valid limit value, false otherwise
-+ */
-+static bool has_valid_limit(const char *name, const struct power_limits *limits)
-+{
-+	u32 limit_value = 0;
-+
-+	if (!limits)
-+		return false;
-+
-+	if (!strcmp(name, ATTR_PPT_PL1_SPL))
-+		limit_value = limits->ppt_pl1_spl_max;
-+	else if (!strcmp(name, ATTR_PPT_PL2_SPPT))
-+		limit_value = limits->ppt_pl2_sppt_max;
-+	else if (!strcmp(name, ATTR_PPT_PL3_FPPT))
-+		limit_value = limits->ppt_pl3_fppt_max;
-+	else if (!strcmp(name, ATTR_PPT_APU_SPPT))
-+		limit_value = limits->ppt_apu_sppt_max;
-+	else if (!strcmp(name, ATTR_PPT_PLATFORM_SPPT))
-+		limit_value = limits->ppt_platform_sppt_max;
-+	else if (!strcmp(name, ATTR_NV_DYNAMIC_BOOST))
-+		limit_value = limits->nv_dynamic_boost_max;
-+	else if (!strcmp(name, ATTR_NV_TEMP_TARGET))
-+		limit_value = limits->nv_temp_target_max;
-+	else if (!strcmp(name, ATTR_NV_BASE_TGP) ||
-+		 !strcmp(name, ATTR_NV_TGP))
-+		limit_value = limits->nv_tgp_max;
-+
-+	return limit_value > 0;
-+}
 +
 +static int asus_fw_attr_add(void)
 +{
-+	const struct power_limits *limits;
-+	bool should_create;
-+	const char *name;
 +	int err, i;
 +
-+	asus_armoury.fw_attr_dev = device_create(&firmware_attributes_class, NULL, MKDEV(0, 0),
++	err = fw_attributes_class_get(&fw_attr_class);
++	if (err)
++		return err;
++
++	asus_armoury.fw_attr_dev = device_create(fw_attr_class, NULL, MKDEV(0, 0),
 +						NULL, "%s", DRIVER_NAME);
 +	if (IS_ERR(asus_armoury.fw_attr_dev)) {
 +		err = PTR_ERR(asus_armoury.fw_attr_dev);
@@ -3904,14 +4725,14 @@ index 000000000000..43a1e7017d16
 +	}
 +
 +	asus_armoury.mini_led_dev_id = 0;
-+	if (asus_wmi_is_present(ASUS_WMI_DEVID_MINI_LED_MODE))
++	if (asus_wmi_is_present(ASUS_WMI_DEVID_MINI_LED_MODE)) {
 +		asus_armoury.mini_led_dev_id = ASUS_WMI_DEVID_MINI_LED_MODE;
-+	else if (asus_wmi_is_present(ASUS_WMI_DEVID_MINI_LED_MODE2))
++	} else if (asus_wmi_is_present(ASUS_WMI_DEVID_MINI_LED_MODE2)) {
 +		asus_armoury.mini_led_dev_id = ASUS_WMI_DEVID_MINI_LED_MODE2;
++	}
 +
 +	if (asus_armoury.mini_led_dev_id) {
-+		err = sysfs_create_group(&asus_armoury.fw_attr_kset->kobj,
-+					 &mini_led_mode_attr_group);
++		err = sysfs_create_group(&asus_armoury.fw_attr_kset->kobj, &mini_led_mode_attr_group);
 +		if (err) {
 +			pr_err("Failed to create sysfs-group for mini_led\n");
 +			goto err_remove_file;
@@ -3919,14 +4740,14 @@ index 000000000000..43a1e7017d16
 +	}
 +
 +	asus_armoury.gpu_mux_dev_id = 0;
-+	if (asus_wmi_is_present(ASUS_WMI_DEVID_GPU_MUX))
++	if (asus_wmi_is_present(ASUS_WMI_DEVID_GPU_MUX)) {
 +		asus_armoury.gpu_mux_dev_id = ASUS_WMI_DEVID_GPU_MUX;
-+	else if (asus_wmi_is_present(ASUS_WMI_DEVID_GPU_MUX_VIVO))
++	} else if (asus_wmi_is_present(ASUS_WMI_DEVID_GPU_MUX_VIVO)) {
 +		asus_armoury.gpu_mux_dev_id = ASUS_WMI_DEVID_GPU_MUX_VIVO;
++	}
 +
 +	if (asus_armoury.gpu_mux_dev_id) {
-+		err = sysfs_create_group(&asus_armoury.fw_attr_kset->kobj,
-+					 &gpu_mux_mode_attr_group);
++		err = sysfs_create_group(&asus_armoury.fw_attr_kset->kobj, &gpu_mux_mode_attr_group);
 +		if (err) {
 +			pr_err("Failed to create sysfs-group for gpu_mux\n");
 +			goto err_remove_mini_led_group;
@@ -3937,183 +4758,115 @@ index 000000000000..43a1e7017d16
 +		if (!asus_wmi_is_present(armoury_attr_groups[i].wmi_devid))
 +			continue;
 +
-+		/* Always create by default, unless PPT is not present */
-+		should_create = true;
-+		name = armoury_attr_groups[i].attr_group->name;
-+
-+		/* Check if this is a power-related tunable requiring limits */
-+		if (asus_armoury.rog_tunables[1] && asus_armoury.rog_tunables[1]->power_limits &&
-+		    is_power_tunable_attr(name)) {
-+			limits = asus_armoury.rog_tunables[1]->power_limits;
-+			/* Check only AC, if DC is not present then AC won't be either */
-+			should_create = has_valid_limit(name, limits);
-+			if (!should_create)
-+				pr_debug("Missing max value for tunable %s\n", name);
-+		}
-+
-+		if (should_create) {
-+			err = sysfs_create_group(&asus_armoury.fw_attr_kset->kobj,
-+				armoury_attr_groups[i].attr_group);
-+			if (err) {
-+				pr_err("Failed to create sysfs-group for %s\n",
-+				       armoury_attr_groups[i].attr_group->name);
-+				goto err_remove_groups;
-+			}
++		err = sysfs_create_group(&asus_armoury.fw_attr_kset->kobj,
++					 armoury_attr_groups[i].attr_group);
++		if (err) {
++			pr_err("Failed to create sysfs-group for %s\n",
++			       armoury_attr_groups[i].attr_group->name);
++			goto err_remove_groups;
 +		}
 +	}
 +
 +	return 0;
 +
 +err_remove_groups:
-+	while (i--) {
++	while (--i >= 0) {
 +		if (asus_wmi_is_present(armoury_attr_groups[i].wmi_devid))
-+			sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj,
-+					   armoury_attr_groups[i].attr_group);
++			sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj, armoury_attr_groups[i].attr_group);
 +	}
-+	if (asus_armoury.gpu_mux_dev_id)
-+		sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj, &gpu_mux_mode_attr_group);
++	sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj, &gpu_mux_mode_attr_group);
 +err_remove_mini_led_group:
-+	if (asus_armoury.mini_led_dev_id)
-+		sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj, &mini_led_mode_attr_group);
++	sysfs_remove_group(&asus_armoury.fw_attr_kset->kobj, &mini_led_mode_attr_group);
 +err_remove_file:
 +	sysfs_remove_file(&asus_armoury.fw_attr_kset->kobj, &pending_reboot.attr);
 +err_destroy_kset:
 +	kset_unregister(asus_armoury.fw_attr_kset);
 +err_destroy_classdev:
++	device_destroy(fw_attr_class, MKDEV(0, 0));
 +fail_class_get:
-+	device_destroy(&firmware_attributes_class, MKDEV(0, 0));
++	fw_attributes_class_put();
 +	return err;
 +}
 +
 +/* Init / exit ****************************************************************/
 +
 +/* Set up the min/max and defaults for ROG tunables */
-+static void init_rog_tunables(void)
++static void init_rog_tunables(struct rog_tunables *rog)
 +{
-+	const struct power_limits *ac_limits, *dc_limits;
-+	const struct power_data *power_data;
-+	const struct dmi_system_id *dmi_id;
-+	bool ac_initialized = false, dc_initialized = false;
++	u32 platform_default = PPT_PLATFORM_DEFAULT;
++	u32 cpu_default = PPT_CPU_LIMIT_DEFAULT;
++	u32 platform_max = PPT_PLATFORM_MAX;
++	u32 max_boost = NVIDIA_BOOST_MAX;
++	u32 cpu_max = PPT_CPU_LIMIT_MAX;
++	const char *product;
 +
-+	/* Match the system against the power_limits table */
-+	dmi_id = dmi_first_match(power_limits);
-+	if (!dmi_id) {
-+		pr_warn("No matching power limits found for this system\n");
-+		return;
++	/*
++	 * ASUS product_name contains everything required, e.g,
++	 * "ROG Flow X16 GV601VV_GV601VV_00185149B".
++	 * The bulk of these defaults are gained from users reporting what
++	 * ASUS Armoury Crate in Windows provides them.
++	 * This should be turned in to a table eventually.
++	 */
++	product = dmi_get_system_info(DMI_PRODUCT_NAME);
++
++	if (strstr(product, "GA402R")) {
++		cpu_default = 125;
++	} else if (strstr(product, "13QY")) {
++		cpu_max = 250;
++	} else if (strstr(product, "X13")) {
++		cpu_max = 75;
++		cpu_default = 50;
++	} else if (strstr(product, "RC71") || strstr(product, "RC72")) {
++		cpu_max = 50;
++		cpu_default = 30;
++	} else if (strstr(product, "G814") || strstr(product, "G614") ||
++		   strstr(product, "G834") || strstr(product, "G634")) {
++		cpu_max = 175;
++	} else if (strstr(product, "GA402X") || strstr(product, "GA403") ||
++		   strstr(product, "FA507N") || strstr(product, "FA507X") ||
++		   strstr(product, "FA707N") || strstr(product, "FA707X")) {
++		cpu_max = 90;
++	} else {
++		pr_notice("Using default CPU limits. Please report if these are not correct.\n");
 +	}
 +
-+	/* Get the power data for this system */
-+	power_data = dmi_id->driver_data;
-+	if (!power_data) {
-+		pr_info("No power data available for this system\n");
-+		return;
-+	}
++	if (strstr(product, "GZ301ZE"))
++		max_boost = 5;
++	else if (strstr(product, "FX507ZC4"))
++		max_boost = 15;
++	else if (strstr(product, "GU605"))
++		max_boost = 20;
 +
-+	/* Initialize AC power tunables */
-+	ac_limits = power_data->ac_data;
-+	if (ac_limits) {
-+		asus_armoury.rog_tunables[1] =
-+			kzalloc(sizeof(*asus_armoury.rog_tunables[1]), GFP_KERNEL);
-+		if (!asus_armoury.rog_tunables[1])
-+			goto err_nomem;
++	/* ensure defaults for tunables */
++	rog->cpu_default = cpu_default;
++	rog->cpu_min = PPT_CPU_LIMIT_MIN;
++	rog->cpu_max = cpu_max;
 +
-+		asus_armoury.rog_tunables[1]->power_limits = ac_limits;
++	rog->platform_default = platform_default;
++	rog->platform_max = PPT_PLATFORM_MIN;
++	rog->platform_max = platform_max;
 +
-+		/* Set initial AC values */
-+		asus_armoury.rog_tunables[1]->ppt_pl1_spl =
-+			ac_limits->ppt_pl1_spl_def ?
-+				ac_limits->ppt_pl1_spl_def :
-+				ac_limits->ppt_pl1_spl_max;
++	rog->ppt_pl1_spl = cpu_default;
++	rog->ppt_pl2_sppt = cpu_default;
++	rog->ppt_apu_sppt = cpu_default;
 +
-+		asus_armoury.rog_tunables[1]->ppt_pl2_sppt =
-+			ac_limits->ppt_pl2_sppt_def ?
-+				ac_limits->ppt_pl2_sppt_def :
-+				ac_limits->ppt_pl2_sppt_max;
++	rog->ppt_platform_sppt = platform_default;
++	rog->ppt_fppt = cpu_default;
 +
-+		asus_armoury.rog_tunables[1]->ppt_pl3_fppt =
-+			ac_limits->ppt_pl3_fppt_def ?
-+				ac_limits->ppt_pl3_fppt_def :
-+				ac_limits->ppt_pl3_fppt_max;
++	rog->nv_boost_default = NVIDIA_BOOST_MAX;
++	rog->nv_boost_min = NVIDIA_BOOST_MIN;
++	rog->nv_boost_max = max_boost;
++	rog->nv_dynamic_boost = NVIDIA_BOOST_MIN;
 +
-+		asus_armoury.rog_tunables[1]->ppt_apu_sppt =
-+			ac_limits->ppt_apu_sppt_def ?
-+				ac_limits->ppt_apu_sppt_def :
-+				ac_limits->ppt_apu_sppt_max;
++	rog->nv_temp_default = NVIDIA_TEMP_MAX;
++	rog->nv_temp_min = NVIDIA_TEMP_MIN;
++	rog->nv_temp_max = NVIDIA_TEMP_MAX;
++	rog->nv_temp_target = NVIDIA_TEMP_MIN;
 +
-+		asus_armoury.rog_tunables[1]->ppt_platform_sppt =
-+			ac_limits->ppt_platform_sppt_def ?
-+				ac_limits->ppt_platform_sppt_def :
-+				ac_limits->ppt_platform_sppt_max;
-+
-+		asus_armoury.rog_tunables[1]->nv_dynamic_boost =
-+			ac_limits->nv_dynamic_boost_max;
-+		asus_armoury.rog_tunables[1]->nv_temp_target =
-+			ac_limits->nv_temp_target_max;
-+		asus_armoury.rog_tunables[1]->nv_tgp = ac_limits->nv_tgp_max;
-+
-+		ac_initialized = true;
-+		pr_debug("AC power limits initialized for %s\n", dmi_id->matches[0].substr);
-+	}
-+
-+	/* Initialize DC power tunables */
-+	dc_limits = power_data->dc_data;
-+	if (dc_limits) {
-+		asus_armoury.rog_tunables[0] =
-+			kzalloc(sizeof(*asus_armoury.rog_tunables[0]), GFP_KERNEL);
-+		if (!asus_armoury.rog_tunables[0]) {
-+			if (ac_initialized)
-+				kfree(asus_armoury.rog_tunables[1]);
-+			goto err_nomem;
-+		}
-+
-+		asus_armoury.rog_tunables[0]->power_limits = dc_limits;
-+
-+		/* Set initial DC values */
-+		asus_armoury.rog_tunables[0]->ppt_pl1_spl =
-+			dc_limits->ppt_pl1_spl_def ?
-+				dc_limits->ppt_pl1_spl_def :
-+				dc_limits->ppt_pl1_spl_max;
-+
-+		asus_armoury.rog_tunables[0]->ppt_pl2_sppt =
-+			dc_limits->ppt_pl2_sppt_def ?
-+				dc_limits->ppt_pl2_sppt_def :
-+				dc_limits->ppt_pl2_sppt_max;
-+
-+		asus_armoury.rog_tunables[0]->ppt_pl3_fppt =
-+			dc_limits->ppt_pl3_fppt_def ?
-+				dc_limits->ppt_pl3_fppt_def :
-+				dc_limits->ppt_pl3_fppt_max;
-+
-+		asus_armoury.rog_tunables[0]->ppt_apu_sppt =
-+			dc_limits->ppt_apu_sppt_def ?
-+				dc_limits->ppt_apu_sppt_def :
-+				dc_limits->ppt_apu_sppt_max;
-+
-+		asus_armoury.rog_tunables[0]->ppt_platform_sppt =
-+			dc_limits->ppt_platform_sppt_def ?
-+				dc_limits->ppt_platform_sppt_def :
-+				dc_limits->ppt_platform_sppt_max;
-+
-+		asus_armoury.rog_tunables[0]->nv_dynamic_boost =
-+			dc_limits->nv_dynamic_boost_max;
-+		asus_armoury.rog_tunables[0]->nv_temp_target =
-+			dc_limits->nv_temp_target_max;
-+		asus_armoury.rog_tunables[0]->nv_tgp = dc_limits->nv_tgp_max;
-+
-+		dc_initialized = true;
-+		pr_debug("DC power limits initialized for %s\n", dmi_id->matches[0].substr);
-+	}
-+
-+	if (!ac_initialized)
-+		pr_debug("No AC PPT limits defined\n");
-+
-+	if (!dc_initialized)
-+		pr_debug("No DC PPT limits defined\n");
-+
-+	return;
-+
-+err_nomem:
-+	pr_err("Failed to allocate memory for tunables\n");
++	rog->dgpu_tgp_default = NVIDIA_POWER_DEFAULT;
++	rog->dgpu_tgp_min = NVIDIA_POWER_MIN;
++	rog->dgpu_tgp_max = NVIDIA_POWER_MAX;
++	rog->dgpu_tgp = NVIDIA_POWER_MAX;
 +}
 +
 +static int __init asus_fw_init(void)
@@ -4132,44 +4885,53 @@ index 000000000000..43a1e7017d16
 +	if (!strcmp(wmi_uid, ASUS_ACPI_UID_ASUSWMI))
 +		return -ENODEV;
 +
++	asus_armoury.rog_tunables = kzalloc(sizeof(struct rog_tunables), GFP_KERNEL);
++	if (!asus_armoury.rog_tunables)
++		return -ENOMEM;
++
++	init_rog_tunables(asus_armoury.rog_tunables);
 +	if (asus_wmi_is_present(ASUS_WMI_DEVID_CORES_MAX)) {
 +		err = init_max_cpu_cores();
 +		if (err) {
++			kfree(asus_armoury.rog_tunables);
 +			pr_err("Could not initialise CPU core control %d\n", err);
 +			return err;
 +		}
 +	}
 +
-+	init_rog_tunables();
++	err = asus_fw_attr_add();
++	if (err)
++		return err;
 +
-+	/* Must always be last step to ensure data is available */
-+	return asus_fw_attr_add();
++	return 0;
 +}
 +
 +static void __exit asus_fw_exit(void)
 +{
++	mutex_lock(&asus_armoury.mutex);
++
 +	sysfs_remove_file(&asus_armoury.fw_attr_kset->kobj, &pending_reboot.attr);
 +	kset_unregister(asus_armoury.fw_attr_kset);
-+	device_destroy(&firmware_attributes_class, MKDEV(0, 0));
++	device_destroy(fw_attr_class, MKDEV(0, 0));
++	fw_attributes_class_put();
 +
-+	kfree(asus_armoury.rog_tunables[0]);
-+	kfree(asus_armoury.rog_tunables[1]);
++	mutex_unlock(&asus_armoury.mutex);
 +}
 +
 +module_init(asus_fw_init);
 +module_exit(asus_fw_exit);
 +
-+MODULE_IMPORT_NS("ASUS_WMI");
++MODULE_IMPORT_NS(ASUS_WMI);
 +MODULE_AUTHOR("Luke Jones <luke@ljones.dev>");
 +MODULE_DESCRIPTION("ASUS BIOS Configuration Driver");
 +MODULE_LICENSE("GPL");
 +MODULE_ALIAS("wmi:" ASUS_NB_WMI_EVENT_GUID);
 diff --git a/drivers/platform/x86/asus-armoury.h b/drivers/platform/x86/asus-armoury.h
 new file mode 100644
-index 000000000000..d99db5f5f6a0
+index 000000000000..2620708d3994
 --- /dev/null
 +++ b/drivers/platform/x86/asus-armoury.h
-@@ -0,0 +1,1402 @@
+@@ -0,0 +1,258 @@
 +/* SPDX-License-Identifier: GPL-2.0
 + *
 + * Definitions for kernel modules using asus-armoury driver
@@ -4180,202 +4942,192 @@ index 000000000000..d99db5f5f6a0
 +#ifndef _ASUS_ARMOURY_H_
 +#define _ASUS_ARMOURY_H_
 +
-+#include <linux/dmi.h>
 +#include <linux/types.h>
 +#include <linux/platform_device.h>
 +
 +#define DRIVER_NAME "asus-armoury"
 +
-+#define __ASUS_ATTR_RO(_func, _name)					\
-+	{								\
-+		.attr = { .name = __stringify(_name), .mode = 0444 },	\
-+		.show = _func##_##_name##_show,				\
++static ssize_t attr_uint_store(struct kobject *kobj, struct kobj_attribute *attr,
++			      const char *buf, size_t count, u32 min, u32 max,
++			      u32 *store_value, u32 wmi_dev);
++
++static ssize_t int_type_show(struct kobject *kobj, struct kobj_attribute *attr,
++			     char *buf)
++{
++	return sysfs_emit(buf, "integer\n");
++}
++
++static ssize_t enum_type_show(struct kobject *kobj, struct kobj_attribute *attr,
++			      char *buf)
++{
++	return sysfs_emit(buf, "enumeration\n");
++}
++
++#define __ASUS_ATTR_RO(_func, _name)                                  \
++	{                                                             \
++		.attr = { .name = __stringify(_name), .mode = 0444 }, \
++		.show = _func##_##_name##_show,                       \
 +	}
 +
-+#define __ASUS_ATTR_RO_AS(_name, _show)					\
-+	{								\
-+		.attr = { .name = __stringify(_name), .mode = 0444 },	\
-+		.show = _show,						\
++#define __ASUS_ATTR_RO_AS(_name, _show)                               \
++	{                                                             \
++		.attr = { .name = __stringify(_name), .mode = 0444 }, \
++		.show = _show,                                        \
 +	}
 +
 +#define __ASUS_ATTR_RW(_func, _name) \
 +	__ATTR(_name, 0644, _func##_##_name##_show, _func##_##_name##_store)
 +
-+#define __WMI_STORE_INT(_attr, _min, _max, _wmi)			\
-+	static ssize_t _attr##_store(struct kobject *kobj,		\
-+				     struct kobj_attribute *attr,	\
-+				     const char *buf, size_t count)	\
-+	{								\
-+		return attr_uint_store(kobj, attr, buf, count, _min,	\
-+					_max, NULL, _wmi);		\
++#define __WMI_STORE_INT(_attr, _min, _max, _wmi)                          \
++	static ssize_t _attr##_store(struct kobject *kobj,                \
++				     struct kobj_attribute *attr,         \
++				     const char *buf, size_t count)       \
++	{                                                                 \
++		return attr_uint_store(kobj, attr, buf, count, _min, _max, \
++				      NULL, _wmi);                        \
 +	}
 +
-+#define WMI_SHOW_INT(_attr, _fmt, _wmi)						\
-+	static ssize_t _attr##_show(struct kobject *kobj,			\
-+				    struct kobj_attribute *attr, char *buf)	\
-+	{									\
-+		u32 result;							\
-+		int err;							\
-+										\
-+		err = asus_wmi_get_devstate_dsts(_wmi, &result);		\
-+		if (err)							\
-+			return err;						\
-+		return sysfs_emit(buf, _fmt,					\
-+				  result & ~ASUS_WMI_DSTS_PRESENCE_BIT);	\
++#define WMI_SHOW_INT(_attr, _fmt, _wmi)                                     \
++	static ssize_t _attr##_show(struct kobject *kobj,                   \
++				    struct kobj_attribute *attr, char *buf) \
++	{                                                                   \
++		u32 result;                                                 \
++		int err;                                                    \
++		                                                            \
++		err = asus_wmi_get_devstate_dsts(_wmi, &result);            \
++		if (err)                                                    \
++			return err;                                         \
++		return sysfs_emit(buf, _fmt,                                \
++				  result & ~ASUS_WMI_DSTS_PRESENCE_BIT);    \
 +	}
 +
 +/* Create functions and attributes for use in other macros or on their own */
 +
++#define __ATTR_CURRENT_INT_RO(_attr, _wmi)                          \
++	WMI_SHOW_INT(_attr##_current_value, "%d\n", _wmi);          \
++	static struct kobj_attribute attr_##_attr##_current_value = \
++		__ASUS_ATTR_RO(_attr, current_value)
++
++#define __ATTR_CURRENT_INT_RW(_attr, _minv, _maxv, _wmi)            \
++	__WMI_STORE_INT(_attr##_current_value, _minv, _maxv, _wmi); \
++	WMI_SHOW_INT(_attr##_current_value, "%d\n", _wmi);          \
++	static struct kobj_attribute attr_##_attr##_current_value = \
++		__ASUS_ATTR_RW(_attr, current_value)
++
 +/* Shows a formatted static variable */
-+#define __ATTR_SHOW_FMT(_prop, _attrname, _fmt, _val)				\
-+	static ssize_t _attrname##_##_prop##_show(				\
-+		struct kobject *kobj, struct kobj_attribute *attr, char *buf)	\
-+	{									\
-+		return sysfs_emit(buf, _fmt, _val);				\
-+	}									\
-+	static struct kobj_attribute attr_##_attrname##_##_prop =		\
++#define __ATTR_SHOW_FMT(_prop, _attrname, _fmt, _val)                         \
++	static ssize_t _attrname##_##_prop##_show(                            \
++		struct kobject *kobj, struct kobj_attribute *attr, char *buf) \
++	{                                                                     \
++		return sysfs_emit(buf, _fmt, _val);                           \
++	}                                                                     \
++	static struct kobj_attribute attr_##_attrname##_##_prop =             \
 +		__ASUS_ATTR_RO(_attrname, _prop)
 +
-+#define __ATTR_RO_INT_GROUP_ENUM(_attrname, _wmi, _fsname, _possible, _dispname)\
-+	WMI_SHOW_INT(_attrname##_current_value, "%d\n", _wmi);			\
-+	static struct kobj_attribute attr_##_attrname##_current_value =		\
-+		__ASUS_ATTR_RO(_attrname, current_value);			\
-+	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);		\
-+	__ATTR_SHOW_FMT(possible_values, _attrname, "%s\n", _possible);		\
-+	static struct kobj_attribute attr_##_attrname##_type =			\
-+		__ASUS_ATTR_RO_AS(type, enum_type_show);			\
-+	static struct attribute *_attrname##_attrs[] = {			\
-+		&attr_##_attrname##_current_value.attr,				\
-+		&attr_##_attrname##_display_name.attr,				\
-+		&attr_##_attrname##_possible_values.attr,			\
-+		&attr_##_attrname##_type.attr,					\
-+		NULL								\
-+	};									\
-+	static const struct attribute_group _attrname##_attr_group = {		\
-+		.name = _fsname, .attrs = _attrname##_attrs			\
-+	}
-+
-+#define __ATTR_RW_INT_GROUP_ENUM(_attrname, _minv, _maxv, _wmi, _fsname,\
-+				 _possible, _dispname)			\
-+	__WMI_STORE_INT(_attrname##_current_value, _minv, _maxv, _wmi);	\
-+	WMI_SHOW_INT(_attrname##_current_value, "%d\n", _wmi);		\
-+	static struct kobj_attribute attr_##_attrname##_current_value =	\
-+		__ASUS_ATTR_RW(_attrname, current_value);		\
-+	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);	\
-+	__ATTR_SHOW_FMT(possible_values, _attrname, "%s\n", _possible);	\
-+	static struct kobj_attribute attr_##_attrname##_type =		\
-+		__ASUS_ATTR_RO_AS(type, enum_type_show);		\
-+	static struct attribute *_attrname##_attrs[] = {		\
-+		&attr_##_attrname##_current_value.attr,			\
-+		&attr_##_attrname##_display_name.attr,			\
-+		&attr_##_attrname##_possible_values.attr,		\
-+		&attr_##_attrname##_type.attr,				\
-+		NULL							\
-+	};								\
-+	static const struct attribute_group _attrname##_attr_group = {	\
-+		.name = _fsname, .attrs = _attrname##_attrs		\
++/* Requires current_value_show */
++#define __ATTR_GROUP_INT_VALUE_ONLY(_attrname, _fsname, _dispname)     \
++	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);   \
++	static struct kobj_attribute attr_##_attrname##_type =         \
++		__ASUS_ATTR_RO_AS(type, int_type_show);                \
++	static struct attribute *_attrname##_attrs[] = {               \
++		&attr_##_attrname##_current_value.attr,                \
++		&attr_##_attrname##_display_name.attr,                 \
++		&attr_##_attrname##_type.attr, NULL                    \
++	};                                                             \
++	static const struct attribute_group _attrname##_attr_group = { \
++		.name = _fsname, .attrs = _attrname##_attrs            \
 +	}
 +
 +/* Boolean style enumeration, base macro. Requires adding show/store */
-+#define __ATTR_GROUP_ENUM(_attrname, _fsname, _possible, _dispname)	\
-+	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);	\
-+	__ATTR_SHOW_FMT(possible_values, _attrname, "%s\n", _possible);	\
-+	static struct kobj_attribute attr_##_attrname##_type =		\
-+		__ASUS_ATTR_RO_AS(type, enum_type_show);		\
-+	static struct attribute *_attrname##_attrs[] = {		\
-+		&attr_##_attrname##_current_value.attr,			\
-+		&attr_##_attrname##_display_name.attr,			\
-+		&attr_##_attrname##_possible_values.attr,		\
-+		&attr_##_attrname##_type.attr,				\
-+		NULL							\
-+	};								\
-+	static const struct attribute_group _attrname##_attr_group = {	\
-+		.name = _fsname, .attrs = _attrname##_attrs		\
++#define __ATTR_GROUP_ENUM(_attrname, _fsname, _possible, _dispname)     \
++	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);    \
++	__ATTR_SHOW_FMT(possible_values, _attrname, "%s\n", _possible); \
++	static struct kobj_attribute attr_##_attrname##_type =          \
++		__ASUS_ATTR_RO_AS(type, enum_type_show);                \
++	static struct attribute *_attrname##_attrs[] = {                \
++		&attr_##_attrname##_current_value.attr,                 \
++		&attr_##_attrname##_display_name.attr,                  \
++		&attr_##_attrname##_possible_values.attr,               \
++		&attr_##_attrname##_type.attr,                          \
++		NULL                                                    \
++	};                                                              \
++	static const struct attribute_group _attrname##_attr_group = {  \
++		.name = _fsname, .attrs = _attrname##_attrs             \
 +	}
 +
-+#define ATTR_GROUP_BOOL_RO(_attrname, _fsname, _wmi, _dispname)	\
-+	__ATTR_RO_INT_GROUP_ENUM(_attrname, _wmi, _fsname, "0;1", _dispname)
++#define ATTR_GROUP_INT_VALUE_ONLY_RO(_attrname, _fsname, _wmi, _dispname) \
++	__ATTR_CURRENT_INT_RO(_attrname, _wmi);                           \
++	__ATTR_GROUP_INT_VALUE_ONLY(_attrname, _fsname, _dispname)
 +
++#define ATTR_GROUP_BOOL_RO(_attrname, _fsname, _wmi, _dispname) \
++	__ATTR_CURRENT_INT_RO(_attrname, _wmi);                 \
++	__ATTR_GROUP_ENUM(_attrname, _fsname, "0;1", _dispname)
 +
-+#define ATTR_GROUP_BOOL_RW(_attrname, _fsname, _wmi, _dispname)	\
-+	__ATTR_RW_INT_GROUP_ENUM(_attrname, 0, 1, _wmi, _fsname, "0;1", _dispname)
-+
-+#define ATTR_GROUP_ENUM_INT_RO(_attrname, _fsname, _wmi, _possible, _dispname)	\
-+	__ATTR_RO_INT_GROUP_ENUM(_attrname, _wmi, _fsname, _possible, _dispname)
++#define ATTR_GROUP_BOOL_RW(_attrname, _fsname, _wmi, _dispname) \
++	__ATTR_CURRENT_INT_RW(_attrname, 0, 1, _wmi);           \
++	__ATTR_GROUP_ENUM(_attrname, _fsname, "0;1", _dispname)
 +
 +/*
 + * Requires <name>_current_value_show(), <name>_current_value_show()
 + */
-+#define ATTR_GROUP_BOOL_CUSTOM(_attrname, _fsname, _dispname)		\
-+	static struct kobj_attribute attr_##_attrname##_current_value =	\
-+		__ASUS_ATTR_RW(_attrname, current_value);		\
++#define ATTR_GROUP_BOOL_CUSTOM(_attrname, _fsname, _dispname)           \
++	static struct kobj_attribute attr_##_attrname##_current_value = \
++		__ASUS_ATTR_RW(_attrname, current_value);               \
 +	__ATTR_GROUP_ENUM(_attrname, _fsname, "0;1", _dispname)
++
++#define ATTR_GROUP_ENUM_INT_RO(_attrname, _fsname, _wmi, _possible, _dispname) \
++	__ATTR_CURRENT_INT_RO(_attrname, _wmi);                                \
++	__ATTR_GROUP_ENUM(_attrname, _fsname, _possible, _dispname)
 +
 +/*
 + * Requires <name>_current_value_show(), <name>_current_value_show()
 + * and <name>_possible_values_show()
 + */
-+#define ATTR_GROUP_ENUM_CUSTOM(_attrname, _fsname, _dispname)			\
-+	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);		\
-+	static struct kobj_attribute attr_##_attrname##_current_value =		\
-+		__ASUS_ATTR_RW(_attrname, current_value);			\
-+	static struct kobj_attribute attr_##_attrname##_possible_values =	\
-+		__ASUS_ATTR_RO(_attrname, possible_values);			\
-+	static struct kobj_attribute attr_##_attrname##_type =			\
-+		__ASUS_ATTR_RO_AS(type, enum_type_show);			\
-+	static struct attribute *_attrname##_attrs[] = {			\
-+		&attr_##_attrname##_current_value.attr,				\
-+		&attr_##_attrname##_display_name.attr,				\
-+		&attr_##_attrname##_possible_values.attr,			\
-+		&attr_##_attrname##_type.attr,					\
-+		NULL								\
-+	};									\
-+	static const struct attribute_group _attrname##_attr_group = {		\
-+		.name = _fsname, .attrs = _attrname##_attrs			\
++#define ATTR_GROUP_ENUM_CUSTOM(_attrname, _fsname, _dispname)             \
++	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);      \
++	static struct kobj_attribute attr_##_attrname##_current_value =   \
++		__ASUS_ATTR_RW(_attrname, current_value);                 \
++	static struct kobj_attribute attr_##_attrname##_possible_values = \
++		__ASUS_ATTR_RO(_attrname, possible_values);               \
++	static struct kobj_attribute attr_##_attrname##_type =            \
++		__ASUS_ATTR_RO_AS(type, enum_type_show);                  \
++	static struct attribute *_attrname##_attrs[] = {                  \
++		&attr_##_attrname##_current_value.attr,                   \
++		&attr_##_attrname##_display_name.attr,                    \
++		&attr_##_attrname##_possible_values.attr,                 \
++		&attr_##_attrname##_type.attr,                            \
++		NULL                                                      \
++	};                                                                \
++	static const struct attribute_group _attrname##_attr_group = {    \
++		.name = _fsname, .attrs = _attrname##_attrs               \
 +	}
 +
 +/* CPU core attributes need a little different in setup */
-+#define ATTR_GROUP_CORES_RW(_attrname, _fsname, _dispname)		\
-+	__ATTR_SHOW_FMT(scalar_increment, _attrname, "%d\n", 1);	\
-+	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);	\
-+	static struct kobj_attribute attr_##_attrname##_current_value =	\
-+		__ASUS_ATTR_RW(_attrname, current_value);		\
++#define ATTR_GROUP_CORES_RW(_attrname, _fsname, _dispname)              \
++	__ATTR_SHOW_FMT(scalar_increment, _attrname, "%d\n", 1);        \
++	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);    \
++	static struct kobj_attribute attr_##_attrname##_current_value = \
++		__ASUS_ATTR_RW(_attrname, current_value);               \
 +	static struct kobj_attribute attr_##_attrname##_default_value = \
-+		__ASUS_ATTR_RO(_attrname, default_value);		\
-+	static struct kobj_attribute attr_##_attrname##_min_value =	\
-+		__ASUS_ATTR_RO(_attrname, min_value);			\
-+	static struct kobj_attribute attr_##_attrname##_max_value =	\
-+		__ASUS_ATTR_RO(_attrname, max_value);			\
-+	static struct kobj_attribute attr_##_attrname##_type =		\
-+		__ASUS_ATTR_RO_AS(type, int_type_show);			\
-+	static struct attribute *_attrname##_attrs[] = {		\
-+		&attr_##_attrname##_current_value.attr,			\
-+		&attr_##_attrname##_default_value.attr,			\
-+		&attr_##_attrname##_min_value.attr,			\
-+		&attr_##_attrname##_max_value.attr,			\
-+		&attr_##_attrname##_scalar_increment.attr,		\
-+		&attr_##_attrname##_display_name.attr,			\
-+		&attr_##_attrname##_type.attr,				\
-+		NULL							\
-+	};								\
-+	static const struct attribute_group _attrname##_attr_group = {	\
-+		.name = _fsname, .attrs = _attrname##_attrs		\
-+	}
-+
-+#define ATTR_GROUP_INT_VALUE_ONLY_RO(_attrname, _fsname, _wmi, _dispname)	\
-+	WMI_SHOW_INT(_attrname##_current_value, "%d\n", _wmi);			\
-+	static struct kobj_attribute attr_##_attrname##_current_value =		\
-+		__ASUS_ATTR_RO(_attrname, current_value);			\
-+	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);		\
-+	static struct kobj_attribute attr_##_attrname##_type =			\
-+		__ASUS_ATTR_RO_AS(type, int_type_show);				\
-+	static struct attribute *_attrname##_attrs[] = {			\
-+		&attr_##_attrname##_current_value.attr,				\
-+		&attr_##_attrname##_display_name.attr,				\
-+		&attr_##_attrname##_type.attr, NULL				\
-+	};									\
-+	static const struct attribute_group _attrname##_attr_group = {		\
-+		.name = _fsname, .attrs = _attrname##_attrs			\
++		__ASUS_ATTR_RO(_attrname, default_value);               \
++	static struct kobj_attribute attr_##_attrname##_min_value =     \
++		__ASUS_ATTR_RO(_attrname, min_value);                   \
++	static struct kobj_attribute attr_##_attrname##_max_value =     \
++		__ASUS_ATTR_RO(_attrname, max_value);                   \
++	static struct kobj_attribute attr_##_attrname##_type =          \
++		__ASUS_ATTR_RO_AS(type, int_type_show);                 \
++	static struct attribute *_attrname##_attrs[] = {                \
++		&attr_##_attrname##_current_value.attr,                 \
++		&attr_##_attrname##_default_value.attr,                 \
++		&attr_##_attrname##_min_value.attr,                     \
++		&attr_##_attrname##_max_value.attr,                     \
++		&attr_##_attrname##_scalar_increment.attr,              \
++		&attr_##_attrname##_display_name.attr,                  \
++		&attr_##_attrname##_type.attr,                          \
++		NULL                                                    \
++	};                                                              \
++	static const struct attribute_group _attrname##_attr_group = {  \
++		.name = _fsname, .attrs = _attrname##_attrs             \
 +	}
 +
 +/*
@@ -4383,1208 +5135,66 @@ index 000000000000..d99db5f5f6a0
 + * require rog_tunables members.
 + */
 +
-+#define __ROG_TUNABLE_SHOW(_prop, _attrname, _val)				\
-+	static ssize_t _attrname##_##_prop##_show(				\
-+		struct kobject *kobj, struct kobj_attribute *attr, char *buf)	\
-+	{									\
-+		struct rog_tunables *tunables = get_current_tunables();		\
-+										\
-+		if (!tunables || !tunables->power_limits)			\
-+			return -ENODEV;						\
-+										\
-+		return sysfs_emit(buf, "%d\n", tunables->power_limits->_val);	\
-+	}									\
-+	static struct kobj_attribute attr_##_attrname##_##_prop =		\
-+		__ASUS_ATTR_RO(_attrname, _prop)
-+
-+#define __ROG_TUNABLE_SHOW_DEFAULT(_attrname)					\
-+	static ssize_t _attrname##_default_value_show(				\
-+		struct kobject *kobj, struct kobj_attribute *attr, char *buf)	\
-+	{									\
-+		struct rog_tunables *tunables = get_current_tunables();		\
-+										\
-+		if (!tunables || !tunables->power_limits)			\
-+			return -ENODEV;						\
-+										\
-+		return sysfs_emit(						\
-+			buf, "%d\n",						\
-+			tunables->power_limits->_attrname##_def ?		\
-+				tunables->power_limits->_attrname##_def :	\
-+				tunables->power_limits->_attrname##_max);	\
-+	}									\
-+	static struct kobj_attribute attr_##_attrname##_default_value =		\
-+		__ASUS_ATTR_RO(_attrname, default_value)
-+
-+#define __ROG_TUNABLE_RW(_attr, _wmi)						\
-+	static ssize_t _attr##_current_value_store(				\
-+		struct kobject *kobj, struct kobj_attribute *attr,		\
-+		const char *buf, size_t count)					\
-+	{									\
-+		struct rog_tunables *tunables = get_current_tunables();		\
-+										\
-+		if (!tunables || !tunables->power_limits)			\
-+			return -ENODEV;						\
-+										\
-+		return attr_uint_store(kobj, attr, buf, count,			\
-+				       tunables->power_limits->_attr##_min,	\
-+				       tunables->power_limits->_attr##_max,	\
-+				       &tunables->_attr, _wmi);			\
-+	}									\
-+	static ssize_t _attr##_current_value_show(				\
-+		struct kobject *kobj, struct kobj_attribute *attr, char *buf)	\
-+	{									\
-+		struct rog_tunables *tunables = get_current_tunables();		\
-+										\
-+		if (!tunables)							\
-+			return -ENODEV;						\
-+										\
-+		return sysfs_emit(buf, "%u\n", tunables->_attr);		\
-+	}									\
-+	static struct kobj_attribute attr_##_attr##_current_value =		\
++#define __ROG_TUNABLE_RW(_attr, _min, _max, _wmi)                             \
++	static ssize_t _attr##_current_value_store(                           \
++		struct kobject *kobj, struct kobj_attribute *attr,            \
++		const char *buf, size_t count)                                \
++	{                                                                     \
++		return attr_uint_store(kobj, attr, buf, count,                 \
++				      asus_armoury.rog_tunables->_min,        \
++				      asus_armoury.rog_tunables->_max,        \
++				      &asus_armoury.rog_tunables->_attr,      \
++				      _wmi);                                  \
++	}                                                                     \
++	static ssize_t _attr##_current_value_show(                            \
++		struct kobject *kobj, struct kobj_attribute *attr, char *buf) \
++	{                                                                     \
++		return sysfs_emit(buf, "%u\n",                                \
++				  asus_armoury.rog_tunables->_attr);          \
++	}                                                                     \
++	static struct kobj_attribute attr_##_attr##_current_value =           \
 +		__ASUS_ATTR_RW(_attr, current_value)
 +
-+#define ATTR_GROUP_ROG_TUNABLE(_attrname, _fsname, _wmi, _dispname)	\
-+	__ROG_TUNABLE_RW(_attrname, _wmi);				\
-+	__ROG_TUNABLE_SHOW_DEFAULT(_attrname);				\
-+	__ROG_TUNABLE_SHOW(min_value, _attrname, _attrname##_min);	\
-+	__ROG_TUNABLE_SHOW(max_value, _attrname, _attrname##_max);	\
-+	__ATTR_SHOW_FMT(scalar_increment, _attrname, "%d\n", 1);	\
-+	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);	\
-+	static struct kobj_attribute attr_##_attrname##_type =		\
-+		__ASUS_ATTR_RO_AS(type, int_type_show);			\
-+	static struct attribute *_attrname##_attrs[] = {		\
-+		&attr_##_attrname##_current_value.attr,			\
-+		&attr_##_attrname##_default_value.attr,			\
-+		&attr_##_attrname##_min_value.attr,			\
-+		&attr_##_attrname##_max_value.attr,			\
-+		&attr_##_attrname##_scalar_increment.attr,		\
-+		&attr_##_attrname##_display_name.attr,			\
-+		&attr_##_attrname##_type.attr,				\
-+		NULL							\
-+	};								\
-+	static const struct attribute_group _attrname##_attr_group = {	\
-+		.name = _fsname, .attrs = _attrname##_attrs		\
++#define __ROG_TUNABLE_SHOW(_prop, _attrname, _val)                            \
++	static ssize_t _attrname##_##_prop##_show(                            \
++		struct kobject *kobj, struct kobj_attribute *attr, char *buf) \
++	{                                                                     \
++		return sysfs_emit(buf, "%d\n",                                \
++				  asus_armoury.rog_tunables->_val);           \
++	}                                                                     \
++	static struct kobj_attribute attr_##_attrname##_##_prop =             \
++		__ASUS_ATTR_RO(_attrname, _prop)
++
++#define ATTR_GROUP_ROG_TUNABLE(_attrname, _fsname, _wmi, _default, _min, _max, \
++			       _incstep, _dispname)                            \
++	__ROG_TUNABLE_SHOW(default_value, _attrname, _default);                \
++	__ROG_TUNABLE_RW(_attrname, _min, _max, _wmi);                         \
++	__ROG_TUNABLE_SHOW(min_value, _attrname, _min);                        \
++	__ROG_TUNABLE_SHOW(max_value, _attrname, _max);                        \
++	__ATTR_SHOW_FMT(scalar_increment, _attrname, "%d\n", _incstep);        \
++	__ATTR_SHOW_FMT(display_name, _attrname, "%s\n", _dispname);           \
++	static struct kobj_attribute attr_##_attrname##_type =                 \
++		__ASUS_ATTR_RO_AS(type, int_type_show);                        \
++	static struct attribute *_attrname##_attrs[] = {                       \
++		&attr_##_attrname##_current_value.attr,                        \
++		&attr_##_attrname##_default_value.attr,                        \
++		&attr_##_attrname##_min_value.attr,                            \
++		&attr_##_attrname##_max_value.attr,                            \
++		&attr_##_attrname##_scalar_increment.attr,                     \
++		&attr_##_attrname##_display_name.attr,                         \
++		&attr_##_attrname##_type.attr,                                 \
++		NULL                                                           \
++	};                                                                     \
++	static const struct attribute_group _attrname##_attr_group = {         \
++		.name = _fsname, .attrs = _attrname##_attrs                    \
 +	}
 +
-+/* Default is always the maximum value unless *_def is specified */
-+struct power_limits {
-+	u8 ppt_pl1_spl_min;
-+	u8 ppt_pl1_spl_def;
-+	u8 ppt_pl1_spl_max;
-+	u8 ppt_pl2_sppt_min;
-+	u8 ppt_pl2_sppt_def;
-+	u8 ppt_pl2_sppt_max;
-+	u8 ppt_pl3_fppt_min;
-+	u8 ppt_pl3_fppt_def;
-+	u8 ppt_pl3_fppt_max;
-+	u8 ppt_apu_sppt_min;
-+	u8 ppt_apu_sppt_def;
-+	u8 ppt_apu_sppt_max;
-+	u8 ppt_platform_sppt_min;
-+	u8 ppt_platform_sppt_def;
-+	u8 ppt_platform_sppt_max;
-+	/* Nvidia GPU specific, default is always max */
-+	u8 nv_dynamic_boost_def; // unused. exists for macro
-+	u8 nv_dynamic_boost_min;
-+	u8 nv_dynamic_boost_max;
-+	u8 nv_temp_target_def; // unused. exists for macro
-+	u8 nv_temp_target_min;
-+	u8 nv_temp_target_max;
-+	u8 nv_tgp_def; // unused. exists for macro
-+	u8 nv_tgp_min;
-+	u8 nv_tgp_max;
-+};
-+
-+struct power_data {
-+		const struct power_limits *ac_data;
-+		const struct power_limits *dc_data;
-+		bool requires_fan_curve;
-+};
-+
-+/*
-+ * For each available attribute there must be a min and a max.
-+ * _def is not required and will be assumed to be default == max if missing.
-+ */
-+static const struct dmi_system_id power_limits[] = {
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "FA401W"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 80,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_max = 80,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 80,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_tgp_min = 55,
-+				.nv_tgp_max = 75,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 30,
-+				.ppt_pl2_sppt_min = 31,
-+				.ppt_pl2_sppt_max = 44,
-+				.ppt_pl3_fppt_min = 45,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "FA507N"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 80,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_max = 80,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 80,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_def = 45,
-+				.ppt_pl1_spl_max = 65,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_def = 54,
-+				.ppt_pl2_sppt_max = 65,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "FA507R"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 80,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 80,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 80
-+			},
-+			.dc_data = NULL
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "FA507X"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 80,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_max = 80,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 80,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 20,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_tgp_min = 55,
-+				.nv_tgp_max = 85,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_def = 45,
-+				.ppt_pl1_spl_max = 65,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_def = 54,
-+				.ppt_pl2_sppt_max = 65,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "FA507Z"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 28,
-+				.ppt_pl1_spl_max = 65,
-+				.ppt_pl2_sppt_min = 28,
-+				.ppt_pl2_sppt_max = 105,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 15,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_tgp_min = 55,
-+				.nv_tgp_max = 85,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 45,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_max = 60,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "FA607P"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 30,
-+				.ppt_pl1_spl_def = 100,
-+				.ppt_pl1_spl_max = 135,
-+				.ppt_pl2_sppt_min = 30,
-+				.ppt_pl2_sppt_def = 115,
-+				.ppt_pl2_sppt_max = 135,
-+				.ppt_pl3_fppt_min = 30,
-+				.ppt_pl3_fppt_max = 135,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_tgp_min = 55,
-+				.nv_tgp_max = 115,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_def = 45,
-+				.ppt_pl1_spl_max = 80,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_def = 60,
-+				.ppt_pl2_sppt_max = 80,
-+				.ppt_pl3_fppt_min = 25,
-+				.ppt_pl3_fppt_max = 80,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "FA608WI"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_def = 90,
-+				.ppt_pl1_spl_max = 90,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_def = 90,
-+				.ppt_pl2_sppt_max = 90,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_def = 90,
-+				.ppt_pl3_fppt_max = 90,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_tgp_min = 55,
-+				.nv_tgp_max = 115,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_def = 45,
-+				.ppt_pl1_spl_max = 65,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_def = 54,
-+				.ppt_pl2_sppt_max = 65,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_def = 65,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "FA617NS"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_apu_sppt_min = 15,
-+				.ppt_apu_sppt_max = 80,
-+				.ppt_platform_sppt_min = 30,
-+				.ppt_platform_sppt_max = 120
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_apu_sppt_min = 25,
-+				.ppt_apu_sppt_max = 35,
-+				.ppt_platform_sppt_min = 45,
-+				.ppt_platform_sppt_max = 100
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "FA617NT"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_apu_sppt_min = 15,
-+				.ppt_apu_sppt_max = 80,
-+				.ppt_platform_sppt_min = 30,
-+				.ppt_platform_sppt_max = 115
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_apu_sppt_min = 15,
-+				.ppt_apu_sppt_max = 45,
-+				.ppt_platform_sppt_min = 30,
-+				.ppt_platform_sppt_max = 50
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "FA617XS"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_apu_sppt_min = 15,
-+				.ppt_apu_sppt_max = 80,
-+				.ppt_platform_sppt_min = 30,
-+				.ppt_platform_sppt_max = 120,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_apu_sppt_min = 25,
-+				.ppt_apu_sppt_max = 35,
-+				.ppt_platform_sppt_min = 45,
-+				.ppt_platform_sppt_max = 100,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "FX507VI"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 28,
-+				.ppt_pl1_spl_max = 135,
-+				.ppt_pl2_sppt_min = 28,
-+				.ppt_pl2_sppt_max = 135,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 45,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_max = 60,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "FX507Z"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 28,
-+				.ppt_pl1_spl_max = 90,
-+				.ppt_pl2_sppt_min = 28,
-+				.ppt_pl2_sppt_max = 135,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 15,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 45,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_max = 60,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GA401Q"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 80,
-+				.ppt_pl2_sppt_min = 15,
-+				.ppt_pl2_sppt_max = 80,
-+			},
-+			.dc_data = NULL
-+		},
-+	},
-+	{
-+		.matches = {
-+			// This model is full AMD. No Nvidia dGPU.
-+			DMI_MATCH(DMI_BOARD_NAME, "GA402R"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_apu_sppt_min = 15,
-+				.ppt_apu_sppt_max = 80,
-+				.ppt_platform_sppt_min = 30,
-+				.ppt_platform_sppt_max = 115,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_apu_sppt_min = 25,
-+				.ppt_apu_sppt_def = 30,
-+				.ppt_apu_sppt_max = 45,
-+				.ppt_platform_sppt_min = 40,
-+				.ppt_platform_sppt_max = 60,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GA402X"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_def = 35,
-+				.ppt_pl1_spl_max = 80,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_def = 65,
-+				.ppt_pl2_sppt_max = 80,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 80,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 35,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 35,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GA403U"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 80,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 80,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 80,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_tgp_min = 55,
-+				.nv_tgp_max = 65,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 35,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 35,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GA503R"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_def = 35,
-+				.ppt_pl1_spl_max = 80,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_def = 65,
-+				.ppt_pl2_sppt_max = 80,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 80,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 20,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_def = 25,
-+				.ppt_pl1_spl_max = 65,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_def = 54,
-+				.ppt_pl2_sppt_max = 60,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 65
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GA605W"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 80,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_max = 80,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 80,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 20,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_tgp_min = 55,
-+				.nv_tgp_max = 85,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 35,
-+				.ppt_pl2_sppt_min = 31,
-+				.ppt_pl2_sppt_max = 44,
-+				.ppt_pl3_fppt_min = 45,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GU603Z"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 60,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 135,
-+				/* Only allowed in AC mode */
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 20,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 40,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 40,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GU604V"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 65,
-+				.ppt_pl1_spl_max = 120,
-+				.ppt_pl2_sppt_min = 65,
-+				.ppt_pl2_sppt_max = 150,
-+				/* Only allowed in AC mode */
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 40,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_def = 40,
-+				.ppt_pl2_sppt_max = 60,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GU605CW"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 45,
-+				.ppt_pl1_spl_max = 85,
-+				.ppt_pl2_sppt_min = 56,
-+				.ppt_pl2_sppt_max = 110,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 20,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_tgp_min = 80,
-+				.nv_tgp_def = 90,
-+				.nv_tgp_max = 110,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 85,
-+				.ppt_pl2_sppt_min = 32,
-+				.ppt_pl2_sppt_max = 110,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GU605M"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 28,
-+				.ppt_pl1_spl_max = 90,
-+				.ppt_pl2_sppt_min = 28,
-+				.ppt_pl2_sppt_max = 135,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 20,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 35,
-+				.ppt_pl2_sppt_min = 38,
-+				.ppt_pl2_sppt_max = 53,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GV301Q"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 45,
-+				.ppt_pl2_sppt_min = 65,
-+				.ppt_pl2_sppt_max = 80,
-+			},
-+			.dc_data = NULL
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GV301R"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 45,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 54,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 35,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 35,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GV601R"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_def = 35,
-+				.ppt_pl1_spl_max = 90,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_def = 54,
-+				.ppt_pl2_sppt_max = 100,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_def = 80,
-+				.ppt_pl3_fppt_max = 125,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_def = 28,
-+				.ppt_pl1_spl_max = 65,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_def = 54,
-+				.ppt_pl2_sppt_max = 60,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_def = 80,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GV601V"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 28,
-+				.ppt_pl1_spl_def = 100,
-+				.ppt_pl1_spl_max = 110,
-+				.ppt_pl2_sppt_min = 28,
-+				.ppt_pl2_sppt_max = 135,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 20,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 40,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_def = 40,
-+				.ppt_pl2_sppt_max = 60,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GX650P"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_def = 110,
-+				.ppt_pl1_spl_max = 130,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_def = 125,
-+				.ppt_pl2_sppt_max = 130,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_def = 125,
-+				.ppt_pl3_fppt_max = 135,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_def = 25,
-+				.ppt_pl1_spl_max = 65,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_def = 35,
-+				.ppt_pl2_sppt_max = 65,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_def = 42,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "G513I"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				/* Yes this laptop is very limited */
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 80,
-+				.ppt_pl2_sppt_min = 15,
-+				.ppt_pl2_sppt_max = 80,
-+			},
-+			.dc_data = NULL,
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "G513QM"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				/* Yes this laptop is very limited */
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 100,
-+				.ppt_pl2_sppt_min = 15,
-+				.ppt_pl2_sppt_max = 190,
-+			},
-+			.dc_data = NULL,
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "G513R"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 35,
-+				.ppt_pl1_spl_max = 90,
-+				.ppt_pl2_sppt_min = 54,
-+				.ppt_pl2_sppt_max = 100,
-+				.ppt_pl3_fppt_min = 54,
-+				.ppt_pl3_fppt_max = 125,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 28,
-+				.ppt_pl1_spl_max = 50,
-+				.ppt_pl2_sppt_min = 28,
-+				.ppt_pl2_sppt_max = 50,
-+				.ppt_pl3_fppt_min = 28,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "G614J"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 28,
-+				.ppt_pl1_spl_max = 140,
-+				.ppt_pl2_sppt_min = 28,
-+				.ppt_pl2_sppt_max = 175,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 55,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 70,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "G634J"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 28,
-+				.ppt_pl1_spl_max = 140,
-+				.ppt_pl2_sppt_min = 28,
-+				.ppt_pl2_sppt_max = 175,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 55,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 70,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "G713PV"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 30,
-+				.ppt_pl1_spl_def = 120,
-+				.ppt_pl1_spl_max = 130,
-+				.ppt_pl2_sppt_min = 65,
-+				.ppt_pl2_sppt_def = 125,
-+				.ppt_pl2_sppt_max = 130,
-+				.ppt_pl3_fppt_min = 65,
-+				.ppt_pl3_fppt_def = 125,
-+				.ppt_pl3_fppt_max = 130,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 65,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 65,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 75,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "G733C"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 28,
-+				.ppt_pl1_spl_max = 170,
-+				.ppt_pl2_sppt_min = 28,
-+				.ppt_pl2_sppt_max = 175,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 28,
-+				.ppt_pl1_spl_max = 35,
-+				.ppt_pl2_sppt_min = 28,
-+				.ppt_pl2_sppt_max = 35,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "G733P"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 30,
-+				.ppt_pl1_spl_def = 100,
-+				.ppt_pl1_spl_max = 130,
-+				.ppt_pl2_sppt_min = 65,
-+				.ppt_pl2_sppt_def = 125,
-+				.ppt_pl2_sppt_max = 130,
-+				.ppt_pl3_fppt_min = 65,
-+				.ppt_pl3_fppt_def = 125,
-+				.ppt_pl3_fppt_max = 130,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 65,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 65,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 75,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "G814J"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 28,
-+				.ppt_pl1_spl_max = 140,
-+				.ppt_pl2_sppt_min = 28,
-+				.ppt_pl2_sppt_max = 140,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 55,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 70,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "G834J"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 28,
-+				.ppt_pl1_spl_max = 140,
-+				.ppt_pl2_sppt_min = 28,
-+				.ppt_pl2_sppt_max = 175,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 25,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 55,
-+				.ppt_pl2_sppt_min = 25,
-+				.ppt_pl2_sppt_max = 70,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			},
-+			.requires_fan_curve = true,
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "H7606W"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 15,
-+				.ppt_pl1_spl_max = 80,
-+				.ppt_pl2_sppt_min = 35,
-+				.ppt_pl2_sppt_max = 80,
-+				.ppt_pl3_fppt_min = 35,
-+				.ppt_pl3_fppt_max = 80,
-+				.nv_dynamic_boost_min = 5,
-+				.nv_dynamic_boost_max = 20,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+				.nv_tgp_min = 55,
-+				.nv_tgp_max = 85,
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 25,
-+				.ppt_pl1_spl_max = 35,
-+				.ppt_pl2_sppt_min = 31,
-+				.ppt_pl2_sppt_max = 44,
-+				.ppt_pl3_fppt_min = 45,
-+				.ppt_pl3_fppt_max = 65,
-+				.nv_temp_target_min = 75,
-+				.nv_temp_target_max = 87,
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "RC71"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 7,
-+				.ppt_pl1_spl_max = 30,
-+				.ppt_pl2_sppt_min = 15,
-+				.ppt_pl2_sppt_max = 43,
-+				.ppt_pl3_fppt_min = 15,
-+				.ppt_pl3_fppt_max = 53
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 7,
-+				.ppt_pl1_spl_def = 15,
-+				.ppt_pl1_spl_max = 25,
-+				.ppt_pl2_sppt_min = 15,
-+				.ppt_pl2_sppt_def = 20,
-+				.ppt_pl2_sppt_max = 30,
-+				.ppt_pl3_fppt_min = 15,
-+				.ppt_pl3_fppt_def = 25,
-+				.ppt_pl3_fppt_max = 35
-+			}
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "RC72"),
-+		},
-+		.driver_data = &(struct power_data) {
-+			.ac_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 7,
-+				.ppt_pl1_spl_max = 30,
-+				.ppt_pl2_sppt_min = 15,
-+				.ppt_pl2_sppt_max = 43,
-+				.ppt_pl3_fppt_min = 15,
-+				.ppt_pl3_fppt_max = 53
-+			},
-+			.dc_data = &(struct power_limits) {
-+				.ppt_pl1_spl_min = 7,
-+				.ppt_pl1_spl_def = 17,
-+				.ppt_pl1_spl_max = 25,
-+				.ppt_pl2_sppt_min = 15,
-+				.ppt_pl2_sppt_def = 24,
-+				.ppt_pl2_sppt_max = 30,
-+				.ppt_pl3_fppt_min = 15,
-+				.ppt_pl3_fppt_def = 30,
-+				.ppt_pl3_fppt_max = 35
-+			}
-+		},
-+	},
-+	{}
-+};
-+
-+#endif /* _ASUS_ARMOURY_H_ */
++#endif /* _ASUS_BIOSCFG_H_ */
 diff --git a/drivers/platform/x86/asus-wmi.c b/drivers/platform/x86/asus-wmi.c
-index e72a2b5d158e..b5948ef72398 100644
+index 1101e5b2488e..d4981e08f44f 100644
 --- a/drivers/platform/x86/asus-wmi.c
 +++ b/drivers/platform/x86/asus-wmi.c
-@@ -30,6 +30,7 @@
- #include <linux/pci.h>
- #include <linux/pci_hotplug.h>
- #include <linux/platform_data/x86/asus-wmi.h>
-+#include <linux/platform_data/x86/asus-wmi-leds-ids.h>
- #include <linux/platform_device.h>
- #include <linux/platform_profile.h>
- #include <linux/power_supply.h>
-@@ -55,8 +56,6 @@ module_param(fnlock_default, bool, 0444);
+@@ -55,8 +55,6 @@ module_param(fnlock_default, bool, 0444);
  #define to_asus_wmi_driver(pdrv)					\
  	(container_of((pdrv), struct asus_wmi_driver, platform_driver))
  
@@ -5593,7 +5203,7 @@ index e72a2b5d158e..b5948ef72398 100644
  #define NOTIFY_BRNUP_MIN		0x11
  #define NOTIFY_BRNUP_MAX		0x1f
  #define NOTIFY_BRNDOWN_MIN		0x20
-@@ -105,8 +104,6 @@ module_param(fnlock_default, bool, 0444);
+@@ -105,8 +103,6 @@ module_param(fnlock_default, bool, 0444);
  #define USB_INTEL_XUSB2PR		0xD0
  #define PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_XHCI	0x9c31
  
@@ -5602,42 +5212,117 @@ index e72a2b5d158e..b5948ef72398 100644
  #define WMI_EVENT_MASK			0xFFFF
  
  #define FAN_CURVE_POINTS		8
-@@ -340,6 +337,13 @@ struct asus_wmi {
- /* Global to allow setting externally without requiring driver data */
- static enum asus_ally_mcu_hack use_ally_mcu_hack = ASUS_WMI_ALLY_MCU_HACK_INIT;
+@@ -142,16 +138,20 @@ module_param(fnlock_default, bool, 0444);
+ #define ASUS_MINI_LED_2024_STRONG	0x01
+ #define ASUS_MINI_LED_2024_OFF		0x02
  
+-/* Controls the power state of the USB0 hub on ROG Ally which input is on */
+ #define ASUS_USB0_PWR_EC0_CSEE "\\_SB.PCI0.SBRG.EC0.CSEE"
+-/* 300ms so far seems to produce a reliable result on AC and battery */
+-#define ASUS_USB0_PWR_EC0_CSEE_WAIT 1500
++/*
++ * The period required to wait after screen off/on/s2idle.check in MS.
++ * Time here greatly impacts the wake behaviour. Used in suspend/wake.
++ */
++#define ASUS_USB0_PWR_EC0_CSEE_WAIT	600
++#define ASUS_USB0_PWR_EC0_CSEE_OFF	0xB7
++#define ASUS_USB0_PWR_EC0_CSEE_ON	0xB8
+ 
+ static const char * const ashs_ids[] = { "ATK4001", "ATK4002", NULL };
+ 
+ static int throttle_thermal_policy_write(struct asus_wmi *);
+ 
+-static const struct dmi_system_id asus_ally_mcu_quirk[] = {
++static const struct dmi_system_id asus_rog_ally_device[] = {
+ 	{
+ 		.matches = {
+ 			DMI_MATCH(DMI_BOARD_NAME, "RC71L"),
+@@ -274,9 +274,6 @@ struct asus_wmi {
+ 	u32 tablet_switch_dev_id;
+ 	bool tablet_switch_inverted;
+ 
+-	/* The ROG Ally device requires the MCU USB device be disconnected before suspend */
+-	bool ally_mcu_usb_switch;
+-
+ 	enum fan_type fan_type;
+ 	enum fan_type gpu_fan_type;
+ 	enum fan_type mid_fan_type;
+@@ -289,11 +286,12 @@ struct asus_wmi {
+ 	u8 fan_boost_mode_mask;
+ 	u8 fan_boost_mode;
+ 
++
++	/* Tunables provided by ASUS for gaming laptops */
++#if IS_ENABLED(CONFIG_ASUS_WMI_DEPRECATED_ATTRS)
+ 	bool egpu_enable_available;
+ 	bool dgpu_disable_available;
+ 	u32 gpu_mux_dev;
+-
+-	/* Tunables provided by ASUS for gaming laptops */
+ 	u32 ppt_pl2_sppt;
+ 	u32 ppt_pl1_spl;
+ 	u32 ppt_apu_sppt;
+@@ -301,6 +299,9 @@ struct asus_wmi {
+ 	u32 ppt_fppt;
+ 	u32 nv_dynamic_boost;
+ 	u32 nv_temp_target;
++	bool panel_overdrive_available;
++	u32 mini_led_dev_id;
++#endif /* IS_ENABLED(CONFIG_ASUS_WMI_DEPRECATED_ATTRS) */
+ 
+ 	u32 kbd_rgb_dev;
+ 	bool kbd_rgb_state_available;
+@@ -319,9 +320,6 @@ struct asus_wmi {
+ 	// The RSOC controls the maximum charging percentage.
+ 	bool battery_rsoc_available;
+ 
+-	bool panel_overdrive_available;
+-	u32 mini_led_dev_id;
+-
+ 	struct hotplug_slot hotplug_slot;
+ 	struct mutex hotplug_lock;
+ 	struct mutex wmi_lock;
+@@ -335,6 +333,17 @@ struct asus_wmi {
+ 	struct asus_wmi_driver *driver;
+ };
+ 
++static bool ally_mcu_usb_plug;
++
 +#if IS_ENABLED(CONFIG_ASUS_WMI_DEPRECATED_ATTRS)
 +static void asus_wmi_show_deprecated(void)
 +{
-+	pr_notice_once("Accessing attributes through /sys/bus/platform/asus_wmi is deprecated and will be removed in a future release. Please switch over to /sys/class/firmware_attributes.\n");
++	pr_notice_once("Accessing attributes through /sys/bus/platform/asus_wmi "
++		"is deprecated and will be removed in a future release. Please "
++		"switch over to /sys/class/firmware_attributes.\n");
 +}
 +#endif /* IS_ENABLED(CONFIG_ASUS_WMI_DEPRECATED_ATTRS) */
 +
  /* WMI ************************************************************************/
  
  static int asus_wmi_evaluate_method3(u32 method_id,
-@@ -390,7 +394,7 @@ int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1, u32 *retval)
+@@ -385,7 +394,7 @@ int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1, u32 *retval)
  {
  	return asus_wmi_evaluate_method3(method_id, arg0, arg1, 0, retval);
  }
 -EXPORT_SYMBOL_GPL(asus_wmi_evaluate_method);
-+EXPORT_SYMBOL_NS_GPL(asus_wmi_evaluate_method, "ASUS_WMI");
++EXPORT_SYMBOL_NS_GPL(asus_wmi_evaluate_method, ASUS_WMI);
  
  static int asus_wmi_evaluate_method5(u32 method_id,
  		u32 arg0, u32 arg1, u32 arg2, u32 arg3, u32 arg4, u32 *retval)
-@@ -554,12 +558,46 @@ static int asus_wmi_get_devstate(struct asus_wmi *asus, u32 dev_id, u32 *retval)
+@@ -549,12 +558,50 @@ static int asus_wmi_get_devstate(struct asus_wmi *asus, u32 dev_id, u32 *retval)
  	return 0;
  }
  
--int asus_wmi_set_devstate(u32 dev_id, u32 ctrl_param,
+-static int asus_wmi_set_devstate(u32 dev_id, u32 ctrl_param,
 -				 u32 *retval)
 +/**
 + * asus_wmi_get_devstate_dsts() - Get the WMI function state.
 + * @dev_id: The WMI method ID to call.
 + * @retval: A pointer to where to store the value returned from WMI.
-+ * @return: 0 on success and retval is filled.
-+ * @return: -ENODEV if the method ID is unsupported.
-+ * @return: everything else is an error from WMI call.
++ *
++ * On success the return value is 0, and the retval is a valid value returned
++ * by the successful WMI function call otherwise an error is returned if the
++ * call failed, or if the WMI method ID is unsupported.
 + */
 +int asus_wmi_get_devstate_dsts(u32 dev_id, u32 *retval)
 +{
@@ -5652,29 +5337,32 @@ index e72a2b5d158e..b5948ef72398 100644
 +
 +	return 0;
 +}
-+EXPORT_SYMBOL_NS_GPL(asus_wmi_get_devstate_dsts, "ASUS_WMI");
++EXPORT_SYMBOL_NS_GPL(asus_wmi_get_devstate_dsts, ASUS_WMI);
 +
 +/**
 + * asus_wmi_set_devstate() - Set the WMI function state.
 + * @dev_id: The WMI function to call.
 + * @ctrl_param: The argument to be used for this WMI function.
 + * @retval: A pointer to where to store the value returned from WMI.
-+ * @return: 0 on success and retval is filled.
-+ * @return: everything else is an error from WMI call.
 + *
-+ * A asus_wmi_set_devstate() call must be paired with a
-+ * asus_wmi_get_devstate_dsts() to check if the WMI function is supported.
++ * The returned WMI function state if not checked here for error as
++ * asus_wmi_set_devstate() is not called unless first paired with a call to
++ * asus_wmi_get_devstate_dsts() to check that the WMI function is supported.
++ *
++ * On success the return value is 0, and the retval is a valid value returned
++ * by the successful WMI function call. An error value is returned only if the
++ * WMI function failed.
 + */
 +int asus_wmi_set_devstate(u32 dev_id, u32 ctrl_param, u32 *retval)
  {
  	return asus_wmi_evaluate_method(ASUS_WMI_METHODID_DEVS, dev_id,
  					ctrl_param, retval);
  }
-+EXPORT_SYMBOL_NS_GPL(asus_wmi_set_devstate, "ASUS_WMI");
++EXPORT_SYMBOL_NS_GPL(asus_wmi_set_devstate, ASUS_WMI);
  
  /* Helper for special devices with magic return codes */
  static int asus_wmi_get_devstate_bits(struct asus_wmi *asus,
-@@ -692,6 +730,7 @@ static void asus_wmi_tablet_mode_get_state(struct asus_wmi *asus)
+@@ -687,6 +734,7 @@ static void asus_wmi_tablet_mode_get_state(struct asus_wmi *asus)
  }
  
  /* Charging mode, 1=Barrel, 2=USB ******************************************/
@@ -5682,7 +5370,7 @@ index e72a2b5d158e..b5948ef72398 100644
  static ssize_t charge_mode_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -702,12 +741,16 @@ static ssize_t charge_mode_show(struct device *dev,
+@@ -697,12 +745,16 @@ static ssize_t charge_mode_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -5699,7 +5387,7 @@ index e72a2b5d158e..b5948ef72398 100644
  static ssize_t dgpu_disable_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -718,6 +761,8 @@ static ssize_t dgpu_disable_show(struct device *dev,
+@@ -713,6 +765,8 @@ static ssize_t dgpu_disable_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -5708,7 +5396,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%d\n", result);
  }
  
-@@ -771,8 +816,10 @@ static ssize_t dgpu_disable_store(struct device *dev,
+@@ -766,8 +820,10 @@ static ssize_t dgpu_disable_store(struct device *dev,
  	return count;
  }
  static DEVICE_ATTR_RW(dgpu_disable);
@@ -5719,7 +5407,7 @@ index e72a2b5d158e..b5948ef72398 100644
  static ssize_t egpu_enable_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -783,6 +830,8 @@ static ssize_t egpu_enable_show(struct device *dev,
+@@ -778,6 +834,8 @@ static ssize_t egpu_enable_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -5728,7 +5416,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%d\n", result);
  }
  
-@@ -839,8 +888,10 @@ static ssize_t egpu_enable_store(struct device *dev,
+@@ -834,8 +892,10 @@ static ssize_t egpu_enable_store(struct device *dev,
  	return count;
  }
  static DEVICE_ATTR_RW(egpu_enable);
@@ -5739,7 +5427,7 @@ index e72a2b5d158e..b5948ef72398 100644
  static ssize_t egpu_connected_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -851,12 +902,16 @@ static ssize_t egpu_connected_show(struct device *dev,
+@@ -846,12 +906,16 @@ static ssize_t egpu_connected_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -5756,7 +5444,7 @@ index e72a2b5d158e..b5948ef72398 100644
  static ssize_t gpu_mux_mode_show(struct device *dev,
  				 struct device_attribute *attr, char *buf)
  {
-@@ -867,6 +922,8 @@ static ssize_t gpu_mux_mode_show(struct device *dev,
+@@ -862,6 +926,8 @@ static ssize_t gpu_mux_mode_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -5765,7 +5453,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%d\n", result);
  }
  
-@@ -925,6 +982,7 @@ static ssize_t gpu_mux_mode_store(struct device *dev,
+@@ -920,6 +986,7 @@ static ssize_t gpu_mux_mode_store(struct device *dev,
  	return count;
  }
  static DEVICE_ATTR_RW(gpu_mux_mode);
@@ -5773,7 +5461,7 @@ index e72a2b5d158e..b5948ef72398 100644
  
  /* TUF Laptop Keyboard RGB Modes **********************************************/
  static ssize_t kbd_rgb_mode_store(struct device *dev,
-@@ -1048,6 +1106,7 @@ static const struct attribute_group *kbd_rgb_mode_groups[] = {
+@@ -1043,6 +1110,7 @@ static const struct attribute_group *kbd_rgb_mode_groups[] = {
  };
  
  /* Tunable: PPT: Intel=PL1, AMD=SPPT *****************************************/
@@ -5781,7 +5469,7 @@ index e72a2b5d158e..b5948ef72398 100644
  static ssize_t ppt_pl2_sppt_store(struct device *dev,
  				    struct device_attribute *attr,
  				    const char *buf, size_t count)
-@@ -1086,6 +1145,8 @@ static ssize_t ppt_pl2_sppt_show(struct device *dev,
+@@ -1081,6 +1149,8 @@ static ssize_t ppt_pl2_sppt_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -5790,7 +5478,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%u\n", asus->ppt_pl2_sppt);
  }
  static DEVICE_ATTR_RW(ppt_pl2_sppt);
-@@ -1128,6 +1189,8 @@ static ssize_t ppt_pl1_spl_show(struct device *dev,
+@@ -1123,6 +1193,8 @@ static ssize_t ppt_pl1_spl_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -5799,16 +5487,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%u\n", asus->ppt_pl1_spl);
  }
  static DEVICE_ATTR_RW(ppt_pl1_spl);
-@@ -1148,7 +1211,7 @@ static ssize_t ppt_fppt_store(struct device *dev,
- 	if (value < PPT_TOTAL_MIN || value > PPT_TOTAL_MAX)
- 		return -EINVAL;
- 
--	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_PPT_FPPT, value, &result);
-+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_PPT_PL3_FPPT, value, &result);
- 	if (err) {
- 		pr_warn("Failed to set ppt_fppt: %d\n", err);
- 		return err;
-@@ -1171,6 +1234,8 @@ static ssize_t ppt_fppt_show(struct device *dev,
+@@ -1166,6 +1238,8 @@ static ssize_t ppt_fppt_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -5817,7 +5496,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%u\n", asus->ppt_fppt);
  }
  static DEVICE_ATTR_RW(ppt_fppt);
-@@ -1214,6 +1279,8 @@ static ssize_t ppt_apu_sppt_show(struct device *dev,
+@@ -1209,6 +1283,8 @@ static ssize_t ppt_apu_sppt_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -5826,7 +5505,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%u\n", asus->ppt_apu_sppt);
  }
  static DEVICE_ATTR_RW(ppt_apu_sppt);
-@@ -1257,6 +1324,8 @@ static ssize_t ppt_platform_sppt_show(struct device *dev,
+@@ -1252,6 +1328,8 @@ static ssize_t ppt_platform_sppt_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -5835,7 +5514,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%u\n", asus->ppt_platform_sppt);
  }
  static DEVICE_ATTR_RW(ppt_platform_sppt);
-@@ -1300,6 +1369,8 @@ static ssize_t nv_dynamic_boost_show(struct device *dev,
+@@ -1295,6 +1373,8 @@ static ssize_t nv_dynamic_boost_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -5844,7 +5523,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%u\n", asus->nv_dynamic_boost);
  }
  static DEVICE_ATTR_RW(nv_dynamic_boost);
-@@ -1343,9 +1414,12 @@ static ssize_t nv_temp_target_show(struct device *dev,
+@@ -1338,11 +1418,15 @@ static ssize_t nv_temp_target_show(struct device *dev,
  {
  	struct asus_wmi *asus = dev_get_drvdata(dev);
  
@@ -5856,16 +5535,11 @@ index e72a2b5d158e..b5948ef72398 100644
 +#endif /* IS_ENABLED(CONFIG_ASUS_WMI_DEPRECATED_ATTRS) */
  
  /* Ally MCU Powersave ********************************************************/
- 
-@@ -1386,6 +1460,7 @@ void set_ally_mcu_powersave(bool enabled)
- }
- EXPORT_SYMBOL_NS_GPL(set_ally_mcu_powersave, "ASUS_WMI");
- 
 +#if IS_ENABLED(CONFIG_ASUS_WMI_DEPRECATED_ATTRS)
  static ssize_t mcu_powersave_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -1396,6 +1471,8 @@ static ssize_t mcu_powersave_show(struct device *dev,
+@@ -1353,6 +1437,8 @@ static ssize_t mcu_powersave_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -5874,7 +5548,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%d\n", result);
  }
  
-@@ -1431,6 +1508,7 @@ static ssize_t mcu_powersave_store(struct device *dev,
+@@ -1388,6 +1474,7 @@ static ssize_t mcu_powersave_store(struct device *dev,
  	return count;
  }
  static DEVICE_ATTR_RW(mcu_powersave);
@@ -5882,7 +5556,7 @@ index e72a2b5d158e..b5948ef72398 100644
  
  /* Battery ********************************************************************/
  
-@@ -2304,6 +2382,7 @@ static int asus_wmi_rfkill_init(struct asus_wmi *asus)
+@@ -2261,6 +2348,7 @@ static int asus_wmi_rfkill_init(struct asus_wmi *asus)
  }
  
  /* Panel Overdrive ************************************************************/
@@ -5890,7 +5564,7 @@ index e72a2b5d158e..b5948ef72398 100644
  static ssize_t panel_od_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -2314,6 +2393,8 @@ static ssize_t panel_od_show(struct device *dev,
+@@ -2271,6 +2359,8 @@ static ssize_t panel_od_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -5899,7 +5573,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%d\n", result);
  }
  
-@@ -2350,9 +2431,10 @@ static ssize_t panel_od_store(struct device *dev,
+@@ -2307,9 +2397,10 @@ static ssize_t panel_od_store(struct device *dev,
  	return count;
  }
  static DEVICE_ATTR_RW(panel_od);
@@ -5911,7 +5585,7 @@ index e72a2b5d158e..b5948ef72398 100644
  static ssize_t boot_sound_show(struct device *dev,
  			     struct device_attribute *attr, char *buf)
  {
-@@ -2363,6 +2445,8 @@ static ssize_t boot_sound_show(struct device *dev,
+@@ -2320,6 +2411,8 @@ static ssize_t boot_sound_show(struct device *dev,
  	if (result < 0)
  		return result;
  
@@ -5920,7 +5594,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%d\n", result);
  }
  
-@@ -2398,8 +2482,10 @@ static ssize_t boot_sound_store(struct device *dev,
+@@ -2355,8 +2448,10 @@ static ssize_t boot_sound_store(struct device *dev,
  	return count;
  }
  static DEVICE_ATTR_RW(boot_sound);
@@ -5931,7 +5605,7 @@ index e72a2b5d158e..b5948ef72398 100644
  static ssize_t mini_led_mode_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -2430,6 +2516,8 @@ static ssize_t mini_led_mode_show(struct device *dev,
+@@ -2387,6 +2482,8 @@ static ssize_t mini_led_mode_show(struct device *dev,
  		}
  	}
  
@@ -5940,7 +5614,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	return sysfs_emit(buf, "%d\n", value);
  }
  
-@@ -2500,10 +2588,13 @@ static ssize_t available_mini_led_mode_show(struct device *dev,
+@@ -2457,10 +2554,13 @@ static ssize_t available_mini_led_mode_show(struct device *dev,
  		return sysfs_emit(buf, "0 1 2\n");
  	}
  
@@ -5954,50 +5628,23 @@ index e72a2b5d158e..b5948ef72398 100644
  
  /* Quirks *********************************************************************/
  
-@@ -3791,6 +3882,7 @@ static int throttle_thermal_policy_set_default(struct asus_wmi *asus)
- 	return throttle_thermal_policy_write(asus);
+@@ -3770,6 +3870,7 @@ static int throttle_thermal_policy_switch_next(struct asus_wmi *asus)
+ 	return 0;
  }
  
 +#if IS_ENABLED(CONFIG_ASUS_WMI_DEPRECATED_ATTRS)
  static ssize_t throttle_thermal_policy_show(struct device *dev,
  				   struct device_attribute *attr, char *buf)
  {
-@@ -3834,6 +3926,7 @@ static ssize_t throttle_thermal_policy_store(struct device *dev,
+@@ -3813,6 +3914,7 @@ static ssize_t throttle_thermal_policy_store(struct device *dev,
   * Throttle thermal policy: 0 - default, 1 - overboost, 2 - silent
   */
  static DEVICE_ATTR_RW(throttle_thermal_policy);
 +#endif /* IS_ENABLED(CONFIG_ASUS_WMI_DEPRECATED_ATTRS) */
  
  /* Platform profile ***********************************************************/
- static int asus_wmi_platform_profile_get(struct device *dev,
-@@ -3853,7 +3946,7 @@ static int asus_wmi_platform_profile_get(struct device *dev,
- 		*profile = PLATFORM_PROFILE_PERFORMANCE;
- 		break;
- 	case ASUS_THROTTLE_THERMAL_POLICY_SILENT:
--		*profile = PLATFORM_PROFILE_QUIET;
-+		*profile = PLATFORM_PROFILE_LOW_POWER;
- 		break;
- 	default:
- 		return -EINVAL;
-@@ -3877,7 +3970,7 @@ static int asus_wmi_platform_profile_set(struct device *dev,
- 	case PLATFORM_PROFILE_BALANCED:
- 		tp = ASUS_THROTTLE_THERMAL_POLICY_DEFAULT;
- 		break;
--	case PLATFORM_PROFILE_QUIET:
-+	case PLATFORM_PROFILE_LOW_POWER:
- 		tp = ASUS_THROTTLE_THERMAL_POLICY_SILENT;
- 		break;
- 	default:
-@@ -3890,7 +3983,7 @@ static int asus_wmi_platform_profile_set(struct device *dev,
- 
- static int asus_wmi_platform_profile_probe(void *drvdata, unsigned long *choices)
- {
--	set_bit(PLATFORM_PROFILE_QUIET, choices);
-+	set_bit(PLATFORM_PROFILE_LOW_POWER, choices);
- 	set_bit(PLATFORM_PROFILE_BALANCED, choices);
- 	set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
- 
-@@ -4435,27 +4528,29 @@ static struct attribute *platform_attributes[] = {
+ static int asus_wmi_platform_profile_get(struct platform_profile_handler *pprof,
+@@ -4410,27 +4512,29 @@ static struct attribute *platform_attributes[] = {
  	&dev_attr_camera.attr,
  	&dev_attr_cardr.attr,
  	&dev_attr_touchpad.attr,
@@ -6045,7 +5692,7 @@ index e72a2b5d158e..b5948ef72398 100644
  	NULL
  };
  
-@@ -4477,7 +4572,11 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
+@@ -4452,7 +4556,11 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
  		devid = ASUS_WMI_DEVID_LID_RESUME;
  	else if (attr == &dev_attr_als_enable.attr)
  		devid = ASUS_WMI_DEVID_ALS_ENABLE;
@@ -6058,16 +5705,7 @@ index e72a2b5d158e..b5948ef72398 100644
  		devid = ASUS_WMI_DEVID_CHARGE_MODE;
  	else if (attr == &dev_attr_egpu_enable.attr)
  		ok = asus->egpu_enable_available;
-@@ -4496,7 +4595,7 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
- 	else if (attr == &dev_attr_ppt_pl1_spl.attr)
- 		devid = ASUS_WMI_DEVID_PPT_PL1_SPL;
- 	else if (attr == &dev_attr_ppt_fppt.attr)
--		devid = ASUS_WMI_DEVID_PPT_FPPT;
-+		devid = ASUS_WMI_DEVID_PPT_PL3_FPPT;
- 	else if (attr == &dev_attr_ppt_apu_sppt.attr)
- 		devid = ASUS_WMI_DEVID_PPT_APU_SPPT;
- 	else if (attr == &dev_attr_ppt_platform_sppt.attr)
-@@ -4515,6 +4614,7 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
+@@ -4490,6 +4598,7 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
  		ok = asus->mini_led_dev_id != 0;
  	else if (attr == &dev_attr_available_mini_led_mode.attr)
  		ok = asus->mini_led_dev_id != 0;
@@ -6075,15 +5713,36 @@ index e72a2b5d158e..b5948ef72398 100644
  
  	if (devid != -1) {
  		ok = !(asus_wmi_get_devstate_simple(asus, devid) < 0);
-@@ -4770,6 +4870,7 @@ static int asus_wmi_add(struct platform_device *pdev)
- 	}
+@@ -4729,7 +4838,19 @@ static int asus_wmi_add(struct platform_device *pdev)
+ 	if (err)
+ 		goto fail_platform;
  
++	ally_mcu_usb_plug = acpi_has_method(NULL, ASUS_USB0_PWR_EC0_CSEE)
++				&& dmi_check_system(asus_rog_ally_device);
++	if (ally_mcu_usb_plug) {
++		/*
++		 * These steps ensure the device is in a valid good state, this is
++		 * especially important for the Ally 1 after a reboot.
++		 */
++		acpi_execute_simple_method(NULL, ASUS_USB0_PWR_EC0_CSEE, ASUS_USB0_PWR_EC0_CSEE_ON);
++		msleep(ASUS_USB0_PWR_EC0_CSEE_WAIT);
++	}
++
  	/* ensure defaults for tunables */
 +#if IS_ENABLED(CONFIG_ASUS_WMI_DEPRECATED_ATTRS)
  	asus->ppt_pl2_sppt = 5;
  	asus->ppt_pl1_spl = 5;
  	asus->ppt_apu_sppt = 5;
-@@ -4792,17 +4893,18 @@ static int asus_wmi_add(struct platform_device *pdev)
+@@ -4741,8 +4862,6 @@ static int asus_wmi_add(struct platform_device *pdev)
+ 	asus->egpu_enable_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_EGPU);
+ 	asus->dgpu_disable_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_DGPU);
+ 	asus->kbd_rgb_state_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_TUF_RGB_STATE);
+-	asus->ally_mcu_usb_switch = acpi_has_method(NULL, ASUS_USB0_PWR_EC0_CSEE)
+-						&& dmi_check_system(asus_ally_mcu_quirk);
+ 
+ 	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_MINI_LED_MODE))
+ 		asus->mini_led_dev_id = ASUS_WMI_DEVID_MINI_LED_MODE;
+@@ -4753,23 +4872,24 @@ static int asus_wmi_add(struct platform_device *pdev)
  		asus->gpu_mux_dev = ASUS_WMI_DEVID_GPU_MUX;
  	else if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_GPU_MUX_VIVO))
  		asus->gpu_mux_dev = ASUS_WMI_DEVID_GPU_MUX_VIVO;
@@ -6107,64 +5766,123 @@ index e72a2b5d158e..b5948ef72398 100644
  	err = fan_boost_mode_check_present(asus);
  	if (err)
  		goto fail_fan_boost_mode;
-diff --git a/include/linux/platform_data/x86/asus-wmi-leds-ids.h b/include/linux/platform_data/x86/asus-wmi-leds-ids.h
-new file mode 100644
-index 000000000000..281b98ba0ca7
---- /dev/null
-+++ b/include/linux/platform_data/x86/asus-wmi-leds-ids.h
-@@ -0,0 +1,50 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+#ifndef __PLATFORM_DATA_X86_ASUS_WMI_LEDS_IDS_H
-+#define __PLATFORM_DATA_X86_ASUS_WMI_LEDS_IDS_H
+ 
+ 	err = platform_profile_setup(asus);
+-	if (err)
++	if (err && err != -EEXIST)
+ 		goto fail_platform_profile_setup;
+ 
+ 	err = asus_wmi_sysfs_init(asus->platform_device);
+@@ -4933,34 +5053,6 @@ static int asus_hotk_resume(struct device *device)
+ 	return 0;
+ }
+ 
+-static int asus_hotk_resume_early(struct device *device)
+-{
+-	struct asus_wmi *asus = dev_get_drvdata(device);
+-
+-	if (asus->ally_mcu_usb_switch) {
+-		/* sleep required to prevent USB0 being yanked then reappearing rapidly */
+-		if (ACPI_FAILURE(acpi_execute_simple_method(NULL, ASUS_USB0_PWR_EC0_CSEE, 0xB8)))
+-			dev_err(device, "ROG Ally MCU failed to connect USB dev\n");
+-		else
+-			msleep(ASUS_USB0_PWR_EC0_CSEE_WAIT);
+-	}
+-	return 0;
+-}
+-
+-static int asus_hotk_prepare(struct device *device)
+-{
+-	struct asus_wmi *asus = dev_get_drvdata(device);
+-
+-	if (asus->ally_mcu_usb_switch) {
+-		/* sleep required to ensure USB0 is disabled before sleep continues */
+-		if (ACPI_FAILURE(acpi_execute_simple_method(NULL, ASUS_USB0_PWR_EC0_CSEE, 0xB7)))
+-			dev_err(device, "ROG Ally MCU failed to disconnect USB dev\n");
+-		else
+-			msleep(ASUS_USB0_PWR_EC0_CSEE_WAIT);
+-	}
+-	return 0;
+-}
+-
+ static int asus_hotk_restore(struct device *device)
+ {
+ 	struct asus_wmi *asus = dev_get_drvdata(device);
+@@ -5001,11 +5093,32 @@ static int asus_hotk_restore(struct device *device)
+ 	return 0;
+ }
+ 
++static void asus_ally_s2idle_restore(void)
++{
++	if (ally_mcu_usb_plug) {
++		acpi_execute_simple_method(NULL, ASUS_USB0_PWR_EC0_CSEE, ASUS_USB0_PWR_EC0_CSEE_ON);
++		msleep(ASUS_USB0_PWR_EC0_CSEE_WAIT);
++	}
++}
 +
-+#include <linux/types.h>
-+#include <linux/dmi.h>
++static int asus_hotk_prepare(struct device *device)
++{
++	if (ally_mcu_usb_plug) {
++		acpi_execute_simple_method(NULL, ASUS_USB0_PWR_EC0_CSEE, ASUS_USB0_PWR_EC0_CSEE_OFF);
++		msleep(ASUS_USB0_PWR_EC0_CSEE_WAIT);
++	}
++	return 0;
++}
 +
-+/* To be used by both hid-asus and asus-wmi to determine which controls kbd_brightness */
-+#if IS_REACHABLE(CONFIG_ASUS_WMI) || IS_REACHABLE(CONFIG_HID_ASUS)
-+static const struct dmi_system_id asus_use_hid_led_dmi_ids[] = {
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_PRODUCT_FAMILY, "ROG Zephyrus"),
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_PRODUCT_FAMILY, "ROG Strix"),
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_PRODUCT_FAMILY, "ROG Flow"),
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_PRODUCT_FAMILY, "ProArt P16"),
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GA403U"),
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "GU605M"),
-+		},
-+	},
-+	{
-+		.matches = {
-+			DMI_MATCH(DMI_BOARD_NAME, "RC71L"),
-+		},
-+	},
-+	{ },
++/* Use only for Ally devices due to the wake_on_ac */
++static struct acpi_s2idle_dev_ops asus_ally_s2idle_dev_ops = {
++	.restore = asus_ally_s2idle_restore,
 +};
-+#endif
 +
-+#endif	/* __PLATFORM_DATA_X86_ASUS_WMI_LEDS_IDS_H */
+ static const struct dev_pm_ops asus_pm_ops = {
+ 	.thaw = asus_hotk_thaw,
+ 	.restore = asus_hotk_restore,
+ 	.resume = asus_hotk_resume,
+-	.resume_early = asus_hotk_resume_early,
+ 	.prepare = asus_hotk_prepare,
+ };
+ 
+@@ -5033,6 +5146,10 @@ static int asus_wmi_probe(struct platform_device *pdev)
+ 			return ret;
+ 	}
+ 
++	ret = acpi_register_lps0_dev(&asus_ally_s2idle_dev_ops);
++	if (ret)
++		pr_warn("failed to register LPS0 sleep handler in asus-wmi\n");
++
+ 	return asus_wmi_add(pdev);
+ }
+ 
+@@ -5065,6 +5182,7 @@ EXPORT_SYMBOL_GPL(asus_wmi_register_driver);
+ 
+ void asus_wmi_unregister_driver(struct asus_wmi_driver *driver)
+ {
++	acpi_unregister_lps0_dev(&asus_ally_s2idle_dev_ops);
+ 	platform_device_unregister(driver->platform_device);
+ 	platform_driver_unregister(&driver->platform_driver);
+ 	used = false;
+diff --git a/drivers/video/backlight/backlight.c b/drivers/video/backlight/backlight.c
+index a82934694d05..b9daf4469143 100644
+--- a/drivers/video/backlight/backlight.c
++++ b/drivers/video/backlight/backlight.c
+@@ -162,6 +162,7 @@ static inline void backlight_unregister_fb(struct backlight_device *bd)
+ static void backlight_generate_event(struct backlight_device *bd,
+ 				     enum backlight_update_reason reason)
+ {
++#if 0 // We don't want to generate udev events for brightness changes on Steam Deck, as some games like Celeste will re-enumerate controller devices in response to this event.
+ 	char *envp[2];
+ 
+ 	switch (reason) {
+@@ -177,6 +178,7 @@ static void backlight_generate_event(struct backlight_device *bd,
+ 	}
+ 	envp[1] = NULL;
+ 	kobject_uevent_env(&bd->dev.kobj, KOBJ_CHANGE, envp);
++#endif // 0
+ 	sysfs_notify(&bd->dev.kobj, NULL, "actual_brightness");
+ }
+ 
 diff --git a/include/linux/platform_data/x86/asus-wmi.h b/include/linux/platform_data/x86/asus-wmi.h
-index 8a515179113d..8fedf818563f 100644
+index 365e119bebaa..cc21e4272460 100644
 --- a/include/linux/platform_data/x86/asus-wmi.h
 +++ b/include/linux/platform_data/x86/asus-wmi.h
 @@ -6,6 +6,9 @@
@@ -6177,7 +5895,7 @@ index 8a515179113d..8fedf818563f 100644
  /* WMI Methods */
  #define ASUS_WMI_METHODID_SPEC	        0x43455053 /* BIOS SPECification */
  #define ASUS_WMI_METHODID_SFBD		0x44424653 /* Set First Boot Device */
-@@ -73,12 +76,14 @@
+@@ -73,6 +76,7 @@
  #define ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY_VIVO 0x00110019
  
  /* Misc */
@@ -6185,23 +5903,7 @@ index 8a515179113d..8fedf818563f 100644
  #define ASUS_WMI_DEVID_PANEL_OD		0x00050019
  #define ASUS_WMI_DEVID_CAMERA		0x00060013
  #define ASUS_WMI_DEVID_LID_FLIP		0x00060062
- #define ASUS_WMI_DEVID_LID_FLIP_ROG	0x00060077
- #define ASUS_WMI_DEVID_MINI_LED_MODE	0x0005001E
- #define ASUS_WMI_DEVID_MINI_LED_MODE2	0x0005002E
-+#define ASUS_WMI_DEVID_SCREEN_AUTO_BRIGHTNESS	0x0005002A
- 
- /* Storage */
- #define ASUS_WMI_DEVID_CARDREADER	0x00080013
-@@ -103,7 +108,7 @@
- #define ASUS_WMI_DEVID_PPT_PL1_SPL		0x001200A3
- #define ASUS_WMI_DEVID_PPT_APU_SPPT		0x001200B0
- #define ASUS_WMI_DEVID_PPT_PLAT_SPPT	0x001200B1
--#define ASUS_WMI_DEVID_PPT_FPPT			0x001200C1
-+#define ASUS_WMI_DEVID_PPT_PL3_FPPT		0x001200C1
- #define ASUS_WMI_DEVID_NV_DYN_BOOST		0x001200C0
- #define ASUS_WMI_DEVID_NV_THERM_TARGET	0x001200C2
- 
-@@ -133,6 +138,16 @@
+@@ -133,6 +137,14 @@
  /* dgpu on/off */
  #define ASUS_WMI_DEVID_DGPU		0x00090020
  
@@ -6209,79 +5911,257 @@ index 8a515179113d..8fedf818563f 100644
 +#define ASUS_WMI_DEVID_CORES		0x001200D2
 + /* Maximum Intel E-core and P-core availability */
 +#define ASUS_WMI_DEVID_CORES_MAX	0x001200D3
-+
-+#define ASUS_WMI_DEVID_APU_MEM		0x000600C1
-+
 +#define ASUS_WMI_DEVID_DGPU_BASE_TGP	0x00120099
 +#define ASUS_WMI_DEVID_DGPU_SET_TGP	0x00120098
++#define ASUS_WMI_DEVID_APU_MEM		0x000600C1
 +
  /* gpu mux switch, 0 = dGPU, 1 = Optimus */
  #define ASUS_WMI_DEVID_GPU_MUX		0x00090016
  #define ASUS_WMI_DEVID_GPU_MUX_VIVO	0x00090026
-@@ -166,6 +181,7 @@ enum asus_ally_mcu_hack {
+@@ -158,8 +170,18 @@
+ #define ASUS_WMI_DSTS_LIGHTBAR_MASK	0x0000000F
+ 
  #if IS_REACHABLE(CONFIG_ASUS_WMI)
- void set_ally_mcu_hack(enum asus_ally_mcu_hack status);
- void set_ally_mcu_powersave(bool enabled);
 +int asus_wmi_get_devstate_dsts(u32 dev_id, u32 *retval);
- int asus_wmi_set_devstate(u32 dev_id, u32 ctrl_param, u32 *retval);
++int asus_wmi_set_devstate(u32 dev_id, u32 ctrl_param, u32 *retval);
  int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1, u32 *retval);
  #else
-@@ -179,6 +195,10 @@ static inline int asus_wmi_set_devstate(u32 dev_id, u32 ctrl_param, u32 *retval)
- {
- 	return -ENODEV;
- }
 +static inline int asus_wmi_get_devstate_dsts(u32 dev_id, u32 *retval)
++{
++	return -ENODEV;
++}
++static inline int asus_wmi_set_devstate(u32 dev_id, u32 ctrl_param, u32 *retval)
 +{
 +	return -ENODEV;
 +}
  static inline int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1,
  					   u32 *retval)
  {
-@@ -186,44 +206,4 @@ static inline int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1,
+diff --git a/include/sound/tas2781.h b/include/sound/tas2781.h
+index 8cd6da0480b7..72d2060904f6 100644
+--- a/include/sound/tas2781.h
++++ b/include/sound/tas2781.h
+@@ -156,6 +156,7 @@ struct tasdevice_priv {
+ 	struct tasdevice_rca rcabin;
+ 	struct calidata cali_data;
+ 	struct tasdevice_fw *fmw;
++	struct gpio_desc *speaker_id;
+ 	struct gpio_desc *reset;
+ 	struct mutex codec_lock;
+ 	struct regmap *regmap;
+diff --git a/sound/pci/hda/tas2781_hda_i2c.c b/sound/pci/hda/tas2781_hda_i2c.c
+index 370d847517f9..45cfb5a6f309 100644
+--- a/sound/pci/hda/tas2781_hda_i2c.c
++++ b/sound/pci/hda/tas2781_hda_i2c.c
+@@ -16,6 +16,7 @@
+ #include <linux/i2c.h>
+ #include <linux/mod_devicetable.h>
+ #include <linux/module.h>
++#include <linux/pci_ids.h>
+ #include <linux/pm_runtime.h>
+ #include <linux/regmap.h>
+ #include <sound/hda_codec.h>
+@@ -110,10 +111,20 @@ static int tas2781_get_i2c_res(struct acpi_resource *ares, void *data)
+ 	return 1;
  }
- #endif
  
--/* To be used by both hid-asus and asus-wmi to determine which controls kbd_brightness */
--static const struct dmi_system_id asus_use_hid_led_dmi_ids[] = {
--	{
--		.matches = {
--			DMI_MATCH(DMI_PRODUCT_FAMILY, "ROG Zephyrus"),
--		},
--	},
--	{
--		.matches = {
--			DMI_MATCH(DMI_PRODUCT_FAMILY, "ROG Strix"),
--		},
--	},
--	{
--		.matches = {
--			DMI_MATCH(DMI_PRODUCT_FAMILY, "ROG Flow"),
--		},
--	},
--	{
--		.matches = {
--			DMI_MATCH(DMI_PRODUCT_FAMILY, "ProArt P16"),
--		},
--	},
--	{
--		.matches = {
--			DMI_MATCH(DMI_BOARD_NAME, "GA403U"),
--		},
--	},
--	{
--		.matches = {
--			DMI_MATCH(DMI_BOARD_NAME, "GU605M"),
--		},
--	},
--	{
--		.matches = {
--			DMI_MATCH(DMI_BOARD_NAME, "RC71L"),
--		},
--	},
--	{ },
--};
--
- #endif	/* __PLATFORM_DATA_X86_ASUS_WMI_H */
++static const struct acpi_gpio_params speakerid_gpios = { 0, 0, false };
++
++static const struct acpi_gpio_mapping tas2781_speaker_id_gpios[] = {
++	{ "speakerid-gpios", &speakerid_gpios, 1 },
++	{ }
++};
++
+ static int tas2781_read_acpi(struct tasdevice_priv *p, const char *hid)
+ {
+ 	struct acpi_device *adev;
++	struct device *physdev;
+ 	LIST_HEAD(resources);
++	const char *sub;
++	uint32_t subid;
+ 	int ret;
+ 
+ 	adev = acpi_dev_get_first_match_dev(hid, NULL, -1);
+@@ -123,18 +134,45 @@ static int tas2781_read_acpi(struct tasdevice_priv *p, const char *hid)
+ 		return -ENODEV;
+ 	}
+ 
++	physdev = get_device(acpi_get_first_physical_node(adev));
+ 	ret = acpi_dev_get_resources(adev, &resources, tas2781_get_i2c_res, p);
+-	if (ret < 0)
++	if (ret < 0) {
++		dev_err(p->dev, "Failed to get ACPI resource.\n");
+ 		goto err;
++	}
++	sub = acpi_get_subsystem_id(ACPI_HANDLE(physdev));
++	if (IS_ERR(sub)) {
++		dev_err(p->dev, "Failed to get SUBSYS ID.\n");
++		goto err;
++	}
++	/* Speaker id was needed for ASUS projects. */
++	ret = kstrtou32(sub, 16, &subid);
++	if (!ret && upper_16_bits(subid) == PCI_VENDOR_ID_ASUSTEK) {
++		ret = devm_acpi_dev_add_driver_gpios(p->dev,
++			tas2781_speaker_id_gpios);
++		if (ret < 0)
++			dev_err(p->dev, "Failed to add driver gpio %d.\n",
++				ret);
++		p->speaker_id = devm_gpiod_get(p->dev, "speakerid", GPIOD_IN);
++		if (IS_ERR(p->speaker_id)) {
++			dev_err(p->dev, "Failed to get Speaker id.\n");
++			ret = PTR_ERR(p->speaker_id);
++			goto err;
++		}
++	} else {
++		p->speaker_id = NULL;
++	}
+ 
+ 	acpi_dev_free_resource_list(&resources);
+ 	strscpy(p->dev_name, hid, sizeof(p->dev_name));
++	put_device(physdev);
+ 	acpi_dev_put(adev);
+ 
+ 	return 0;
+ 
+ err:
+ 	dev_err(p->dev, "read acpi error, ret: %d\n", ret);
++	put_device(physdev);
+ 	acpi_dev_put(adev);
+ 
+ 	return ret;
+@@ -615,7 +653,7 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
+ 	struct tasdevice_priv *tas_priv = context;
+ 	struct tas2781_hda *tas_hda = dev_get_drvdata(tas_priv->dev);
+ 	struct hda_codec *codec = tas_priv->codec;
+-	int i, ret;
++	int i, ret, spk_id;
+ 
+ 	pm_runtime_get_sync(tas_priv->dev);
+ 	mutex_lock(&tas_priv->codec_lock);
+@@ -648,8 +686,25 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
+ 	tasdevice_dsp_remove(tas_priv);
+ 
+ 	tas_priv->fw_state = TASDEVICE_DSP_FW_PENDING;
+-	scnprintf(tas_priv->coef_binaryname, 64, "TAS2XXX%04X.bin",
+-		codec->core.subsystem_id & 0xffff);
++	if (tas_priv->speaker_id != NULL) {
++		// Speaker id need to be checked for ASUS only.
++		spk_id = gpiod_get_value(tas_priv->speaker_id);
++		if (spk_id < 0) {
++			// Speaker id is not valid, use default.
++			dev_dbg(tas_priv->dev, "Wrong spk_id = %d\n", spk_id);
++			spk_id = 0;
++		}
++		snprintf(tas_priv->coef_binaryname,
++			  sizeof(tas_priv->coef_binaryname),
++			  "TAS2XXX%04X%d.bin",
++			  lower_16_bits(codec->core.subsystem_id),
++			  spk_id);
++	} else {
++		snprintf(tas_priv->coef_binaryname,
++			  sizeof(tas_priv->coef_binaryname),
++			  "TAS2XXX%04X.bin",
++			  lower_16_bits(codec->core.subsystem_id));
++	}
+ 	ret = tasdevice_dsp_parser(tas_priv);
+ 	if (ret) {
+ 		dev_err(tas_priv->dev, "dspfw load %s error\n",
+diff --git a/sound/soc/amd/acp/acp-mach.h b/sound/soc/amd/acp/acp-mach.h
+index 93d9e3886b7e..81e7c12ebf3f 100644
+--- a/sound/soc/amd/acp/acp-mach.h
++++ b/sound/soc/amd/acp/acp-mach.h
+@@ -27,8 +27,8 @@
+ enum be_id {
+ 	HEADSET_BE_ID = 0,
+ 	AMP_BE_ID,
+-	DMIC_BE_ID,
+ 	BT_BE_ID,
++	DMIC_BE_ID,
+ };
+ 
+ enum cpu_endpoints {
+diff --git a/sound/soc/codecs/max98388.c b/sound/soc/codecs/max98388.c
+index 99986090b4a6..e259be44ce8f 100644
+--- a/sound/soc/codecs/max98388.c
++++ b/sound/soc/codecs/max98388.c
+@@ -390,27 +390,43 @@ static void max98388_reset(struct max98388_priv *max98388, struct device *dev)
+ {
+ 	int ret, reg, count;
+ 
++
+ 	/* Software Reset */
+ 	ret = regmap_update_bits(max98388->regmap,
+ 				 MAX98388_R2000_SW_RESET,
+ 				 MAX98388_SOFT_RESET,
+ 				 MAX98388_SOFT_RESET);
+-	if (ret)
++
++	if (ret) {
+ 		dev_err(dev, "Reset command failed. (ret:%d)\n", ret);
++		goto exit;
++	}
++
+ 
+ 	count = 0;
+ 	while (count < 3) {
+ 		usleep_range(10000, 11000);
++
+ 		/* Software Reset Verification */
+ 		ret = regmap_read(max98388->regmap,
+ 				  MAX98388_R22FF_REV_ID, &reg);
++
+ 		if (!ret) {
+ 			dev_info(dev, "Reset completed (retry:%d)\n", count);
+-			return;
++			goto exit;
+ 		}
+ 		count++;
+ 	}
++
+ 	dev_err(dev, "Reset failed. (ret:%d)\n", ret);
++
++
++exit:
++	regcache_cache_only(max98388->regmap, true);
++	ret = regmap_update_bits(max98388->regmap,
++				 MAX98388_R2000_SW_RESET,
++				 MAX98388_SOFT_RESET, 0);
++	regcache_cache_only(max98388->regmap, false);
+ }
+ 
+ static int max98388_probe(struct snd_soc_component *component)
+@@ -419,6 +435,7 @@ static int max98388_probe(struct snd_soc_component *component)
+ 
+ 	/* Software Reset */
+ 	max98388_reset(max98388, component->dev);
++	usleep_range(400, 1000);
+ 
+ 	/* General channel source configuration */
+ 	regmap_write(max98388->regmap,
+@@ -812,6 +829,7 @@ static bool max98388_readable_register(struct device *dev,
+ 	case MAX98388_R210E_AUTO_RESTART:
+ 	case MAX98388_R210F_GLOBAL_EN:
+ 	case MAX98388_R22FF_REV_ID:
++	case MAX98388_R2000_SW_RESET:
+ 		return true;
+ 	default:
+ 		return false;
+@@ -824,6 +842,7 @@ static bool max98388_volatile_reg(struct device *dev, unsigned int reg)
+ 	case MAX98388_R2001_INT_RAW1 ... MAX98388_R2005_INT_STATE2:
+ 	case MAX98388_R210F_GLOBAL_EN:
+ 	case MAX98388_R22FF_REV_ID:
++	case MAX98388_R2000_SW_RESET:
+ 		return true;
+ 	default:
+ 		return false;
+@@ -867,6 +886,7 @@ static int max98388_resume(struct device *dev)
+ 
+ 	regcache_cache_only(max98388->regmap, false);
+ 	max98388_reset(max98388, dev);
++	usleep_range(400, 1000);
+ 	regcache_sync(max98388->regmap);
+ 
+ 	return 0;
 -- 
-2.51.1
+2.47.1
 

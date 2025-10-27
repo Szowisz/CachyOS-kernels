@@ -227,34 +227,33 @@ jobs:
         echo 'FEATURES="${FEATURES} getbinpkg -news"' >> /etc/portage/make.conf
         echo 'ACCEPT_KEYWORDS="~amd64"' >> /etc/portage/make.conf
         
-        # Sync main repo with retry on Manifest verification failures
-        MAX_RETRIES=5
+        # Sync main repo with retry on failures
+        MAX_RETRIES=10
         BASE_DELAY=20
-        
+
         for i in $(seq 1 $MAX_RETRIES); do
           echo "Attempt $i of $MAX_RETRIES: Syncing Gentoo repository..."
-          
-          if emerge --sync -q 2>&1 | tee /tmp/sync.log; then
+
+          emerge --sync -q 2>&1 | tee /tmp/sync.log
+          SYNC_EXIT_CODE=$?
+
+          if [ $SYNC_EXIT_CODE -eq 0 ]; then
             echo "Repository sync successful"
             break
           else
-            if grep -q "Manifest verification failed" /tmp/sync.log; then
-              echo "Manifest verification failed (likely network issue)"
-              if [ $i -lt $MAX_RETRIES ]; then
-                # Calculate random delay: base time + random 5-15 seconds
-                # Use /dev/urandom to generate a random number between 5 and 15
-                RANDOM_EXTRA=$(( 5 + $(od -An -N2 -i /dev/urandom | awk '{print $1}') % 11 ))
-                RETRY_DELAY=$((BASE_DELAY + RANDOM_EXTRA))
-                echo "Waiting ${RETRY_DELAY} seconds before retry (base: ${BASE_DELAY}s + random: ${RANDOM_EXTRA}s)..."
-                sleep $RETRY_DELAY
-              else
-                echo "Max retries reached. Sync failed."
-                exit 1
-              fi
+            echo "emerge --sync failed with exit code $SYNC_EXIT_CODE"
+            cat /tmp/sync.log
+
+            if [ $i -lt $MAX_RETRIES ]; then
+              # Calculate random delay: base time + random 5-15 seconds
+              # Use /dev/urandom to generate a random number between 5 and 15
+              RANDOM_EXTRA=$(( 5 + $(od -An -N2 -i /dev/urandom | awk '{print $1}') % 11 ))
+              RETRY_DELAY=$((BASE_DELAY + RANDOM_EXTRA))
+              echo "Waiting ${RETRY_DELAY} seconds before retry (base: ${BASE_DELAY}s + random: ${RANDOM_EXTRA}s)..."
+              sleep $RETRY_DELAY
             else
-              echo "Sync failed with non-Manifest error"
-              cat /tmp/sync.log
-              exit 1
+              echo "Max retries reached. Sync failed with exit code $SYNC_EXIT_CODE"
+              exit $SYNC_EXIT_CODE
             fi
           fi
         done

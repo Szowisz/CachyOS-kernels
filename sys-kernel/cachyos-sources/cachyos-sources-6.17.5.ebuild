@@ -194,6 +194,7 @@ src_prepare() {
 		scripts/config -e LTO_CLANG_THIN_DIST || die
 	elif use llvm-lto-full; then
 		scripts/config -e LTO_CLANG_FULL || die
+		scripts/config -d KSTACK_ERASE || die  # https://github.com/CachyOS/linux-cachyos/issues/598#issuecomment-3448623028
 	else
 		scripts/config -e LTO_NONE || die
 	fi

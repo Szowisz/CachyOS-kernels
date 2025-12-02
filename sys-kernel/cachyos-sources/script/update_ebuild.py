@@ -190,10 +190,17 @@ def get_upstream_commit():
         return None
 
 
-def get_zfs_commit():
+def get_zfs_commit(lts=False):
     """Get the ZFS commit hash from CachyOS linux-cachyos PKGBUILD"""
     try:
-        url = "https://raw.githubusercontent.com/CachyOS/linux-cachyos/master/linux-cachyos/PKGBUILD"
+        # Use linux-cachyos-lts for LTS versions, linux-cachyos for regular versions
+        if lts:
+            url = "https://raw.githubusercontent.com/CachyOS/linux-cachyos/master/linux-cachyos-lts/PKGBUILD"
+            log("Fetching ZFS commit from linux-cachyos-lts/PKGBUILD")
+        else:
+            url = "https://raw.githubusercontent.com/CachyOS/linux-cachyos/master/linux-cachyos/PKGBUILD"
+            log("Fetching ZFS commit from linux-cachyos/PKGBUILD")
+
         with urlopen(url) as response:
             content = response.read().decode("utf-8")
 
@@ -346,7 +353,7 @@ def copy_and_update_ebuild(
         )
 
     # Update ZFS commit to latest
-    zfs_commit = get_zfs_commit()
+    zfs_commit = get_zfs_commit(lts=lts)
     if zfs_commit and re.search(r'^ZFS_COMMIT="[a-f0-9]{40}"$', content, re.MULTILINE):
         content = re.sub(
             r'^ZFS_COMMIT="[a-f0-9]{40}"$',

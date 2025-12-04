@@ -33,7 +33,7 @@ cd $KERNEL_ROOT
 kernel_make clean
 #kernel_make olddefconfig
 # https://github.com/openzfs/zfs/issues/15911
-./scripts/config -d CONFIG_CFI_CLANG -e CONFIG_CFI_PERMISSIVE
+./scripts/config -d CFI -d CFI_CLANG -e CFI_PERMISSIVE
 
 kernel_make all
 kernel_make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1

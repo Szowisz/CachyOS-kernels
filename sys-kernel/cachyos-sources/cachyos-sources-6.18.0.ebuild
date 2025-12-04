@@ -181,10 +181,10 @@ src_prepare() {
 
 	### Enable KCFI
 	if use kcfi; then
-		scripts/config -e ARCH_SUPPORTS_CFI_CLANG -e CFI_CLANG -e CFI_AUTO_DEFAULT || die
+		scripts/config -e ARCH_SUPPORTS_CFI_CLANG -e CFI -e CFI_CLANG -e CFI_AUTO_DEFAULT || die
 	else
 		# https://github.com/openzfs/zfs/issues/15911
-		scripts/config -d CFI_CLANG || die
+		scripts/config -d CFI -d CFI_CLANG -e CFI_PERMISSIVE || die
 	fi
 
 	### Select LLVM level

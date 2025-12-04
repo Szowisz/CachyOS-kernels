@@ -27,7 +27,7 @@ detect_version
 # disable all patch from kernel-2
 #UNIPATCH_LIST_DEFAULT=""
 
-DESCRIPTION="Linux BORE + LTO + AutoFDO + Propeller Cachy Sauce Kernel by CachyOS with other patches and improvements."
+DESCRIPTION="Linux EEVDF + LTO + AutoFDO + Propeller Cachy Sauce Kernel by CachyOS with other patches and improvements."
 HOMEPAGE="https://github.com/CachyOS/linux-cachyos"
 LICENSE="GPL-3"
 KEYWORDS="~amd64"
@@ -194,7 +194,6 @@ src_prepare() {
 		scripts/config -e LTO_CLANG_THIN_DIST || die
 	elif use llvm-lto-full; then
 		scripts/config -e LTO_CLANG_FULL || die
-		scripts/config -d KSTACK_ERASE || die  # https://github.com/CachyOS/linux-cachyos/issues/598#issuecomment-3448623028
 	else
 		scripts/config -e LTO_NONE || die
 	fi
@@ -372,4 +371,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# acf85ecb3d8a03fb9fd3160ce6d9bdb05ef1c124
+# 847270713a8bf2bc6371b42462781a4f11d8633a

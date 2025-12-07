@@ -9,7 +9,7 @@ EXTRAVERSION="-cachyos" # Not used in kernel-2, just due to most ebuilds have it
 #K_PREPATCHED="1"
 # Use genpatches-6.15-5 (latest available) + manual upstream patches
 K_WANT_GENPATCHES="base extras"
-#K_GENPATCHES_VER="1"
+K_GENPATCHES_VER="1"
 
 # Manual list of additional upstream patch versions needed (genpatches-6.15-5 covers up to 6.15.4)
 # Format: "from-to" for incremental patches from /pub/linux/kernel/v6.x/incr/
@@ -371,4 +371,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# 847270713a8bf2bc6371b42462781a4f11d8633a
+# b76feee309500d7ba6a955760ed4a8e698902ba3

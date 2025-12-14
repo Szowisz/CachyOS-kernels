@@ -245,9 +245,9 @@ jobs:
             cat /tmp/sync.log
 
             if [ $i -lt $MAX_RETRIES ]; then
-              # Calculate random delay: base time + random 5-15 seconds
-              # Use /dev/urandom to generate a random number between 5 and 15
-              RANDOM_EXTRA=$(( 5 + $(od -An -N2 -i /dev/urandom | awk '{print $1}') % 11 ))
+              # Calculate random delay: base time + random 30-60 seconds
+              # Use /dev/urandom to generate a random number between 30 and 60
+              RANDOM_EXTRA=$(( 30 + $(od -An -N2 -i /dev/urandom | awk '{print $1}') % 31 ))
               RETRY_DELAY=$((BASE_DELAY + RANDOM_EXTRA))
               echo "Waiting ${RETRY_DELAY} seconds before retry (base: ${BASE_DELAY}s + random: ${RANDOM_EXTRA}s)..."
               sleep $RETRY_DELAY

@@ -16,6 +16,200 @@ def log(message, level="INFO"):
     print(f"[{level}] {message}")
 
 
+# USE flag to upstream config directory mapping
+USE_FLAG_CONFIG_MAPPING = {
+    "bore": ["linux-cachyos", "linux-cachyos-bore"],
+    "bmq": ["linux-cachyos-bmq"],
+    "eevdf": ["linux-cachyos-eevdf"],
+    "rt": ["linux-cachyos-rt-bore"],
+    "rt-bore": ["linux-cachyos-rt-bore"],
+    "hardened": ["linux-cachyos-hardened"],
+    "deckify": ["linux-cachyos-deckify"],
+}
+
+# All upstream config directories to check
+UPSTREAM_CONFIGS = [
+    "linux-cachyos",
+    "linux-cachyos-bmq",
+    "linux-cachyos-bore",
+    "linux-cachyos-deckify",
+    "linux-cachyos-eevdf",
+    "linux-cachyos-hardened",
+    "linux-cachyos-rt-bore",
+]
+
+
+def parse_srcinfo_pkgver(content):
+    """Parse pkgver from .SRCINFO content"""
+    for line in content.split("\n"):
+        line = line.strip()
+        if line.startswith("pkgver = "):
+            return line.split(" = ", 1)[1].strip()
+    return None
+
+
+def get_upstream_config_versions():
+    """Fetch version info from upstream CachyOS/linux-cachyos repository"""
+    versions = {}
+
+    for config in UPSTREAM_CONFIGS:
+        url = f"https://raw.githubusercontent.com/CachyOS/linux-cachyos/master/{config}/.SRCINFO"
+        try:
+            with urlopen(url) as response:
+                content = response.read().decode("utf-8")
+                pkgver = parse_srcinfo_pkgver(content)
+                if pkgver:
+                    versions[config] = pkgver
+                    log(f"Upstream {config}: {pkgver}")
+                else:
+                    log(f"Could not parse pkgver from {config}/.SRCINFO", "WARN")
+        except URLError as e:
+            log(f"Failed to fetch {config}/.SRCINFO: {e}", "WARN")
+        except Exception as e:
+            log(f"Error processing {config}/.SRCINFO: {e}", "WARN")
+
+    return versions
+
+
+def parse_version_tuple(version_str):
+    """Parse version string to tuple for comparison (e.g., '6.18.1' -> (6, 18, 1))"""
+    # Clean version string, remove suffixes like -r1, -rc1
+    clean_version = clean_version_helper(version_str)
+    parts = clean_version.split(".")
+    result = []
+    for part in parts:
+        try:
+            result.append(int(part))
+        except ValueError:
+            result.append(0)
+    # Pad to at least 3 elements
+    while len(result) < 3:
+        result.append(0)
+    return tuple(result)
+
+
+def compare_kernel_versions(target_version, config_version):
+    """Compare kernel versions, return True if target_version <= config_version"""
+    if config_version is None:
+        return False
+
+    target_tuple = parse_version_tuple(target_version)
+    config_tuple = parse_version_tuple(config_version)
+
+    return target_tuple <= config_tuple
+
+
+def get_available_use_flags(target_version, upstream_versions):
+    """Determine which USE flags are available based on upstream versions"""
+    available = []
+    unavailable = []
+
+    for flag, configs in USE_FLAG_CONFIG_MAPPING.items():
+        # Check if any associated config supports the target version
+        is_available = any(
+            compare_kernel_versions(target_version, upstream_versions.get(config))
+            for config in configs
+        )
+
+        if is_available:
+            available.append(flag)
+        else:
+            unavailable.append(flag)
+            log(f"USE flag '{flag}' not available for version {target_version}", "INFO")
+
+    return available, unavailable
+
+
+def remove_use_flags_from_iuse(content, flags_to_remove):
+    """Remove specified USE flags from IUSE declaration"""
+    if not flags_to_remove:
+        return content
+
+    # Sort flags by length (descending) to remove longer flags first
+    # This prevents "rt-bore" from being partially matched when removing "rt"
+    flags_to_remove = sorted(flags_to_remove, key=len, reverse=True)
+
+    # Build regex pattern to match IUSE block
+    iuse_pattern = r'(IUSE="[^"]*")'
+    match = re.search(iuse_pattern, content, re.DOTALL)
+
+    if not match:
+        log("Could not find IUSE declaration", "WARN")
+        return content
+
+    iuse_block = match.group(1)
+    new_iuse_block = iuse_block
+
+    for flag in flags_to_remove:
+        # Remove flag with optional + prefix (for default enabled)
+        # Use word boundaries to avoid partial matches
+        # Pattern: optional +, the flag name, followed by whitespace or end quote
+        new_iuse_block = re.sub(r'(?<![a-zA-Z0-9_-])\+?' + re.escape(flag) + r'(?=\s|")', '', new_iuse_block)
+
+    # Clean up multiple spaces and empty lines
+    new_iuse_block = re.sub(r'  +', ' ', new_iuse_block)
+    new_iuse_block = re.sub(r'\t +', '\t', new_iuse_block)
+    new_iuse_block = re.sub(r' +\n', '\n', new_iuse_block)
+
+    return content.replace(iuse_block, new_iuse_block)
+
+
+def remove_use_flags_from_required_use(content, flags_to_remove):
+    """Remove specified USE flags from REQUIRED_USE declaration"""
+    if not flags_to_remove:
+        return content
+
+    # Sort flags by length (descending) to process longer flags first
+    flags_to_remove = sorted(flags_to_remove, key=len, reverse=True)
+
+    # Find scheduler constraint line: ^^ ( bore bmq rt rt-bore eevdf )
+    # Use a more flexible pattern that matches any content within ^^ ( ... )
+    scheduler_pattern = r'(\^\^ \( )([a-z-]+(?: [a-z-]+)*)( \))'
+
+    def replace_scheduler_constraint(match):
+        prefix = match.group(1)
+        flags_str = match.group(2)
+        suffix = match.group(3)
+
+        # Only process the first ^^ constraint (scheduler selection)
+        scheduler_flags = flags_str.split()
+
+        # Check if this looks like scheduler flags (contains bore, bmq, etc.)
+        scheduler_keywords = {'bore', 'bmq', 'rt', 'rt-bore', 'eevdf'}
+        if not any(f in scheduler_keywords for f in scheduler_flags):
+            return match.group(0)  # Not the scheduler constraint, return unchanged
+
+        # Remove unavailable flags
+        available_flags = [f for f in scheduler_flags if f not in flags_to_remove]
+
+        if available_flags:
+            return prefix + ' '.join(available_flags) + suffix
+        else:
+            # All scheduler flags removed - this shouldn't happen in normal cases
+            log("Warning: All scheduler flags would be removed!", "WARN")
+            return match.group(0)
+
+    # Replace only the first matching scheduler constraint
+    new_content, count = re.subn(scheduler_pattern, replace_scheduler_constraint, content, count=1)
+    if count > 0:
+        # Extract what we replaced to for logging
+        match = re.search(scheduler_pattern, new_content)
+        if match:
+            log(f"Updated scheduler constraint: ^^ ( {match.group(2)} )")
+    content = new_content
+
+    # Remove individual flag constraints (e.g., rt? ( ... ))
+    for flag in flags_to_remove:
+        # Remove lines like: rt? ( ^^ ( preempt_full preempt_lazy preempt_voluntary ) )
+        content = re.sub(
+            r'\n\t' + re.escape(flag) + r'\? \( [^\n]+\)',
+            '',
+            content
+        )
+
+    return content
+
+
 def get_latest_kernel_version():
     """Fetch the latest stable kernel version from kernel.org"""
     try:
@@ -294,7 +488,8 @@ def extract_version_from_ebuild_name(ebuild_path):
 
 
 def copy_and_update_ebuild(
-    template_path, new_version, ebuild_dir, dry_run=False, force=False, lts=False
+    template_path, new_version, ebuild_dir, dry_run=False, force=False, lts=False,
+    skip_version_check=False, upstream_versions=None
 ):
     """Copy and update ebuild for new version"""
     new_ebuild_name = f"cachyos-sources-{new_version}.ebuild"
@@ -321,6 +516,15 @@ def copy_and_update_ebuild(
             f"DRY RUN: Would copy and update ebuild with genpatches version {genpatches_version}",
             "INFO",
         )
+
+        # Show which USE flags would be removed
+        if not skip_version_check and upstream_versions:
+            available_flags, unavailable_flags = get_available_use_flags(new_version, upstream_versions)
+            if unavailable_flags:
+                log(f"DRY RUN: Would remove USE flags: {', '.join(unavailable_flags)}", "INFO")
+            else:
+                log("DRY RUN: All USE flags available for this version", "INFO")
+
         return new_ebuild_path
 
     # Copy template to new location (only if different files)
@@ -365,6 +569,15 @@ def copy_and_update_ebuild(
 
     # Update any version-specific comments or variables if needed
     # This could be extended for version-specific patches
+
+    # Check upstream config versions and remove unavailable USE flags
+    if not skip_version_check and upstream_versions:
+        available_flags, unavailable_flags = get_available_use_flags(new_version, upstream_versions)
+
+        if unavailable_flags:
+            log(f"Removing unavailable USE flags: {', '.join(unavailable_flags)}")
+            content = remove_use_flags_from_iuse(content, unavailable_flags)
+            content = remove_use_flags_from_required_use(content, unavailable_flags)
 
     # Write updated content back
     with open(new_ebuild_path, "w") as f:
@@ -581,6 +794,11 @@ def main():
     parser.add_argument(
         "--force", action="store_true", help="Force overwrite existing ebuild"
     )
+    parser.add_argument(
+        "--skip-version-check",
+        action="store_true",
+        help="Skip upstream config version check, keep all USE flags"
+    )
 
     args = parser.parse_args()
 
@@ -640,9 +858,20 @@ def main():
         log("Could not determine previous commit", "WARN")
         # Continue anyway, get_files.py might handle this
 
+    # Fetch upstream config versions for USE flag availability check
+    upstream_versions = None
+    if not args.skip_version_check:
+        log("Checking upstream config versions...")
+        upstream_versions = get_upstream_config_versions()
+        if not upstream_versions:
+            log("Could not fetch upstream versions, skipping USE flag check", "WARN")
+    else:
+        log("Skipping upstream version check (--skip-version-check)")
+
     # Copy and update ebuild
     new_ebuild_path = copy_and_update_ebuild(
-        template_ebuild, target_version, ebuild_dir, args.dry_run, args.force, args.lts
+        template_ebuild, target_version, ebuild_dir, args.dry_run, args.force, args.lts,
+        args.skip_version_check, upstream_versions
     )
 
     if not new_ebuild_path:

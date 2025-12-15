@@ -33,7 +33,7 @@ LICENSE="GPL-3"
 KEYWORDS="~amd64"
 IUSE="
 	+bore bmq rt rt-bore eevdf
-	deckify hardened kcfi
+	deckify kcfi
 	+autofdo +propeller
 	llvm-lto-thin llvm-lto-full +llvm-lto-thin-dist
 	kernel-builtin-zfs

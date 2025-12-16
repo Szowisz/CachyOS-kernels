@@ -154,6 +154,18 @@ def remove_use_flags_from_iuse(content, flags_to_remove):
     return content.replace(iuse_block, new_iuse_block)
 
 
+def remove_use_flags_from_src_prepare(content, flags_to_remove):
+    """Replace 'use <flag>' with 'false' for unavailable USE flags in src_prepare"""
+    if not flags_to_remove:
+        return content
+
+    for flag in flags_to_remove:
+        # Replace "use <flag>" with "false"
+        content = re.sub(r'\buse ' + re.escape(flag) + r'\b', 'false', content)
+
+    return content
+
+
 def remove_use_flags_from_required_use(content, flags_to_remove):
     """Remove specified USE flags from REQUIRED_USE declaration"""
     if not flags_to_remove:
@@ -578,6 +590,7 @@ def copy_and_update_ebuild(
             log(f"Removing unavailable USE flags: {', '.join(unavailable_flags)}")
             content = remove_use_flags_from_iuse(content, unavailable_flags)
             content = remove_use_flags_from_required_use(content, unavailable_flags)
+            content = remove_use_flags_from_src_prepare(content, unavailable_flags)
 
     # Write updated content back
     with open(new_ebuild_path, "w") as f:

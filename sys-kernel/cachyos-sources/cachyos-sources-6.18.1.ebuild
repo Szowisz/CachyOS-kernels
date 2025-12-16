@@ -142,7 +142,7 @@ src_prepare() {
 		cp "${files_dir}/config-rt-bore" .config || die
 	fi
 
-	if use hardened; then
+	if false; then
 		eapply "${files_dir}/misc/0001-hardened.patch"
 		cp "${files_dir}/config-hardened" .config || die
 	fi
@@ -163,7 +163,7 @@ src_prepare() {
 
 	### Selecting the CPU scheduler
 	# CachyOS Scheduler (BORE)
-	if use bore || use hardened; then
+	if use bore || false; then
 		scripts/config -e SCHED_BORE || die
 	fi
 

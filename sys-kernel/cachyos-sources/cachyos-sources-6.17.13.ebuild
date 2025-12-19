@@ -3,19 +3,24 @@
 
 EAPI="8"
 ETYPE="sources"
-EXTRAVERSION="-cachyos" # Not used in kernel-2, just due to most ebuilds have it
+EXTRAVERSION="-cachyos"
+# Prevent kernel-2.eclass from setting EXTRAVERSION before incremental patches
+K_NOSETEXTRAVERSION="1"
 # If RC version, enable below 2 lines
 #K_USEPV="1"
 #K_PREPATCHED="1"
 # Use genpatches-6.15-5 (latest available) + manual upstream patches
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="15"
+K_GENPATCHES_VER="16"
 
-# Manual list of additional upstream patch versions needed (genpatches-6.15-5 covers up to 6.15.4)
-# Format: "from-to" for incremental patches from /pub/linux/kernel/v6.x/incr/
-# These patches are applied via UNIPATCH_LIST during src_unpack, after genpatches
-# to ensure proper patch order and avoid Makefile version mismatches
-ADDITIONAL_UPSTREAM_PATCH_VERSIONS="6.17.12-13"
+# Additional upstream incremental patches (kernel.org git diff format, requires -p1)
+# Format: "from-to" for patches from /pub/linux/kernel/v6.x/incr/
+# Applied in src_unpack right after genpatches, before EXTRAVERSION is set
+ADDITIONAL_UPSTREAM_PATCH_VERSIONS=""
+
+# Exclude genpatches that are already included in upstream incremental patches
+UNIPATCH_EXCLUDE=""
+
 ZFS_COMMIT="7de9800e5ce45d03c797be57a3e959fc914b2adb"
 
 # make sure kernel-2 know right version without guess
@@ -86,33 +91,27 @@ _set_hztick_rate() {
 }
 
 src_unpack() {
-	# Set up incremental patches to be applied by kernel-2.eclass during src_unpack
-	setup_incremental_patches
-
 	kernel-2_src_unpack
+
+	# Apply upstream incremental patches immediately after genpatches
+	# Must be done here before any other patches modify the source
+	# kernel-2.eclass unipatch tries -p0 first which fails for git diff patches
+	cd "${S}" || die
+	local range
+	for range in ${ADDITIONAL_UPSTREAM_PATCH_VERSIONS}; do
+		einfo "Applying upstream incremental patch: patch-${range}"
+		xz -dc "${DISTDIR}/patch-${range}.xz" | patch -p1 --no-backup-if-mismatch -s || die "Failed to apply patch-${range}"
+	done
+
+	# Set EXTRAVERSION after incremental patches are applied
+	sed -i -e "s:^\(EXTRAVERSION =\).*:\1 ${EXTRAVERSION}:" Makefile || die
+
 	### Push ZFS to linux
 	use kernel-builtin-zfs && (unpack zfs-$ZFS_COMMIT.tar.gz && mv zfs-$ZFS_COMMIT zfs || die)
 	use kernel-builtin-zfs && (cp $FILESDIR/kernel-build.sh . || die)
 }
 
-# Function to set up UNIPATCH_LIST with incremental patches for kernel-2.eclass
-setup_incremental_patches() {
-	# Build UNIPATCH_LIST from version ranges for kernel-2.eclass to apply during src_unpack
-	local patch_list=""
-	local range
-
-	for range in ${ADDITIONAL_UPSTREAM_PATCH_VERSIONS}; do
-		patch_list+=" ${DISTDIR}/patch-${range}.xz"
-	done
-
-	# Export for kernel-2.eclass to use in src_unpack (applied after genpatches)
-	export UNIPATCH_LIST="${patch_list}"
-}
-
 src_prepare() {
-	# Note: Incremental patches are now applied via UNIPATCH_LIST during src_unpack
-	# This ensures they are applied after genpatches but before custom CachyOS patches
-
 	files_dir="${FILESDIR}/${PVR}"
 
 	eapply "${files_dir}/all/0001-cachyos-base-all.patch"

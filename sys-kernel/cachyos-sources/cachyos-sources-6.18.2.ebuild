@@ -11,16 +11,16 @@ K_NOSETEXTRAVERSION="1"
 #K_PREPATCHED="1"
 # Use genpatches-6.15-5 (latest available) + manual upstream patches
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="2"
+K_GENPATCHES_VER="3"
 
 # Additional upstream incremental patches (kernel.org git diff format, requires -p1)
 # Format: "from-to" for patches from /pub/linux/kernel/v6.x/incr/
 # Applied in src_unpack right after genpatches, before EXTRAVERSION is set
-ADDITIONAL_UPSTREAM_PATCH_VERSIONS="6.18.1-2"
+ADDITIONAL_UPSTREAM_PATCH_VERSIONS=""
 
 # Exclude genpatches that are already included in upstream incremental patches
-# 1901 btrfs fix is included in patch-6.18.1-2
-UNIPATCH_EXCLUDE="1901_btrfs_fix_racy_bitfield_write_in_btrfs_clear_space_info_full.patch"
+UNIPATCH_EXCLUDE="2701-drm-amdgpu-don-t-attach-the-tlb-fence-for-SI.patch"
+
 ZFS_COMMIT="7de9800e5ce45d03c797be57a3e959fc914b2adb"
 
 # make sure kernel-2 know right version without guess

@@ -21,7 +21,7 @@ ADDITIONAL_UPSTREAM_PATCH_VERSIONS=""
 # Exclude genpatches that are already included in upstream incremental patches
 UNIPATCH_EXCLUDE="2701-drm-amdgpu-don-t-attach-the-tlb-fence-for-SI.patch"
 
-ZFS_COMMIT="7de9800e5ce45d03c797be57a3e959fc914b2adb"
+ZFS_COMMIT="743334913e5a5f60baf287bcc6d8a23515b02ac5"
 
 # make sure kernel-2 know right version without guess
 CKV="$(ver_cut 1-3)"

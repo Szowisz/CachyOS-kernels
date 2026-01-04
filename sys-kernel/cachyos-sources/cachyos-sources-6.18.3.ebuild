@@ -91,6 +91,11 @@ _set_hztick_rate() {
 }
 
 src_unpack() {
+	# Exclude genpatch that conflicts with BMQ scheduler
+	# 1810_sched_proxy_yield_the_donor_task.patch changes current->sched_class to rq->donor->sched_class
+	# which breaks BMQ's patch context for do_sched_yield() and yield_to()
+	use bmq && UNIPATCH_EXCLUDE+=" 1810_sched_proxy_yield_the_donor_task.patch"
+
 	kernel-2_src_unpack
 
 	# Apply upstream incremental patches immediately after genpatches

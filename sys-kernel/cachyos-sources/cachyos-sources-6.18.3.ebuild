@@ -116,6 +116,10 @@ src_prepare() {
 
 	eapply "${files_dir}/all/0001-cachyos-base-all.patch"
 
+	# Fix AutoFDO/Propeller support for LTO_CLANG_THIN_DIST
+	# https://github.com/Szowisz/CachyOS-kernels/issues/35
+	eapply "${FILESDIR}/6.18.3/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
+
 	if use bore; then
 		eapply "${files_dir}/sched/0001-bore-cachy.patch"
 		cp "${files_dir}/config-bore" .config || die

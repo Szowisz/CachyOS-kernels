@@ -3,19 +3,24 @@
 
 EAPI="8"
 ETYPE="sources"
-EXTRAVERSION="-cachyos" # Not used in kernel-2, just due to most ebuilds have it
+EXTRAVERSION="-cachyos"
+# Prevent kernel-2.eclass from setting EXTRAVERSION before incremental patches
+K_NOSETEXTRAVERSION="1"
 # If RC version, enable below 2 lines
 #K_USEPV="1"
 #K_PREPATCHED="1"
 # Use genpatches-6.15-5 (latest available) + manual upstream patches
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="70"
+K_GENPATCHES_VER="6"
 
-# Manual list of additional upstream patch versions needed (genpatches-6.15-5 covers up to 6.15.4)
-# Format: "from-to" for incremental patches from /pub/linux/kernel/v6.x/incr/
-# These patches are applied via UNIPATCH_LIST during src_unpack, after genpatches
-# to ensure proper patch order and avoid Makefile version mismatches
-ADDITIONAL_UPSTREAM_PATCH_VERSIONS=""
+# Additional upstream incremental patches (kernel.org git diff format, requires -p1)
+# Format: "from-to" for patches from /pub/linux/kernel/v6.x/incr/
+# Applied in src_unpack right after genpatches, before EXTRAVERSION is set
+ADDITIONAL_UPSTREAM_PATCH_VERSIONS="6.18.4-5"
+
+# Exclude genpatches that are already included in upstream incremental patches
+UNIPATCH_EXCLUDE=""
+
 ZFS_COMMIT="743334913e5a5f60baf287bcc6d8a23515b02ac5"
 
 # make sure kernel-2 know right version without guess
@@ -27,13 +32,13 @@ detect_version
 # disable all patch from kernel-2
 #UNIPATCH_LIST_DEFAULT=""
 
-DESCRIPTION="Linux BORE + LTO + AutoFDO + Propeller Cachy Sauce Kernel by CachyOS with other patches and improvements."
+DESCRIPTION="Linux EEVDF + LTO + AutoFDO + Propeller Cachy Sauce Kernel by CachyOS with other patches and improvements."
 HOMEPAGE="https://github.com/CachyOS/linux-cachyos"
 LICENSE="GPL-3"
 KEYWORDS="~amd64"
 IUSE="
 	+bore bmq rt rt-bore eevdf
-	deckify hardened kcfi
+	deckify kcfi
 	+autofdo +propeller
 	llvm-lto-thin llvm-lto-full +llvm-lto-thin-dist
 	kernel-builtin-zfs
@@ -86,36 +91,39 @@ _set_hztick_rate() {
 }
 
 src_unpack() {
-	# Set up incremental patches to be applied by kernel-2.eclass during src_unpack
-	setup_incremental_patches
+	# Exclude genpatch that conflicts with BMQ scheduler
+	# 1810_sched_proxy_yield_the_donor_task.patch changes current->sched_class to rq->donor->sched_class
+	# which breaks BMQ's patch context for do_sched_yield() and yield_to()
+	use bmq && UNIPATCH_EXCLUDE+=" 1810_sched_proxy_yield_the_donor_task.patch"
 
 	kernel-2_src_unpack
+
+	# Apply upstream incremental patches immediately after genpatches
+	# Must be done here before any other patches modify the source
+	# kernel-2.eclass unipatch tries -p0 first which fails for git diff patches
+	cd "${S}" || die
+	local range
+	for range in ${ADDITIONAL_UPSTREAM_PATCH_VERSIONS}; do
+		einfo "Applying upstream incremental patch: patch-${range}"
+		xz -dc "${DISTDIR}/patch-${range}.xz" | patch -p1 --no-backup-if-mismatch -s || die "Failed to apply patch-${range}"
+	done
+
+	# Set EXTRAVERSION after incremental patches are applied
+	sed -i -e "s:^\(EXTRAVERSION =\).*:\1 ${EXTRAVERSION}:" Makefile || die
+
 	### Push ZFS to linux
 	use kernel-builtin-zfs && (unpack zfs-$ZFS_COMMIT.tar.gz && mv zfs-$ZFS_COMMIT zfs || die)
 	use kernel-builtin-zfs && (cp $FILESDIR/kernel-build.sh . || die)
 }
 
-# Function to set up UNIPATCH_LIST with incremental patches for kernel-2.eclass
-setup_incremental_patches() {
-	# Build UNIPATCH_LIST from version ranges for kernel-2.eclass to apply during src_unpack
-	local patch_list=""
-	local range
-
-	for range in ${ADDITIONAL_UPSTREAM_PATCH_VERSIONS}; do
-		patch_list+=" ${DISTDIR}/patch-${range}.xz"
-	done
-
-	# Export for kernel-2.eclass to use in src_unpack (applied after genpatches)
-	export UNIPATCH_LIST="${patch_list}"
-}
-
 src_prepare() {
-	# Note: Incremental patches are now applied via UNIPATCH_LIST during src_unpack
-	# This ensures they are applied after genpatches but before custom CachyOS patches
-
 	files_dir="${FILESDIR}/${PVR}"
 
 	eapply "${files_dir}/all/0001-cachyos-base-all.patch"
+
+	# Fix AutoFDO/Propeller support for LTO_CLANG_THIN_DIST
+	# https://github.com/Szowisz/CachyOS-kernels/issues/35
+	eapply "${FILESDIR}/6.18.3/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
 
 	if use bore; then
 		eapply "${files_dir}/sched/0001-bore-cachy.patch"
@@ -132,23 +140,24 @@ src_prepare() {
 	fi
 
 	if use rt; then
-		eapply "${files_dir}/misc/0001-rt.patch"
+		eapply "${files_dir}/misc/0001-rt-i915.patch"
 		cp "${files_dir}/config-rt-bore" .config || die
 	fi
 
 	if use rt-bore; then
-		eapply "${files_dir}/misc/0001-rt.patch"
+		eapply "${files_dir}/misc/0001-rt-i915.patch"
 		eapply "${files_dir}/sched/0001-bore-cachy.patch"
 		cp "${files_dir}/config-rt-bore" .config || die
 	fi
 
-	if use hardened; then
+	if false; then
 		eapply "${files_dir}/misc/0001-hardened.patch"
 		cp "${files_dir}/config-hardened" .config || die
 	fi
 
 	if use deckify; then
 		cp "${files_dir}/config-deckify" .config || die
+		scripts/config -d RCU_LAZY_DEFAULT_OFF -e AMD_PRIVATE_COLOR || die
 	fi
 
 	eapply_user
@@ -162,7 +171,7 @@ src_prepare() {
 
 	### Selecting the CPU scheduler
 	# CachyOS Scheduler (BORE)
-	if use bore || use hardened; then
+	if use bore || false; then
 		scripts/config -e SCHED_BORE || die
 	fi
 
@@ -180,10 +189,10 @@ src_prepare() {
 
 	### Enable KCFI
 	if use kcfi; then
-		scripts/config -e ARCH_SUPPORTS_CFI_CLANG -e CFI_CLANG -e CFI_AUTO_DEFAULT || die
+		scripts/config -e ARCH_SUPPORTS_CFI_CLANG -e CFI -e CFI_CLANG -e CFI_AUTO_DEFAULT || die
 	else
 		# https://github.com/openzfs/zfs/issues/15911
-		scripts/config -d CFI_CLANG || die
+		scripts/config -d CFI -d CFI_CLANG -e CFI_PERMISSIVE || die
 	fi
 
 	### Select LLVM level
@@ -353,11 +362,11 @@ pkg_postinst() {
 	optfeature "userspace KSM helper" sys-process/uksmd
 	optfeature "NVIDIA opensource module" "x11-drivers/nvidia-drivers[kernel-open]"
 	optfeature "NVIDIA module" x11-drivers/nvidia-drivers
-	optfeature "ZFS support" sys-fs/zfs-kmod
+	optfeature "ZFS support" sys-fs/zfs
 	if use kernel-builtin-zfs; then
 		ewarn "WARNING: You are using kernel-builtin-zfs USE flag."
-		ewarn "It is STRONGLY RECOMMENDED to use sys-fs/zfs-kmod instead of building ZFS into the kernel."
-		ewarn "sys-fs/zfs-kmod provides better compatibility and easier updates."
+		ewarn "It is STRONGLY RECOMMENDED to use sys-fs/zfs instead of building ZFS into the kernel."
+		ewarn "sys-fs/zfs provides better compatibility and easier updates."
 		ewarn "ZFS support build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573, and you can check linux/kernel-build.sh as example"
 	fi
 	(use autofdo || use propeller) && ewarn "AutoFDO support build way: https://cachyos.org/blog/2411-kernel-autofdo, and you can check https://github.com/xz-dev/kernel-autofdo-container as example"
@@ -370,4 +379,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# 46822116e738fbe7f1696d592761606fec514247
+# 8e4d77a4aeef28c8e93fd9b724d61a84b11b384f

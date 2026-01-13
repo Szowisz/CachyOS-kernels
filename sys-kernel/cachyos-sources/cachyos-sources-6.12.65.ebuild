@@ -15,7 +15,7 @@ K_GENPATCHES_VER="70"
 # Format: "from-to" for incremental patches from /pub/linux/kernel/v6.x/incr/
 # These patches are applied via UNIPATCH_LIST during src_unpack, after genpatches
 # to ensure proper patch order and avoid Makefile version mismatches
-ADDITIONAL_UPSTREAM_PATCH_VERSIONS=""
+ADDITIONAL_UPSTREAM_PATCH_VERSIONS="6.12.64-65"
 ZFS_COMMIT="743334913e5a5f60baf287bcc6d8a23515b02ac5"
 
 # make sure kernel-2 know right version without guess
@@ -370,4 +370,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# 46822116e738fbe7f1696d592761606fec514247
+# 8e4d77a4aeef28c8e93fd9b724d61a84b11b384f

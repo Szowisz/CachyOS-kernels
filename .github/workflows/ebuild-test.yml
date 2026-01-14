@@ -201,6 +201,8 @@ jobs:
 
     - name: Setup Portage repository
       run: |
+        set -o pipefail
+
         # Create local overlay
         mkdir -p /var/db/repos/cachyos-overlay
         cp -r . /var/db/repos/cachyos-overlay/

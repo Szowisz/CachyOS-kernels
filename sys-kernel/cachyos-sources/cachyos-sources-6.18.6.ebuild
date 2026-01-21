@@ -11,12 +11,12 @@ K_NOSETEXTRAVERSION="1"
 #K_PREPATCHED="1"
 # Use genpatches-6.15-5 (latest available) + manual upstream patches
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="7"
+K_GENPATCHES_VER="8"
 
 # Additional upstream incremental patches (kernel.org git diff format, requires -p1)
 # Format: "from-to" for patches from /pub/linux/kernel/v6.x/incr/
 # Applied in src_unpack right after genpatches, before EXTRAVERSION is set
-ADDITIONAL_UPSTREAM_PATCH_VERSIONS="6.18.5-6"
+ADDITIONAL_UPSTREAM_PATCH_VERSIONS=""
 
 # Exclude genpatches that are already included in upstream incremental patches
 UNIPATCH_EXCLUDE=""

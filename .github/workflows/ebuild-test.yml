@@ -82,6 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 20
       matrix:
         version: ${{ fromJson(needs.detect-versions.outputs.versions) }}
         # Comprehensive test matrix based on all USE flags in the ebuild
@@ -200,13 +201,19 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Setup Portage repository
+      shell: bash
       run: |
         set -o pipefail
+
+        # Random startup delay to stagger jobs hitting mirrors (0-30 seconds)
+        STARTUP_DELAY=$(( RANDOM % 30 ))
+        echo "Waiting ${STARTUP_DELAY} seconds before starting (stagger delay)..."
+        sleep $STARTUP_DELAY
 
         # Create local overlay
         mkdir -p /var/db/repos/cachyos-overlay
         cp -r . /var/db/repos/cachyos-overlay/
-        
+
         # Configure repos.conf
         mkdir -p /etc/portage/repos.conf
         cat > /etc/portage/repos.conf/cachyos.conf <<EOF
@@ -215,7 +222,7 @@ jobs:
         auto-sync = no
         priority = 50
         EOF
-        
+
         # Configure binhost for faster dependency installation
         mkdir -p /etc/portage/binrepos.conf
         cat > /etc/portage/binrepos.conf/gentoobinhost.conf <<EOF
@@ -223,12 +230,12 @@ jobs:
         priority = 10
         sync-uri = https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64/
         EOF
-        
+
         # Enable binary packages and accept testing keywords globally
         # Disable signature verification for CI environment
         echo 'FEATURES="${FEATURES} getbinpkg -news"' >> /etc/portage/make.conf
         echo 'ACCEPT_KEYWORDS="~amd64"' >> /etc/portage/make.conf
-        
+
         # Sync main repo with retry on failures
         MAX_RETRIES=10
         BASE_DELAY=20
@@ -236,20 +243,19 @@ jobs:
         for i in $(seq 1 $MAX_RETRIES); do
           echo "Attempt $i of $MAX_RETRIES: Syncing Gentoo repository..."
 
-          emerge --sync -q 2>&1 | tee /tmp/sync.log
-          SYNC_EXIT_CODE=$?
+          # Use subshell to capture exit code without triggering set -e
+          SYNC_EXIT_CODE=0
+          emerge --sync -q 2>&1 | tee /tmp/sync.log || SYNC_EXIT_CODE=$?
 
           if [ $SYNC_EXIT_CODE -eq 0 ]; then
             echo "Repository sync successful"
             break
           else
             echo "emerge --sync failed with exit code $SYNC_EXIT_CODE"
-            cat /tmp/sync.log
 
             if [ $i -lt $MAX_RETRIES ]; then
               # Calculate random delay: base time + random 30-60 seconds
-              # Use /dev/urandom to generate a random number between 30 and 60
-              RANDOM_EXTRA=$(( 30 + $(od -An -N2 -i /dev/urandom | awk '{print $1}') % 31 ))
+              RANDOM_EXTRA=$(( 30 + RANDOM % 31 ))
               RETRY_DELAY=$((BASE_DELAY + RANDOM_EXTRA))
               echo "Waiting ${RETRY_DELAY} seconds before retry (base: ${BASE_DELAY}s + random: ${RANDOM_EXTRA}s)..."
               sleep $RETRY_DELAY
@@ -259,14 +265,34 @@ jobs:
             fi
           fi
         done
-        
-        getuto
+
+        # getuto with retry (can also fail due to network issues)
+        for i in $(seq 1 5); do
+          echo "Attempt $i of 5: Running getuto..."
+          GETUTO_EXIT_CODE=0
+          getuto 2>&1 || GETUTO_EXIT_CODE=$?
+
+          if [ $GETUTO_EXIT_CODE -eq 0 ]; then
+            echo "getuto successful"
+            break
+          else
+            echo "getuto failed with exit code $GETUTO_EXIT_CODE"
+            if [ $i -lt 5 ]; then
+              RETRY_DELAY=$(( 10 + RANDOM % 20 ))
+              echo "Waiting ${RETRY_DELAY} seconds before retry..."
+              sleep $RETRY_DELAY
+            else
+              echo "Max retries reached for getuto"
+              exit $GETUTO_EXIT_CODE
+            fi
+          fi
+        done
         
     - name: Configure package.use
       run: |
         mkdir -p /etc/portage/package.use
         echo "sys-kernel/cachyos-sources ${{ matrix.use_flags }}" > /etc/portage/package.use/cachyos-sources
-        
+
         # Show the USE flags that will be used
         echo "Testing version ${{ matrix.version }} with USE flags:"
         emerge --pretend --verbose =sys-kernel/cachyos-sources-${{ matrix.version }} | grep USE
@@ -278,5 +304,5 @@ jobs:
         # The ebuild should handle all dependencies correctly
         # Use --autounmask to automatically handle dependency USE flag requirements
         emerge --verbose --autounmask --autounmask-continue =sys-kernel/cachyos-sources-${{ matrix.version }}
-        
+
         echo "✓ Successfully installed cachyos-sources-${{ matrix.version }} with USE='${{ matrix.use_flags }}'"

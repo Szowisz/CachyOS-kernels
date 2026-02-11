@@ -1,4 +1,4 @@
-# Copyright 2023-2025 Gentoo Authors
+# Copyright 2023-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v3
 
 EAPI="8"
@@ -363,6 +363,8 @@ pkg_postinst() {
 	optfeature "NVIDIA opensource module" "x11-drivers/nvidia-drivers[kernel-open]"
 	optfeature "NVIDIA module" x11-drivers/nvidia-drivers
 	optfeature "ZFS support" sys-fs/zfs
+	optfeature "sched_ext schedulers" sys-kernel/scx-loader
+
 	if use kernel-builtin-zfs; then
 		ewarn "WARNING: You are using kernel-builtin-zfs USE flag."
 		ewarn "It is STRONGLY RECOMMENDED to use sys-fs/zfs instead of building ZFS into the kernel."
@@ -370,9 +372,6 @@ pkg_postinst() {
 		ewarn "ZFS support build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573, and you can check linux/kernel-build.sh as example"
 	fi
 	(use autofdo || use propeller) && ewarn "AutoFDO support build way: https://cachyos.org/blog/2411-kernel-autofdo, and you can check https://github.com/xz-dev/kernel-autofdo-container as example"
-	ewarn "Install sys-kernel/scx to Enable sched_ext schedulers"
-	ewarn "You can find it in xarblu-overlay"
-	ewarn "Then enable/start scx service."
 }
 
 pkg_postrm() {

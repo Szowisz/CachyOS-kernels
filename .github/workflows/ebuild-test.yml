@@ -147,17 +147,17 @@ jobs:
           - "mzen4 -mnative"
           
           # === LLVM LTO Tests (mutually exclusive) ===
-          - "llvm-lto-thin-dist"  # Default
-          - "llvm-lto-thin -llvm-lto-thin-dist"
-          - "llvm-lto-full -llvm-lto-thin-dist -propeller"
+          - "llvm-lto-thin-dist -llvm-lto-thin -llvm-lto-full"  # Default
+          - "llvm-lto-thin -llvm-lto-thin-dist -llvm-lto-full"
+          - "llvm-lto-full -llvm-lto-thin -llvm-lto-thin-dist -propeller"
           
           # === Advanced Optimization ===
-          - "autofdo propeller llvm-lto-thin-dist"  # autofdo requires LTO, propeller conflicts with full LTO
+          - "autofdo propeller llvm-lto-thin-dist -llvm-lto-thin -llvm-lto-full"  # autofdo requires LTO, propeller conflicts with full LTO
           - "-autofdo -propeller"
-          - "autofdo llvm-lto-thin -propeller -llvm-lto-thin-dist"
-          - "propeller llvm-lto-thin-dist"  # propeller without autofdo
-          - "autofdo llvm-lto-thin -llvm-lto-thin-dist"
-          - "autofdo llvm-lto-full -propeller -llvm-lto-thin-dist"  # propeller conflicts with full LTO
+          - "autofdo llvm-lto-thin -propeller -llvm-lto-thin-dist -llvm-lto-full"
+          - "propeller llvm-lto-thin-dist -llvm-lto-thin -llvm-lto-full"  # propeller without autofdo
+          - "autofdo llvm-lto-thin -llvm-lto-thin-dist -llvm-lto-full"
+          - "autofdo llvm-lto-full -propeller -llvm-lto-thin -llvm-lto-thin-dist"  # propeller conflicts with full LTO
           
           # === ZFS Support ===
           - "kernel-builtin-zfs"
@@ -174,7 +174,7 @@ jobs:
           # Development workstation with debugging
           - "debug eevdf tickrate_perodic -o3 -bore -tickrate_full"
           # Maximum optimization build
-          - "bore o3 bbr3 autofdo propeller llvm-lto-thin mzen4 -llvm-lto-thin-dist -mnative"
+          - "bore o3 bbr3 autofdo propeller llvm-lto-thin mzen4 -llvm-lto-thin-dist -llvm-lto-full -mnative"
           # Conservative stable build
           - "eevdf mgeneric os -bore -o3 -autofdo -propeller -mnative"
           # RT audio production
@@ -184,9 +184,9 @@ jobs:
           # Container host optimized
           - "bore per-gov bbr3 hz_ticks_300 -hz_ticks_1000"
           # Compile server optimized
-          - "bmq llvm-lto-full os mgeneric_v4 -bore -o3 -propeller -llvm-lto-thin-dist -mnative"
+          - "bmq llvm-lto-full os mgeneric_v4 -bore -o3 -propeller -llvm-lto-thin -llvm-lto-thin-dist -mnative"
           # Desktop with AutoFDO profiling
-          - "bore autofdo llvm-lto-thin hz_ticks_1000 o3 -llvm-lto-thin-dist"
+          - "bore autofdo llvm-lto-thin hz_ticks_1000 o3 -llvm-lto-thin-dist -llvm-lto-full"
           # Maximum compatibility
           - "eevdf mgeneric -bore -autofdo -propeller -kcfi -mnative"
           # KCFI security feature with RT

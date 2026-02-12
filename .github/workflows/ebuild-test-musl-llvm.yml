@@ -1,0 +1,196 @@
+name: Ebuild Merge Test (musl-llvm)
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'sys-kernel/cachyos-sources/**'
+      - '.github/workflows/ebuild-test-musl-llvm.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'sys-kernel/cachyos-sources/**'
+      - '.github/workflows/ebuild-test-musl-llvm.yml'
+  workflow_dispatch:
+
+jobs:
+  detect-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.detect.outputs.versions }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Detect new ebuild versions
+      id: detect
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+        else
+          BASE_SHA="HEAD~1"
+        fi
+
+        NEW_EBUILDS=$(git diff --name-status "$BASE_SHA" HEAD | \
+          grep -E "^[AM].*sys-kernel/cachyos-sources/cachyos-sources-.*\.ebuild$" | \
+          grep -v "9999" | \
+          sed 's/.*cachyos-sources-\(.*\)\.ebuild$/\1/' | \
+          sort -V || true)
+
+        WORKFLOW_CHANGED=$(git diff --name-status "$BASE_SHA" HEAD | \
+          grep -E "^[AM].*\.github/workflows/ebuild-test-musl-llvm\.yml$" || true)
+
+        if [ -z "$NEW_EBUILDS" ] && [ -z "$WORKFLOW_CHANGED" ]; then
+          echo "::notice::No new or modified ebuilds detected, skipping tests"
+          echo "versions=[]" >> $GITHUB_OUTPUT
+        else
+          if [ -z "$NEW_EBUILDS" ] && [ -n "$WORKFLOW_CHANGED" ]; then
+            echo "Workflow changed, testing latest version"
+            LATEST=$(find sys-kernel/cachyos-sources -name "cachyos-sources-*.ebuild" | \
+              grep -v "9999" | \
+              sed 's/.*cachyos-sources-\(.*\)\.ebuild$/\1/' | \
+              sort -V | tail -1)
+            VERSIONS_JSON="[\"$LATEST\"]"
+          else
+            VERSIONS_JSON="["
+            first=true
+            for version in $NEW_EBUILDS; do
+              if [ "$first" = true ]; then
+                VERSIONS_JSON="${VERSIONS_JSON}\"$version\""
+                first=false
+              else
+                VERSIONS_JSON="${VERSIONS_JSON},\"$version\""
+              fi
+            done
+            VERSIONS_JSON="${VERSIONS_JSON}]"
+          fi
+
+          echo "Versions to test: $VERSIONS_JSON"
+          echo "versions=$VERSIONS_JSON" >> $GITHUB_OUTPUT
+        fi
+
+  test:
+    needs: detect-versions
+    if: needs.detect-versions.outputs.versions != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{ fromJson(needs.detect-versions.outputs.versions) }}
+        use_flags:
+          # Default USE flags - tests the basic musl-llvm emerge path
+          - ""
+
+    # NOTE: We do NOT use `container:` here because gentoo/stage3:musl-llvm
+    # uses musl libc which cannot run GitHub Actions' Node.js-based actions
+    # (actions/checkout etc.). Instead we checkout on the ubuntu host and
+    # bind-mount the repo into a docker container.
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Pull container image
+      run: docker pull docker.io/gentoo/stage3:musl-llvm
+
+    - name: Test ebuild in musl-llvm container
+      run: |
+        docker run --rm --privileged \
+          -v "${{ github.workspace }}:/repo:ro" \
+          -e VERSION="${{ matrix.version }}" \
+          -e USE_FLAGS="${{ matrix.use_flags }}" \
+          docker.io/gentoo/stage3:musl-llvm \
+          /bin/bash -c '
+        set -e
+        set -o pipefail
+
+        # Random startup delay to stagger mirror hits (0-30s)
+        STARTUP_DELAY=$(( RANDOM % 30 ))
+        echo "Waiting ${STARTUP_DELAY}s before starting..."
+        sleep $STARTUP_DELAY
+
+        # Create local overlay from bind-mounted repo
+        mkdir -p /var/db/repos/cachyos-overlay
+        cp -a /repo/. /var/db/repos/cachyos-overlay/
+
+        # Configure repos.conf
+        mkdir -p /etc/portage/repos.conf
+        cat > /etc/portage/repos.conf/cachyos.conf <<REPOEOF
+        [CachyOS-kernels]
+        location = /var/db/repos/cachyos-overlay
+        auto-sync = no
+        priority = 50
+        REPOEOF
+
+        # Configure binhost for musl-llvm binary packages
+        mkdir -p /etc/portage/binrepos.conf
+        cat > /etc/portage/binrepos.conf/gentoobinhost.conf <<BINEOF
+        [gentoobinhost]
+        priority = 10
+        sync-uri = https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64_musl_llvm/
+        BINEOF
+
+        # Enable binary packages and accept testing keywords
+        echo "FEATURES=\"\${FEATURES} getbinpkg -news\"" >> /etc/portage/make.conf
+        echo "ACCEPT_KEYWORDS=\"~amd64\"" >> /etc/portage/make.conf
+
+        # Sync main repo with retry
+        MAX_RETRIES=10
+        BASE_DELAY=20
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Syncing Gentoo repository..."
+          SYNC_EXIT_CODE=0
+          emerge --sync -q 2>&1 | tee /tmp/sync.log || SYNC_EXIT_CODE=$?
+          if [ $SYNC_EXIT_CODE -eq 0 ]; then
+            echo "Repository sync successful"
+            break
+          else
+            echo "emerge --sync failed with exit code $SYNC_EXIT_CODE"
+            if [ $i -lt $MAX_RETRIES ]; then
+              RANDOM_EXTRA=$(( 30 + RANDOM % 31 ))
+              RETRY_DELAY=$((BASE_DELAY + RANDOM_EXTRA))
+              echo "Waiting ${RETRY_DELAY}s before retry..."
+              sleep $RETRY_DELAY
+            else
+              echo "Max retries reached"
+              exit $SYNC_EXIT_CODE
+            fi
+          fi
+        done
+
+        # getuto with retry
+        for i in $(seq 1 5); do
+          echo "Attempt $i of 5: Running getuto..."
+          GETUTO_EXIT_CODE=0
+          getuto 2>&1 || GETUTO_EXIT_CODE=$?
+          if [ $GETUTO_EXIT_CODE -eq 0 ]; then
+            echo "getuto successful"
+            break
+          else
+            echo "getuto failed with exit code $GETUTO_EXIT_CODE"
+            if [ $i -lt 5 ]; then
+              RETRY_DELAY=$(( 10 + RANDOM % 20 ))
+              echo "Waiting ${RETRY_DELAY}s before retry..."
+              sleep $RETRY_DELAY
+            else
+              echo "Max retries reached for getuto"
+              exit $GETUTO_EXIT_CODE
+            fi
+          fi
+        done
+
+        # Configure USE flags
+        mkdir -p /etc/portage/package.use
+        echo "sys-kernel/cachyos-sources ${USE_FLAGS}" > /etc/portage/package.use/cachyos-sources
+
+        # Show USE flags
+        echo "Testing version ${VERSION} with USE flags: ${USE_FLAGS:-<default>}"
+        emerge --pretend --verbose =sys-kernel/cachyos-sources-${VERSION} | grep USE || true
+
+        # Install kernel sources
+        emerge --verbose --autounmask --autounmask-continue =sys-kernel/cachyos-sources-${VERSION}
+
+        echo "Successfully installed cachyos-sources-${VERSION} on musl-llvm"
+        '

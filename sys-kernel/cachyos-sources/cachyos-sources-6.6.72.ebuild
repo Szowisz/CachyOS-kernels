@@ -123,7 +123,10 @@ src_prepare() {
 	eapply_user
 
 	if use auto-cpu-optimization; then
-		sh "${files_dir}/auto-cpu-optimization.sh" || die
+		# Apply Clang support patch for musl/LLVM profiles (issue #31)
+		cp "${files_dir}/auto-cpu-optimization.sh" "${T}/auto-cpu-optimization.sh" || die
+		patch "${T}/auto-cpu-optimization.sh" "${FILESDIR}/auto-cpu-optimization-clang-support-6.6.patch" || die
+		sh "${T}/auto-cpu-optimization.sh" || die
 	fi
 
 	# Remove CachyOS's localversion

@@ -1,0 +1,35 @@
+--- a/auto-cpu-optimization.sh
++++ b/auto-cpu-optimization.sh
+@@ -1,19 +1,22 @@
+ #!/bin/bash
+ 
+-# Check if GCC is installed
+-check_gcc() {
+-  if ! [ -x "$(command -v gcc)" ]; then
+-    # Display error message if GCC is not installed
+-    echo "Error: GCC is not installed. Please install GCC and try again." >&2
++# Detect CPU march using available compiler (GCC or Clang)
++# Supports systems without GCC (e.g. musl/LLVM profiles)
++# See: https://github.com/Szowisz/CachyOS-kernels/issues/31
++detect_march() {
++  if [ -x "$(command -v gcc)" ]; then
++    gcc -Q -march=native --help=target | grep -m1 march= | awk '{print $2}'
++  elif [ -x "$(command -v clang)" ]; then
++    # Clang outputs target-cpu in its verbose mode
++    clang -### -march=native -E - </dev/null 2>&1 | grep -Po -m1 '"target-cpu"[[:space:]]"\K[^"]+'
++  else
++    echo "Error: Neither GCC nor Clang is installed. Please install one and try again." >&2
+     exit 1
+   fi
+ }
+ 
+-# Call the function before running the rest of the script
+-check_gcc
+-
+-# Get CPU type from GCC and convert to uppercase
+-MARCH=$(gcc -Q -march=native --help=target|grep -m1 march=|awk '{print $2}')
++# Get CPU type and convert to uppercase
++MARCH=$(detect_march)
+ 
+ # Sync with 0005-cachy.patch using
+ # sed -E '/= -march=/!d;/^[+]/!d;/CONFIG_GENERIC_CPU/d;/-march=native/d;s/.+CONFIG_M([^)]+).+-march=([^ ]+).*/\2) MARCH=\1;;/g' 0005-cachy.patch

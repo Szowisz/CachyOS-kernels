@@ -11,7 +11,7 @@ K_NOSETEXTRAVERSION="1"
 #K_PREPATCHED="1"
 # Use genpatches-6.15-5 (latest available) + manual upstream patches
 K_WANT_GENPATCHES="base extras"
-#K_GENPATCHES_VER="1"
+K_GENPATCHES_VER="1"
 
 # Additional upstream incremental patches (kernel.org git diff format, requires -p1)
 # Format: "from-to" for patches from /pub/linux/kernel/v6.x/incr/
@@ -384,4 +384,4 @@ pkg_postrm() {
 	kernel-2_pkg_postrm
 }
 
-# 661da6f123bf3984e462fe9f932a38e643d6e081
+# 55928e670e17f8c545f0a7251efb049645e98eeb

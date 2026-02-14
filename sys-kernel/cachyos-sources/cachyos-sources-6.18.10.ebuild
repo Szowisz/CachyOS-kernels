@@ -11,7 +11,7 @@ K_NOSETEXTRAVERSION="1"
 #K_PREPATCHED="1"
 # Use genpatches-6.15-5 (latest available) + manual upstream patches
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="1"
+K_GENPATCHES_VER="12"
 
 # Additional upstream incremental patches (kernel.org git diff format, requires -p1)
 # Format: "from-to" for patches from /pub/linux/kernel/v6.x/incr/
@@ -40,7 +40,7 @@ IUSE="
 	+bore bmq rt rt-bore eevdf
 	deckify kcfi
 	+autofdo +propeller
-	+llvm-lto-thin llvm-lto-full llvm-lto-thin-dist
+	llvm-lto-thin llvm-lto-full +llvm-lto-thin-dist
 	kernel-builtin-zfs
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 +hz_ticks_1000
 	+per-gov tickrate_perodic tickrate_idle +tickrate_full +preempt_full preempt_lazy preempt_voluntary
@@ -122,12 +122,6 @@ src_prepare() {
 	eapply "${files_dir}/all/0001-cachyos-base-all.patch"
 
 	# Fix AutoFDO/Propeller support for LTO_CLANG_THIN_DIST
-	# The distributed ThinLTO patch by Rong Xu (xur@google.com) did not update
-	# Makefile.autofdo and Makefile.propeller for CONFIG_LTO_CLANG_THIN_DIST.
-	# RFC: https://discourse.llvm.org/t/rfc-distributed-thinlto-build-for-kernel/85934
-	# Original patch: https://github.com/xur-llvm/linux/commit/d970eaf7d90863e7f2ea7bd0c8fe44d4602c2e86
-	# Upstream mail: https://lore.kernel.org/linux-kbuild/20250420010214.1963979-1-xur@google.com/
-	# Fix suggested by marioroy: https://discourse.llvm.org/t/rfc-distributed-thinlto-build-for-kernel/85934/5
 	# https://github.com/Szowisz/CachyOS-kernels/issues/35
 	eapply "${files_dir}/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
 

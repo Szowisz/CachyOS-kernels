@@ -1,7 +1,7 @@
-From 4e85d64e6a0a43181212b6f456fbc7dd637e7004 Mon Sep 17 00:00:00 2001
+From 6409de303b7381d9fc8a7e854bfc4a7f6ca3838a Mon Sep 17 00:00:00 2001
 From: Peter Jung <admin@ptr1337.dev>
-Date: Fri, 13 Feb 2026 16:53:35 +0100
-Subject: [PATCH 7/9] t2
+Date: Fri, 6 Feb 2026 18:47:21 +0100
+Subject: [PATCH 10/10] t2
 
 Signed-off-by: Peter Jung <admin@ptr1337.dev>
 ---
@@ -102,10 +102,10 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  create mode 100644 include/linux/soc/apple/dockchannel.h
 
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-index c16ff1ca3f0b..96a7b58d621b 100644
+index 04e6839758cc..f5a19da41939 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-@@ -2428,6 +2428,9 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
+@@ -2357,6 +2357,9 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
  	int ret, retry = 0, i;
  	bool supports_atomic = false;
  
@@ -116,10 +116,10 @@ index c16ff1ca3f0b..96a7b58d621b 100644
  	    (pdev->class >> 8) == PCI_CLASS_DISPLAY_OTHER) {
  		if (drm_firmware_drivers_only() && amdgpu_modeset == -1)
 diff --git a/drivers/gpu/drm/i915/display/intel_ddi.c b/drivers/gpu/drm/i915/display/intel_ddi.c
-index 002ccd47856d..c5d2e908f4a7 100644
+index c09aa759f4d4..cc372bb38e97 100644
 --- a/drivers/gpu/drm/i915/display/intel_ddi.c
 +++ b/drivers/gpu/drm/i915/display/intel_ddi.c
-@@ -4890,6 +4890,9 @@ static bool intel_ddi_a_force_4_lanes(struct intel_digital_port *dig_port)
+@@ -4868,6 +4868,9 @@ static bool intel_ddi_a_force_4_lanes(struct intel_digital_port *dig_port)
  	if (dig_port->ddi_a_4_lanes)
  		return false;
  
@@ -130,10 +130,10 @@ index 002ccd47856d..c5d2e908f4a7 100644
  	 *                     supported configuration
  	 */
 diff --git a/drivers/gpu/drm/i915/display/intel_fbdev.c b/drivers/gpu/drm/i915/display/intel_fbdev.c
-index 44f4fcce526e..695eadc88eab 100644
+index 7daf72b69bae..2fadf3bbc4df 100644
 --- a/drivers/gpu/drm/i915/display/intel_fbdev.c
 +++ b/drivers/gpu/drm/i915/display/intel_fbdev.c
-@@ -278,10 +278,10 @@ int intel_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
+@@ -253,10 +253,10 @@ int intel_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
  	ifbdev->fb = NULL;
  
  	if (fb &&
@@ -211,7 +211,7 @@ index 68e45a26e85f..7580172daade 100644
  	}
  
 diff --git a/drivers/hid/Kconfig b/drivers/hid/Kconfig
-index 920a64b66b25..ecb3059c68fb 100644
+index 81e8da502dd6..38adc1c91955 100644
 --- a/drivers/hid/Kconfig
 +++ b/drivers/hid/Kconfig
 @@ -140,7 +140,7 @@ config HID_APPLE
@@ -223,7 +223,7 @@ index 920a64b66b25..ecb3059c68fb 100644
  	help
  	Support for some Apple devices which less or more break
  	HID specification.
-@@ -727,11 +727,13 @@ config LOGIWHEELS_FF
+@@ -735,11 +735,13 @@ config LOGIWHEELS_FF
  
  config HID_MAGICMOUSE
  	tristate "Apple Magic Mouse/Trackpad multi-touch support"
@@ -238,7 +238,7 @@ index 920a64b66b25..ecb3059c68fb 100644
  
  config HID_MALTRON
  	tristate "Maltron L90 keyboard"
-@@ -1448,4 +1450,8 @@ endif # HID
+@@ -1454,4 +1456,8 @@ endif # HID
  
  source "drivers/hid/usbhid/Kconfig"
  
@@ -248,20 +248,17 @@ index 920a64b66b25..ecb3059c68fb 100644
 +
  endif # HID_SUPPORT
 diff --git a/drivers/hid/Makefile b/drivers/hid/Makefile
-index 361a7daedeb8..397b6cf5b6c3 100644
+index c975f2f1bd54..083677e71993 100644
 --- a/drivers/hid/Makefile
 +++ b/drivers/hid/Makefile
-@@ -173,6 +173,10 @@ obj-$(CONFIG_INTEL_ISH_HID)	+= intel-ish-hid/
- 
- obj-$(CONFIG_AMD_SFH_HID)       += amd-sfh-hid/
- 
-+obj-$(CONFIG_SPI_HID_APPLE_CORE)	+= spi-hid/
-+
-+obj-$(CONFIG_HID_DOCKCHANNEL)   += dockchannel-hid/
-+
+@@ -177,3 +177,7 @@ obj-$(CONFIG_AMD_SFH_HID)       += amd-sfh-hid/
  obj-$(CONFIG_SURFACE_HID_CORE)  += surface-hid/
  
  obj-$(CONFIG_INTEL_THC_HID)     += intel-thc-hid/
++
++obj-$(CONFIG_SPI_HID_APPLE_CORE)	+= spi-hid/
++
++obj-$(CONFIG_HID_DOCKCHANNEL)   += dockchannel-hid/
 diff --git a/drivers/hid/dockchannel-hid/Kconfig b/drivers/hid/dockchannel-hid/Kconfig
 new file mode 100644
 index 000000000000..8a81d551a83d
@@ -1639,7 +1636,7 @@ index a5b3a8ca2fcb..b353fd819989 100644
  		bus = "SOUNDWIRE";
  		break;
 diff --git a/drivers/hid/hid-ids.h b/drivers/hid/hid-ids.h
-index 9c2bf584d9f6..adad71cc8bf0 100644
+index 1f8330bf4525..cb19e4e188d9 100644
 --- a/drivers/hid/hid-ids.h
 +++ b/drivers/hid/hid-ids.h
 @@ -93,6 +93,8 @@
@@ -6726,24 +6723,24 @@ index 000000000000..080d083ed9bd
 +MODULE_LICENSE("Dual MIT/GPL");
 +MODULE_DESCRIPTION("Apple RTKit helper driver");
 diff --git a/drivers/staging/Kconfig b/drivers/staging/Kconfig
-index 2f92cd698bef..cefe34038c57 100644
+index 075e775d3868..e1cc0d60eeb6 100644
 --- a/drivers/staging/Kconfig
 +++ b/drivers/staging/Kconfig
-@@ -48,4 +48,6 @@ source "drivers/staging/axis-fifo/Kconfig"
+@@ -50,4 +50,6 @@ source "drivers/staging/vme_user/Kconfig"
  
- source "drivers/staging/vme_user/Kconfig"
+ source "drivers/staging/gpib/Kconfig"
  
 +source "drivers/staging/apple-bce/Kconfig"
 +
  endif # STAGING
 diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
-index f5b8876aa536..cf24b596cde9 100644
+index e681e403509c..4045c588b3b4 100644
 --- a/drivers/staging/Makefile
 +++ b/drivers/staging/Makefile
-@@ -13,3 +13,4 @@ obj-$(CONFIG_MOST)		+= most/
- obj-$(CONFIG_GREYBUS)		+= greybus/
+@@ -14,3 +14,4 @@ obj-$(CONFIG_GREYBUS)		+= greybus/
  obj-$(CONFIG_BCM2835_VCHIQ)	+= vc04_services/
  obj-$(CONFIG_XIL_AXIS_FIFO)	+= axis-fifo/
+ obj-$(CONFIG_GPIB)	 	+= gpib/
 +obj-$(CONFIG_APPLE_BCE)		+= apple-bce/
 diff --git a/drivers/staging/apple-bce/Kconfig b/drivers/staging/apple-bce/Kconfig
 new file mode 100644
@@ -12612,7 +12609,7 @@ index 000000000000..6c2e22622f4c
 +
 +#endif //BCE_VHCI_H
 diff --git a/include/linux/hid.h b/include/linux/hid.h
-index dce862cafbbd..5952d95a53e8 100644
+index a4ddb94e3ee5..8c6d3124c20c 100644
 --- a/include/linux/hid.h
 +++ b/include/linux/hid.h
 @@ -625,7 +625,9 @@ struct hid_input {

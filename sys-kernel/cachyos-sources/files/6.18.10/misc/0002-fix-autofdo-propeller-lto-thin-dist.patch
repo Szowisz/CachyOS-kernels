@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: xz-dev <xz-dev@users.noreply.github.com>
+Date: Sat, 4 Jan 2026 00:00:00 +0800
+Subject: [PATCH] scripts: fix AutoFDO and Propeller support for
+ LTO_CLANG_THIN_DIST
+
+CachyOS introduced CONFIG_LTO_CLANG_THIN_DIST but forgot to update
+Makefile.autofdo and Makefile.propeller to support it. These files
+only check CONFIG_LTO_CLANG_THIN, causing AutoFDO and Propeller
+linker flags to be missing when using LTO_CLANG_THIN_DIST.
+
+This patch adds support for CONFIG_LTO_CLANG_THIN_DIST alongside
+CONFIG_LTO_CLANG_THIN in both Makefiles.
+
+Fixes: https://github.com/Szowisz/CachyOS-kernels/issues/35
+Signed-off-by: xz-dev <xz-dev@users.noreply.github.com>
+---
+ scripts/Makefile.autofdo   | 2 +-
+ scripts/Makefile.propeller | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/scripts/Makefile.autofdo b/scripts/Makefile.autofdo
+index 111111111111..222222222222 100644
+--- a/scripts/Makefile.autofdo
++++ b/scripts/Makefile.autofdo
+@@ -13,7 +13,7 @@ ifdef CLANG_AUTOFDO_PROFILE
+   CFLAGS_AUTOFDO_CLANG += -fsplit-machine-functions
+ endif
+ 
+-ifdef CONFIG_LTO_CLANG_THIN
++ifneq ($(CONFIG_LTO_CLANG_THIN)$(CONFIG_LTO_CLANG_THIN_DIST),)
+   ifdef CLANG_AUTOFDO_PROFILE
+     KBUILD_LDFLAGS += --lto-sample-profile=$(CLANG_AUTOFDO_PROFILE)
+   endif
+diff --git a/scripts/Makefile.propeller b/scripts/Makefile.propeller
+index 333333333333..444444444444 100644
+--- a/scripts/Makefile.propeller
++++ b/scripts/Makefile.propeller
+@@ -26,7 +26,7 @@ ifndef CONFIG_DEBUG_INFO
+   endif
+ endif
+ 
+-ifdef CONFIG_LTO_CLANG_THIN
++ifneq ($(CONFIG_LTO_CLANG_THIN)$(CONFIG_LTO_CLANG_THIN_DIST),)
+   ifdef CLANG_PROPELLER_PROFILE_PREFIX
+     KBUILD_LDFLAGS += --lto-basic-block-sections=$(CLANG_PROPELLER_PROFILE_PREFIX)_cc_profile.txt
+   else
+-- 
+2.47.0
+

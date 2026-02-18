@@ -137,7 +137,7 @@ src_prepare() {
 	fi
 
 	if use bmq; then
-		eapply "${files_dir}/sched/0001-prjc-cachy.patch"
+		eapply "${files_dir}/sched-dev/0001-prjc-cachy.patch"
 		cp "${files_dir}/config-bmq" .config || die
 	fi
 

@@ -16,7 +16,7 @@
 +    gcc -Q -march=native --help=target | grep -m1 march= | awk '{print $2}'
 +  elif [ -x "$(command -v clang)" ]; then
 +    # Clang outputs target-cpu in its verbose mode
-+    clang -### -march=native -E - </dev/null 2>&1 | grep -Po -m1 '"target-cpu"[[:space:]]"\K[^"]+'
++    clang -### -march=native -E - </dev/null 2>&1 | grep -Po -m1 '"\-target-cpu"[[:space:]]"\K[^"]+'
 +  else
 +    echo "Error: Neither GCC nor Clang is installed. Please install one and try again." >&2
      exit 1

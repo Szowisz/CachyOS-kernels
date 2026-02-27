@@ -157,6 +157,9 @@ src_prepare() {
 	#find . -name "localversion*" -delete || die
 	#scripts/config -u LOCALVERSION || die
 
+	# Set kernel version suffix using localversion file (same as upstream PKGBUILD)
+	echo "-cachyos" > localversion.20-pkgname || die
+
 	### Selecting CachyOS config
 	scripts/config -e CACHY || die
 

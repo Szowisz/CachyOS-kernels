@@ -73,7 +73,7 @@ build_upstream_patch_urls() {
 	echo "${urls}"
 }
 
-RDEPEND="autofdo? ( dev-util/perf[libpfm] )"
+RDEPEND+=" autofdo? ( dev-util/perf[libpfm] )"
 SRC_URI="
 	${KERNEL_URI}
 	${GENPATCHES_URI}

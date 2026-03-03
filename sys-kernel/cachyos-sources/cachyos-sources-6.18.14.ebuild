@@ -67,7 +67,7 @@ REQUIRED_USE="
 	?? ( mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative mzen4 )
 "
 
-RDEPEND="autofdo? ( dev-util/perf[libpfm] )"
+RDEPEND+=" autofdo? ( dev-util/perf[libpfm] )"
 SRC_URI="
 	${KERNEL_URI}
 	${GENPATCHES_URI}

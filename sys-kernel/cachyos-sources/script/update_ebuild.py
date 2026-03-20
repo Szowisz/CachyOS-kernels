@@ -27,6 +27,19 @@ USE_FLAG_CONFIG_MAPPING = {
     "deckify": ["linux-cachyos-deckify"],
 }
 
+# Scheduler-related USE flags (appear in the ^^ constraint and IUSE scheduler line)
+SCHEDULER_FLAGS = {"bore", "bmq", "rt", "rt-bore", "eevdf", "hardened"}
+
+# Known compound USE flag patterns in src_prepare that get replaced with 'false'
+# when a flag is removed. Maps flag -> list of (search_regex, replacement_string)
+# These are patterns where the flag appears in compound conditions like "use bore || use hardened"
+COMPOUND_USE_PATTERNS = {
+    "hardened": [
+        # "use bore || false" -> "use bore || use hardened"  (SCHED_BORE enablement)
+        (r'\buse bore \|\| false\b', 'use bore || use hardened'),
+    ],
+}
+
 # All upstream config directories to check
 UPSTREAM_CONFIGS = [
     "linux-cachyos",
@@ -218,6 +231,136 @@ def remove_use_flags_from_required_use(content, flags_to_remove):
             '',
             content
         )
+
+    return content
+
+
+def get_flags_present_in_iuse(content):
+    """Extract the set of USE flags currently present in the IUSE declaration"""
+    iuse_match = re.search(r'IUSE="([^"]*)"', content, re.DOTALL)
+    if not iuse_match:
+        return set()
+    iuse_text = iuse_match.group(1)
+    # Extract flag names, stripping optional + prefix
+    flags = set()
+    for token in iuse_text.split():
+        flag = token.lstrip('+')
+        if flag:
+            flags.add(flag)
+    return flags
+
+
+def get_missing_available_flags(content, available_flags):
+    """Find flags that are available upstream but missing from the ebuild's IUSE"""
+    present = get_flags_present_in_iuse(content)
+    missing = [f for f in available_flags if f in SCHEDULER_FLAGS and f not in present]
+    return missing
+
+
+def restore_use_flags_to_iuse(content, flags_to_restore):
+    """Add previously removed USE flags back to IUSE declaration"""
+    if not flags_to_restore:
+        return content
+
+    iuse_pattern = r'(IUSE="[^"]*")'
+    match = re.search(iuse_pattern, content, re.DOTALL)
+    if not match:
+        log("Could not find IUSE declaration for restoration", "WARN")
+        return content
+
+    iuse_block = match.group(1)
+    new_iuse_block = iuse_block
+
+    for flag in flags_to_restore:
+        if flag in SCHEDULER_FLAGS:
+            # Scheduler flags go on the scheduler line (line containing "bore bmq" etc.)
+            # Insert before "kcfi" on the deckify line, or after the scheduler line
+            # Pattern: "deckify" possibly followed by "kcfi" or other flags
+            if re.search(r'\bdeckify\b', new_iuse_block):
+                # Insert after "deckify" on the same line
+                new_iuse_block = re.sub(
+                    r'(\bdeckify)\b',
+                    r'\1 ' + flag,
+                    new_iuse_block,
+                    count=1
+                )
+            else:
+                # Fallback: insert after the scheduler line (bore bmq rt rt-bore eevdf)
+                new_iuse_block = re.sub(
+                    r'(\beevdf\b)',
+                    r'\1 ' + flag,
+                    new_iuse_block,
+                    count=1
+                )
+        log(f"Restored USE flag '{flag}' to IUSE")
+
+    return content.replace(iuse_block, new_iuse_block)
+
+
+def restore_use_flags_to_required_use(content, flags_to_restore):
+    """Add previously removed USE flags back to REQUIRED_USE ^^ scheduler constraint"""
+    if not flags_to_restore:
+        return content
+
+    scheduler_pattern = r'(\^\^ \( )([a-z-]+(?: [a-z-]+)*)( \))'
+
+    def restore_scheduler_constraint(match):
+        prefix = match.group(1)
+        flags_str = match.group(2)
+        suffix = match.group(3)
+
+        current_flags = flags_str.split()
+        # Only operate on the scheduler constraint
+        if not any(f in SCHEDULER_FLAGS for f in current_flags):
+            return match.group(0)
+
+        for flag in flags_to_restore:
+            if flag in SCHEDULER_FLAGS and flag not in current_flags:
+                current_flags.append(flag)
+
+        return prefix + ' '.join(current_flags) + suffix
+
+    new_content, count = re.subn(scheduler_pattern, restore_scheduler_constraint, content, count=1)
+    if count > 0:
+        match = re.search(scheduler_pattern, new_content)
+        if match:
+            log(f"Restored scheduler constraint: ^^ ( {match.group(2)} )")
+    return new_content
+
+
+def restore_use_flags_in_src_prepare(content, flags_to_restore):
+    """Restore 'use <flag>' from 'false' for previously removed USE flags in src_prepare.
+
+    Handles two patterns:
+    1. 'if false; then' blocks where subsequent lines reference the flag
+       (e.g., hardened.patch, config-hardened)
+    2. Compound conditions like 'use bore || false' via COMPOUND_USE_PATTERNS
+    """
+    if not flags_to_restore:
+        return content
+
+    for flag in flags_to_restore:
+        # Pattern 1: Standalone 'if false; then' blocks
+        # Look for 'if false; then' followed by lines referencing the flag name
+        # within the next few lines (before 'fi')
+        pattern = (
+            r'(if )(false)(; then\n'
+            r'(?:[^\n]*\n)*?'  # match lines in between
+            r'[^\n]*' + re.escape(flag) + r'[^\n]*\n'  # line referencing the flag
+            r'(?:[^\n]*\n)*?'  # more lines
+            r'[^\n]*\bfi\b)'  # closing fi
+        )
+        match = re.search(pattern, content)
+        if match:
+            content = content[:match.start(2)] + 'use ' + flag + content[match.end(2):]
+            log(f"Restored 'if use {flag}; then' block in src_prepare")
+
+        # Pattern 2: Compound conditions from COMPOUND_USE_PATTERNS
+        if flag in COMPOUND_USE_PATTERNS:
+            for search_re, replacement in COMPOUND_USE_PATTERNS[flag]:
+                if re.search(search_re, content):
+                    content = re.sub(search_re, replacement, content)
+                    log(f"Restored compound pattern for '{flag}': {replacement}")
 
     return content
 
@@ -529,13 +672,20 @@ def copy_and_update_ebuild(
             "INFO",
         )
 
-        # Show which USE flags would be removed
+        # Show which USE flags would be removed or restored
         if not skip_version_check and upstream_versions:
             available_flags, unavailable_flags = get_available_use_flags(new_version, upstream_versions)
             if unavailable_flags:
                 log(f"DRY RUN: Would remove USE flags: {', '.join(unavailable_flags)}", "INFO")
             else:
                 log("DRY RUN: All USE flags available for this version", "INFO")
+
+            # Check for flags that would be restored
+            with open(template_path, "r") as f:
+                template_content = f.read()
+            missing_flags = get_missing_available_flags(template_content, available_flags)
+            if missing_flags:
+                log(f"DRY RUN: Would restore USE flags: {', '.join(missing_flags)}", "INFO")
 
         return new_ebuild_path
 
@@ -582,7 +732,7 @@ def copy_and_update_ebuild(
     # Update any version-specific comments or variables if needed
     # This could be extended for version-specific patches
 
-    # Check upstream config versions and remove unavailable USE flags
+    # Check upstream config versions and remove/restore USE flags
     if not skip_version_check and upstream_versions:
         available_flags, unavailable_flags = get_available_use_flags(new_version, upstream_versions)
 
@@ -591,6 +741,14 @@ def copy_and_update_ebuild(
             content = remove_use_flags_from_iuse(content, unavailable_flags)
             content = remove_use_flags_from_required_use(content, unavailable_flags)
             content = remove_use_flags_from_src_prepare(content, unavailable_flags)
+
+        # Restore flags that are available upstream but missing from template
+        missing_flags = get_missing_available_flags(content, available_flags)
+        if missing_flags:
+            log(f"Restoring previously removed USE flags: {', '.join(missing_flags)}")
+            content = restore_use_flags_to_iuse(content, missing_flags)
+            content = restore_use_flags_to_required_use(content, missing_flags)
+            content = restore_use_flags_in_src_prepare(content, missing_flags)
 
     # Write updated content back
     with open(new_ebuild_path, "w") as f:

@@ -93,8 +93,8 @@ jobs:
           # === Scheduler Tests (mutually exclusive) ===
           - "bmq -bore"
           - "eevdf -bore"
-          - "rt -bore"
-          - "rt-bore -bore"
+          - "rt -bore -preempt_full"
+          - "rt-bore -bore -preempt_full"
           
           # === Special Configurations ===
           - "kcfi"
@@ -116,11 +116,7 @@ jobs:
           # === Preemption Mode Tests ===
           - "preempt_voluntary -preempt_full"
           - "preempt_lazy -preempt_full"
-          # RT schedulers with different preemption
-          - "rt preempt_voluntary -bore -preempt_full"
-          - "rt preempt_lazy -bore -preempt_full"
-          - "rt-bore preempt_voluntary -bore -preempt_full"
-          - "rt-bore preempt_lazy -bore -preempt_full"
+          # RT schedulers handle preemption via PREEMPT_RT, no preempt_* flags allowed
           
           # === Compiler Optimization Tests ===
           - "o3"  # Default
@@ -165,8 +161,8 @@ jobs:
           # === Complex Real-world Combinations ===
           # Performance gaming setup
           - "bmq o3 bbr3 hz_ticks_1000 per-gov mzen4 -bore -mnative"
-          # Low latency audio workstation
-          - "rt preempt_full hz_ticks_1000 tickrate_full -bore"
+          # Low latency audio workstation (RT handles preemption via PREEMPT_RT)
+          - "rt hz_ticks_1000 tickrate_full -bore -preempt_full"
           # Power saving laptop
           - "eevdf os hz_ticks_250 tickrate_idle -per-gov -bore -tickrate_full -hz_ticks_1000 -o3"
           # Steam Deck optimized
@@ -177,8 +173,8 @@ jobs:
           - "bore o3 bbr3 autofdo propeller llvm-lto-thin mzen4 -llvm-lto-thin-dist -llvm-lto-full -mnative"
           # Conservative stable build
           - "eevdf mgeneric os -bore -o3 -autofdo -propeller -mnative"
-          # RT audio production
-          - "rt-bore preempt_full hz_ticks_1000 o3 -bore"
+          # RT audio production (RT handles preemption via PREEMPT_RT)
+          - "rt-bore hz_ticks_1000 o3 -bore -preempt_full"
           # Virtual machine host
           - "eevdf hugepage_madvise tickrate_idle mgeneric_v3 -bore -hugepage_always -tickrate_full -mnative"
           # Container host optimized
@@ -189,8 +185,8 @@ jobs:
           - "bore autofdo llvm-lto-thin hz_ticks_1000 o3 -llvm-lto-thin-dist -llvm-lto-full"
           # Maximum compatibility
           - "eevdf mgeneric -bore -autofdo -propeller -kcfi -mnative"
-          # KCFI security feature with RT
-          - "kcfi rt-bore preempt_lazy -bore -preempt_full"
+          # KCFI security feature with RT (RT handles preemption via PREEMPT_RT)
+          - "kcfi rt-bore -bore -preempt_full"
           
     container:
       image: docker.io/gentoo/stage3:latest

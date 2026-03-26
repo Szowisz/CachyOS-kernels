@@ -57,7 +57,6 @@
     <flag name="preempt_full">Full preemption model for lowest latency (PREEMPT)</flag>
     <flag name="preempt_lazy">Lazy preemption model (PREEMPT_LAZY)</flag>
     <flag name="preempt_voluntary">Voluntary preemption model for server workloads (PREEMPT_VOLUNTARY)</flag>
-    <flag name="preempt_none">No forced preemption (PREEMPT_NONE), for server workloads; also used by RT kernels where PREEMPT_RT handles preemption</flag>
 
     <!-- Compiler optimization levels -->
     <flag name="o3">Enable KBUILD_CFLAGS -O3 optimization for maximum performance</flag>

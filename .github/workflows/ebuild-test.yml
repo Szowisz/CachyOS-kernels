@@ -93,8 +93,8 @@ jobs:
           # === Scheduler Tests (mutually exclusive) ===
           - "bmq -bore"
           - "eevdf -bore"
-          - "rt -bore -preempt_full"
-          - "rt-bore -bore -preempt_full"
+          - "rt -bore"
+          - "rt-bore -bore"
           
           # === Special Configurations ===
           - "kcfi"
@@ -116,7 +116,6 @@ jobs:
           # === Preemption Mode Tests ===
           - "preempt_voluntary -preempt_full"
           - "preempt_lazy -preempt_full"
-          # RT schedulers handle preemption via PREEMPT_RT, no preempt_* flags allowed
           
           # === Compiler Optimization Tests ===
           - "o3"  # Default
@@ -161,8 +160,8 @@ jobs:
           # === Complex Real-world Combinations ===
           # Performance gaming setup
           - "bmq o3 bbr3 hz_ticks_1000 per-gov mzen4 -bore -mnative"
-          # Low latency audio workstation (RT handles preemption via PREEMPT_RT)
-          - "rt hz_ticks_1000 tickrate_full -bore -preempt_full"
+          # Low latency audio workstation
+          - "rt hz_ticks_1000 tickrate_full -bore"
           # Power saving laptop
           - "eevdf os hz_ticks_250 tickrate_idle -per-gov -bore -tickrate_full -hz_ticks_1000 -o3"
           # Steam Deck optimized
@@ -173,8 +172,8 @@ jobs:
           - "bore o3 bbr3 autofdo propeller llvm-lto-thin mzen4 -llvm-lto-thin-dist -llvm-lto-full -mnative"
           # Conservative stable build
           - "eevdf mgeneric os -bore -o3 -autofdo -propeller -mnative"
-          # RT audio production (RT handles preemption via PREEMPT_RT)
-          - "rt-bore hz_ticks_1000 o3 -bore -preempt_full"
+          # RT audio production
+          - "rt-bore hz_ticks_1000 o3 -bore"
           # Virtual machine host
           - "eevdf hugepage_madvise tickrate_idle mgeneric_v3 -bore -hugepage_always -tickrate_full -mnative"
           # Container host optimized
@@ -185,8 +184,8 @@ jobs:
           - "bore autofdo llvm-lto-thin hz_ticks_1000 o3 -llvm-lto-thin-dist -llvm-lto-full"
           # Maximum compatibility
           - "eevdf mgeneric -bore -autofdo -propeller -kcfi -mnative"
-          # KCFI security feature with RT (RT handles preemption via PREEMPT_RT)
-          - "kcfi rt-bore -bore -preempt_full"
+          # KCFI security feature with RT
+          - "kcfi rt-bore -bore"
           
     container:
       image: docker.io/gentoo/stage3:latest

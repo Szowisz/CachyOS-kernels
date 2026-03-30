@@ -233,6 +233,7 @@ src_prepare() {
 	scripts/config -e CACHY || die
 
 	### Selecting the CPU scheduler
+	# CachyOS Scheduler (BORE)
 	if use bore || use hardened; then
 		scripts/config -e SCHED_BORE || die
 	fi
@@ -253,6 +254,7 @@ src_prepare() {
 	if use kcfi; then
 		scripts/config -e ARCH_SUPPORTS_CFI_CLANG -e CFI -e CFI_CLANG -e CFI_AUTO_DEFAULT || die
 	else
+		# https://github.com/openzfs/zfs/issues/15911
 		scripts/config -d CFI -d CFI_CLANG -e CFI_PERMISSIVE || die
 	fi
 
@@ -273,7 +275,7 @@ src_prepare() {
 			--set-val CONFIG_DRM_PANIC_SCREEN_QR_VERSION 40 || die
 	fi
 
-	## LLVM DKMS patch
+	## LLVM patch
 	if use kcfi || use llvm-lto-thin || use llvm-lto-full || use llvm-lto-thin-dist; then
 		eapply "${files_dir}/misc/dkms-clang.patch"
 	fi
@@ -372,17 +374,13 @@ src_prepare() {
 	fi
 
 	### Select CPU optimization
-	local march_list=(mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative mzen4)
-	local march_found=false
-	local MMARCH MARCH_TRIMMED MARCH
+	march_list=(mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative mzen4)
+	march_found=false
 	for MMARCH in "${march_list[@]}"; do
 		if use "${MMARCH}"; then
 			MARCH_TRIMMED=${MMARCH:1}
 			MARCH=$(echo "$MARCH_TRIMMED" | tr '[:lower:]' '[:upper:]')
 			case "$MARCH" in
-			GENERIC)
-				scripts/config -e GENERIC_CPU -d MZEN4 -d X86_NATIVE_CPU || die
-				;;
 			GENERIC_V[1-4])
 				scripts/config -e GENERIC_CPU -d MZEN4 -d X86_NATIVE_CPU \
 					--set-val X86_64_VERSION "${MARCH//GENERIC_V/}" || die
@@ -398,7 +396,7 @@ src_prepare() {
 			break
 		fi
 	done
-	if [[ "${march_found}" == false ]]; then
+	if [ "$march_found" = false ]; then
 		scripts/config -d GENERIC_CPU -d MZEN4 -e X86_NATIVE_CPU || die
 	fi
 
@@ -409,7 +407,6 @@ src_prepare() {
 	if use autofdo; then
 		scripts/config -e AUTOFDO_CLANG || die
 	fi
-
 	### Propeller Optimization
 	if use propeller; then
 		scripts/config -e PROPELLER_CLANG || die
@@ -417,6 +414,9 @@ src_prepare() {
 
 	### Change hostname
 	scripts/config --set-str DEFAULT_HOSTNAME "gentoo" || die
+
+	# Gentoo/OpenRC: restore upstream default console loglevel (CachyOS defaults to 4 for silent systemd boot) #41
+	scripts/config --set-val CONSOLE_LOGLEVEL_DEFAULT 7 || die
 
 	### Set LOCALVERSION for dist-kernel identification
 	local myversion="-cachyos-dist"

@@ -355,6 +355,9 @@ src_prepare() {
 	### Change hostname
 	scripts/config --set-str DEFAULT_HOSTNAME "gentoo" || die
 
+	# Gentoo/OpenRC: restore upstream default console loglevel (CachyOS defaults to 4 for silent systemd boot) #41
+	scripts/config --set-val CONSOLE_LOGLEVEL_DEFAULT 7 || die
+
 	### Set LOCALVERSION
 	#scripts/config --set-str LOCALVERSION "${PVR}" || die
 }

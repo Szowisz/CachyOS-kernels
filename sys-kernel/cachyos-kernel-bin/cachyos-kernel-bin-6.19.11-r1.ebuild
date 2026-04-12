@@ -34,7 +34,6 @@ SRC_URI="
 # Binary packages per variant (x86_64_v3 only for this version)
 # Naming: linux-cachyos[-variant][-lto]-{ver}-{pkgrel}-{arch}.pkg.tar.zst
 # The default "bore + lto" = "linux-cachyos" (no variant suffix in package name)
-# Note: bmq excluded - not available at 6.19.10 on mirrors
 SRC_URI+="
 	bore? (
 		lto? ( !gcc? (
@@ -48,6 +47,16 @@ SRC_URI+="
 		gcc? (
 			${MIRROR_V3}/linux-cachyos-gcc-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 			${MIRROR_V3}/linux-cachyos-gcc-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+	)
+	bmq? (
+		lto? (
+			${MIRROR_V3}/linux-cachyos-bmq-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bmq-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-bmq-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bmq-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
 	eevdf? (
@@ -106,9 +115,9 @@ S="${WORKDIR}"
 
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
-IUSE="+bore eevdf hardened rt-bore deckify server +lto gcc debug"
+IUSE="+bore bmq eevdf hardened rt-bore deckify server +lto gcc debug"
 REQUIRED_USE="
-	^^ ( bore eevdf hardened rt-bore deckify server )
+	^^ ( bore bmq eevdf hardened rt-bore deckify server )
 	?? ( lto gcc )
 	gcc? ( bore )
 "
@@ -142,6 +151,8 @@ _cachyos_variant_suffix() {
 		elif use gcc; then echo "cachyos-gcc"
 		else echo "cachyos-bore"
 		fi
+	elif use bmq; then
+		use lto && echo "cachyos-bmq-lto" || echo "cachyos-bmq"
 	elif use eevdf; then
 		use lto && echo "cachyos-eevdf-lto" || echo "cachyos-eevdf"
 	elif use hardened; then
@@ -163,6 +174,8 @@ _cachyos_bin_distfile() {
 		elif use gcc; then variant="-gcc"
 		else variant="-bore"
 		fi
+	elif use bmq; then
+		use lto && variant="-bmq-lto" || variant="-bmq"
 	elif use eevdf; then
 		use lto && variant="-eevdf-lto" || variant="-eevdf"
 	elif use hardened; then
@@ -185,6 +198,8 @@ _cachyos_headers_distfile() {
 		elif use gcc; then variant="-gcc"
 		else variant="-bore"
 		fi
+	elif use bmq; then
+		use lto && variant="-bmq-lto" || variant="-bmq"
 	elif use eevdf; then
 		use lto && variant="-eevdf-lto" || variant="-eevdf"
 	elif use hardened; then

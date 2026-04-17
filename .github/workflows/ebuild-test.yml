@@ -285,11 +285,22 @@ jobs:
         
     - name: Configure package.use
       run: |
+        EBUILD_PATH="sys-kernel/cachyos-sources/cachyos-sources-${{ matrix.version }}.ebuild"
+        USE_FLAGS="${{ matrix.use_flags }}"
+
+        # Kernel 7.0 renamed preempt_voluntary to preempt_dynamic.
+        # Translate the matrix entry per ebuild so mixed-version runs stay valid.
+        if grep -qE '\bpreempt_dynamic\b' "$EBUILD_PATH" && ! grep -qE '\bpreempt_voluntary\b' "$EBUILD_PATH"; then
+          USE_FLAGS="${USE_FLAGS//preempt_voluntary/preempt_dynamic}"
+        elif grep -qE '\bpreempt_voluntary\b' "$EBUILD_PATH" && ! grep -qE '\bpreempt_dynamic\b' "$EBUILD_PATH"; then
+          USE_FLAGS="${USE_FLAGS//preempt_dynamic/preempt_voluntary}"
+        fi
+
         mkdir -p /etc/portage/package.use
-        echo "sys-kernel/cachyos-sources ${{ matrix.use_flags }}" > /etc/portage/package.use/cachyos-sources
+        echo "sys-kernel/cachyos-sources ${USE_FLAGS}" > /etc/portage/package.use/cachyos-sources
 
         # Show the USE flags that will be used
-        echo "Testing version ${{ matrix.version }} with USE flags:"
+        echo "Testing version ${{ matrix.version }} with USE flags: ${USE_FLAGS:-<default>}"
         emerge --pretend --verbose =sys-kernel/cachyos-sources-${{ matrix.version }} | grep USE
 
     - name: Install kernel sources

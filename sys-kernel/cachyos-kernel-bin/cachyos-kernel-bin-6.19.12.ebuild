@@ -34,7 +34,7 @@ SRC_URI="
 # Binary packages per variant (x86_64_v3 only for this version)
 # Naming: linux-cachyos[-variant][-lto]-{ver}-{pkgrel}-{arch}.pkg.tar.zst
 # The default "bore + lto" = "linux-cachyos" (no variant suffix in package name)
-# Note: bmq excluded - not available at 6.19.11 on mirrors
+# Note: bmq and deckify excluded - not available at 6.19.12 on mirrors
 SRC_URI+="
 	bore? (
 		lto? ( !gcc? (
@@ -80,16 +80,6 @@ SRC_URI+="
 			${MIRROR_V3}/linux-cachyos-rt-bore-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
-	deckify? (
-		lto? (
-			${MIRROR_V3}/linux-cachyos-deckify-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
-		!lto? (
-			${MIRROR_V3}/linux-cachyos-deckify-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-deckify-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
-	)
 	server? (
 		lto? (
 			${MIRROR_V3}/linux-cachyos-server-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
@@ -106,9 +96,9 @@ S="${WORKDIR}"
 
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
-IUSE="+bore eevdf hardened rt-bore deckify server +lto gcc debug"
+IUSE="+bore eevdf hardened rt-bore server +lto gcc debug"
 REQUIRED_USE="
-	^^ ( bore eevdf hardened rt-bore deckify server )
+	^^ ( bore eevdf hardened rt-bore server )
 	?? ( lto gcc )
 	gcc? ( bore )
 "
@@ -148,8 +138,6 @@ _cachyos_variant_suffix() {
 		use lto && echo "cachyos-hardened-lto" || echo "cachyos-hardened"
 	elif use rt-bore; then
 		use lto && echo "cachyos-rt-bore-lto" || echo "cachyos-rt-bore"
-	elif use deckify; then
-		use lto && echo "cachyos-deckify-lto" || echo "cachyos-deckify"
 	elif use server; then
 		use lto && echo "cachyos-server-lto" || echo "cachyos-server"
 	fi
@@ -169,8 +157,6 @@ _cachyos_bin_distfile() {
 		use lto && variant="-hardened-lto" || variant="-hardened"
 	elif use rt-bore; then
 		use lto && variant="-rt-bore-lto" || variant="-rt-bore"
-	elif use deckify; then
-		use lto && variant="-deckify-lto" || variant="-deckify"
 	elif use server; then
 		use lto && variant="-server-lto" || variant="-server"
 	fi
@@ -191,8 +177,6 @@ _cachyos_headers_distfile() {
 		use lto && variant="-hardened-lto" || variant="-hardened"
 	elif use rt-bore; then
 		use lto && variant="-rt-bore-lto" || variant="-rt-bore"
-	elif use deckify; then
-		use lto && variant="-deckify-lto" || variant="-deckify"
 	elif use server; then
 		use lto && variant="-server-lto" || variant="-server"
 	fi

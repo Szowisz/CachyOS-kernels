@@ -960,7 +960,9 @@ def main():
         help="Show what would be done without making changes",
     )
     parser.add_argument(
-        "--files-path", type=str, default="./files", help="Path to files directory"
+        "--files-path",
+        type=str,
+        help="Path to files directory (defaults to the package's files dir)",
     )
     parser.add_argument(
         "--force", action="store_true", help="Force overwrite existing ebuild"
@@ -976,6 +978,7 @@ def main():
     # Determine ebuild directory
     script_dir = Path(__file__).parent
     ebuild_dir = script_dir.parent
+    files_path = args.files_path if args.files_path else str(ebuild_dir / "files")
 
     log(f"Working in directory: {ebuild_dir}")
 
@@ -1050,7 +1053,7 @@ def main():
 
     # Run get_files.py
     success, new_commit_hash = run_get_files(
-        target_version, previous_commit, args.files_path, args.lts, args.dry_run
+        target_version, previous_commit, files_path, args.lts, args.dry_run
     )
 
     if not success:

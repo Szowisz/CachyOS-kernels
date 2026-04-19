@@ -33,13 +33,13 @@ SRC_URI="
 
 # Binary packages per variant (x86_64_v3 only for this version)
 # Naming: linux-cachyos[-variant][-lto]-{ver}-{pkgrel}-{arch}.pkg.tar.zst
-# The default "bore + lto" = "linux-cachyos" (no variant suffix in package name)
-# Note: bmq and deckify excluded - not available at 6.19.12 on mirrors
+# The default "eevdf + lto" = "linux-cachyos" (no variant suffix in package name)
+# Note: hardened and deckify are not available at 7.0.0 on mirrors
 SRC_URI+="
 	bore? (
 		lto? ( !gcc? (
-			${MIRROR_V3}/linux-cachyos-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bore-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bore-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		) )
 		!lto? ( !gcc? (
 			${MIRROR_V3}/linux-cachyos-bore-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
@@ -52,22 +52,12 @@ SRC_URI+="
 	)
 	eevdf? (
 		lto? (
-			${MIRROR_V3}/linux-cachyos-eevdf-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-eevdf-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 		!lto? (
 			${MIRROR_V3}/linux-cachyos-eevdf-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 			${MIRROR_V3}/linux-cachyos-eevdf-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
-	)
-	hardened? (
-		lto? (
-			${MIRROR_V3}/linux-cachyos-hardened-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-hardened-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
-		!lto? (
-			${MIRROR_V3}/linux-cachyos-hardened-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-hardened-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
 	rt-bore? (
@@ -96,9 +86,9 @@ S="${WORKDIR}"
 
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
-IUSE="+bore eevdf hardened rt-bore server +lto gcc debug"
+IUSE="bore +eevdf rt-bore server +lto gcc debug"
 REQUIRED_USE="
-	^^ ( bore eevdf hardened rt-bore server )
+	^^ ( bore eevdf rt-bore server )
 	?? ( lto gcc )
 	gcc? ( bore )
 "
@@ -128,14 +118,12 @@ QA_PREBUILT='*'
 # This determines the kernel release string: {PV}-{PR}-{suffix}
 _cachyos_variant_suffix() {
 	if use bore; then
-		if use lto; then echo "cachyos"
+		if use lto; then echo "cachyos-bore-lto"
 		elif use gcc; then echo "cachyos-gcc"
 		else echo "cachyos-bore"
 		fi
 	elif use eevdf; then
-		use lto && echo "cachyos-eevdf-lto" || echo "cachyos-eevdf"
-	elif use hardened; then
-		use lto && echo "cachyos-hardened-lto" || echo "cachyos-hardened"
+		use lto && echo "cachyos" || echo "cachyos-eevdf"
 	elif use rt-bore; then
 		use lto && echo "cachyos-rt-bore-lto" || echo "cachyos-rt-bore"
 	elif use server; then
@@ -147,14 +135,12 @@ _cachyos_variant_suffix() {
 _cachyos_bin_distfile() {
 	local variant=""
 	if use bore; then
-		if use lto; then variant=""
+		if use lto; then variant="-bore-lto"
 		elif use gcc; then variant="-gcc"
 		else variant="-bore"
 		fi
 	elif use eevdf; then
-		use lto && variant="-eevdf-lto" || variant="-eevdf"
-	elif use hardened; then
-		use lto && variant="-hardened-lto" || variant="-hardened"
+		use lto && variant="" || variant="-eevdf"
 	elif use rt-bore; then
 		use lto && variant="-rt-bore-lto" || variant="-rt-bore"
 	elif use server; then
@@ -167,14 +153,12 @@ _cachyos_bin_distfile() {
 _cachyos_headers_distfile() {
 	local variant=""
 	if use bore; then
-		if use lto; then variant=""
+		if use lto; then variant="-bore-lto"
 		elif use gcc; then variant="-gcc"
 		else variant="-bore"
 		fi
 	elif use eevdf; then
-		use lto && variant="-eevdf-lto" || variant="-eevdf"
-	elif use hardened; then
-		use lto && variant="-hardened-lto" || variant="-hardened"
+		use lto && variant="" || variant="-eevdf"
 	elif use rt-bore; then
 		use lto && variant="-rt-bore-lto" || variant="-rt-bore"
 	elif use server; then

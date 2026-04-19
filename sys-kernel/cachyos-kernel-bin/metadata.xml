@@ -11,11 +11,9 @@
   </maintainer>
   <use>
     <!-- CPU Schedulers (mutually exclusive) -->
-    <flag name="bore">CachyOS Default (BORE - Burst-Oriented Response Enhancer), optimized for desktop responsiveness</flag>
+    <flag name="bore">BORE (Burst-Oriented Response Enhancer) scheduler variant</flag>
     <flag name="eevdf">Default Linux EEVDF (Earliest Eligible Virtual Deadline First) scheduler</flag>
-    <flag name="hardened">Hardened kernel with BORE scheduler and security patches</flag>
     <flag name="rt-bore">BORE scheduler with realtime patches for low-latency applications</flag>
-    <flag name="deckify">Steam Deck and handheld device optimized kernel</flag>
     <flag name="server">Server-optimized kernel configuration</flag>
 
     <!-- Compiler/Optimization -->

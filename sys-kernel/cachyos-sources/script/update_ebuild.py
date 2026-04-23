@@ -443,6 +443,15 @@ def get_genpatches_version_from_template(
         # Extract clean version numbers, removing any suffixes like -r1, -rc1, etc.
         clean_template_version = clean_version_helper(template_version)
         clean_new_version = clean_version_helper(new_version)
+
+        # Gentoo revision-only bumps keep the same upstream kernel tarball, so the
+        # genpatches version should stay unchanged.
+        if clean_template_version == clean_new_version:
+            log(
+                f"Revision-only bump ({template_version} -> {new_version}), keeping genpatches version: {old_genpatches_version}"
+            )
+            return str(old_genpatches_version)
+
         template_parts = clean_template_version.split(".")
         new_parts = clean_new_version.split(".")
 

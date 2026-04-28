@@ -4,7 +4,7 @@
 EAPI=8
 
 # LLVM support for Clang/LTO builds
-LLVM_COMPAT=( {17..20} )
+LLVM_COMPAT=( {17..22} )
 
 inherit kernel-build toolchain-funcs llvm-r1 optfeature
 

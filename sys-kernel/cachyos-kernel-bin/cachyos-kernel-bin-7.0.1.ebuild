@@ -34,7 +34,7 @@ SRC_URI="
 # Binary packages per variant (x86_64_v3 only for this version)
 # Naming: linux-cachyos[-variant][-lto]-{ver}-{pkgrel}-{arch}.pkg.tar.zst
 # The default "eevdf + lto" = "linux-cachyos" (no variant suffix in package name)
-# Note: hardened and deckify are not available at 7.0.0 on mirrors
+# Note: hardened and deckify are not available at 7.0.1 on mirrors
 SRC_URI+="
 	bore? (
 		lto? ( !gcc? (

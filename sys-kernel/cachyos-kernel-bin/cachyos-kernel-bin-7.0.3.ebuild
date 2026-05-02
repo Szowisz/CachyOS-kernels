@@ -34,7 +34,6 @@ SRC_URI="
 # Binary packages per variant (x86_64_v3 only for this version)
 # Naming: linux-cachyos[-variant][-lto]-{ver}-{pkgrel}-{arch}.pkg.tar.zst
 # The default "eevdf + lto" = "linux-cachyos" (no variant suffix in package name)
-# Note: hardened and deckify are not available at 7.0.1 on mirrors
 SRC_URI+="
 	bore? (
 		lto? ( !gcc? (
@@ -80,15 +79,25 @@ SRC_URI+="
 			${MIRROR_V3}/linux-cachyos-server-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
+	deckify? (
+		lto? (
+			${MIRROR_V3}/linux-cachyos-deckify-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-deckify-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-deckify-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+	)
 "
 
 S="${WORKDIR}"
 
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
-IUSE="bore +eevdf rt-bore server +lto gcc debug"
+IUSE="bore +eevdf rt-bore server deckify +lto gcc debug"
 REQUIRED_USE="
-	^^ ( bore eevdf rt-bore server )
+	^^ ( bore eevdf rt-bore server deckify )
 	?? ( lto gcc )
 	gcc? ( bore )
 "
@@ -128,6 +137,8 @@ _cachyos_variant_suffix() {
 		use lto && echo "cachyos-rt-bore-lto" || echo "cachyos-rt-bore"
 	elif use server; then
 		use lto && echo "cachyos-server-lto" || echo "cachyos-server"
+	elif use deckify; then
+		use lto && echo "cachyos-deckify-lto" || echo "cachyos-deckify"
 	fi
 }
 
@@ -145,6 +156,8 @@ _cachyos_bin_distfile() {
 		use lto && variant="-rt-bore-lto" || variant="-rt-bore"
 	elif use server; then
 		use lto && variant="-server-lto" || variant="-server"
+	elif use deckify; then
+		use lto && variant="-deckify-lto" || variant="-deckify"
 	fi
 	echo "linux-cachyos${variant}-${BINPKG_VER}-x86_64_v3.pkg.tar.zst"
 }
@@ -163,6 +176,8 @@ _cachyos_headers_distfile() {
 		use lto && variant="-rt-bore-lto" || variant="-rt-bore"
 	elif use server; then
 		use lto && variant="-server-lto" || variant="-server"
+	elif use deckify; then
+		use lto && variant="-deckify-lto" || variant="-deckify"
 	fi
 	echo "linux-cachyos${variant}-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst"
 }

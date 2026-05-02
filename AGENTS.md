@@ -96,7 +96,9 @@ sudo ebuild sys-kernel/cachyos-kernel/cachyos-kernel-<VERSION>.ebuild clean prep
 
 ### 3. cachyos-kernel-bin
 
-**Bin kernel only tracks the latest version**. Old bin ebuilds should be removed.
+**Bin kernel tracks both the latest mainline kernel AND the latest LTS kernel** (if upstream provides one). Old bin ebuilds that are neither the latest mainline nor the latest LTS should be removed.
+
+**When updating a bin ebuild, always `mv` the old ebuild to the new version first, then edit it.** Do NOT `cp` and keep the old ebuild around — upstream stops hosting old binaries, so running `ebuild manifest` on the old version will fail because the distfiles are no longer downloadable. Renaming instead of copying avoids this problem.
 
 For each new version, the bin packages may have DIFFERENT scheduler variant availability on CachyOS mirrors. Always check:
 ```bash
@@ -105,6 +107,39 @@ curl -s https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3/ | \
 ```
 
 The USE flags must match exactly what's available on the mirror. If a variant (e.g., `hardened`, `deckify`) doesn't exist for this version, remove it from IUSE/REQUIRED_USE/SRC_URI.
+
+### 3a. cachyos-kernel-bin Variant Coverage Rules
+
+**Core principle: the ebuild MUST cover every upstream bin variant available on the mirror.**
+
+Every time a new bin ebuild is created, check all available packages on the CachyOS mirror:
+```bash
+curl -s https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3/ | \
+  grep -oP "linux-cachyos[^\"]*-${VERSION}-${PKGREL}-x86_64_v3\.pkg\.tar\.zst" | sort -u
+```
+
+IUSE / REQUIRED_USE / SRC_URI must precisely cover all combinations on the mirror. If a variant (e.g., `hardened`, `deckify`) doesn't exist for this version, remove it from the ebuild. Conversely, if it exists, it MUST be added.
+
+**LTO / GCC USE flags follow the same principle:** only provide `lto` or `gcc` USE when the mirror has the corresponding packages. For example, 6.18.26 LTS only has `linux-cachyos-lts` (no lto variant), so the ebuild does not need an `lto` USE.
+
+**Variant selection uses `^^ ( ... )` mutual exclusion:** even when only one variant option exists for a version (e.g., hardened-only or lts-only), use this pattern for structural consistency.
+
+Typical IUSE per version:
+
+| Version | Mirror variants | IUSE | REQUIRED_USE |
+|---------|----------------|------|-------------|
+| Mainline (7.x) | bore, eevdf, rt-bore, server, deckify (+ bore's gcc sub-variant), each with lto/non-lto | `bore +eevdf rt-bore server deckify +lto gcc debug` | `^^ ( bore eevdf rt-bore server deckify ) ?? ( lto gcc ) gcc? ( bore )` |
+| 6.19.x (hardened-only) | hardened + hardened-lto | `hardened lto debug` | `hardened` |
+| 6.18.x (LTS) | lts (single package, no lto) | `lts debug` | `lts` |
+
+**Variant → package name mapping reference:** see `sys-kernel/cachyos-kernel-bin/AGENT.md`.
+
+**Checklist for new bin ebuilds:**
+1. Check mirror for all available variants and their lto/non-lto combinations
+2. Set IUSE to cover all available variants + `lto` (if available) + `gcc` (if available) + `debug`
+3. Ensure REQUIRED_USE `^^ ( ... )` includes all variant options
+4. Update `_cachyos_variant_suffix()`, `_cachyos_bin_distfile()`, `_cachyos_headers_distfile()` functions
+5. Compare against the previous ebuild: confirm no missing variants, and remove variants not on the mirror
 
 ### 4. virtual/dist-kernel
 
@@ -146,7 +181,7 @@ grep 'PATCHSET' /var/db/repos/gentoo/sys-kernel/gentoo-kernel/gentoo-kernel-<VER
 |-------------|------------------|
 | `cachyos-sources` | `/var/db/repos/gentoo/sys-kernel/gentoo-sources/` |
 | `cachyos-kernel` | `/var/db/repos/gentoo/sys-kernel/gentoo-kernel/` |
-| `cachyos-kernel-bin` | Only keep the latest version |
+| `cachyos-kernel-bin` | Keep latest mainline + latest LTS (if upstream has one) |
 | `virtual/dist-kernel` | Align with kernel cleanup |
 
 Match by kernel version (ignore `-rN` revision suffix):
@@ -222,12 +257,22 @@ After all tests pass and manifests are regenerated:
 
 ```bash
 # First commit: version update (add new ebuilds, files, manifests, virtual, AGENTS.md)
-git add -v sys-kernel/cachyos-sources/ sys-kernel/cachyos-kernel/ sys-kernel/cachyos-kernel-bin/
+git add -v sys-kernel/cachyos-sources/ sys-kernel/cachyos-kernel/
 git add -v virtual/dist-kernel/ AGENTS.md
 pkgdev commit --signoff -m "sys-kernel: update CachyOS kernels to <V1>, <V2> and <V3>"
 
 # Second commit: cleanup old versions (removed ebuilds, files dirs, manifests)
 pkgdev commit --signoff -m "sys-kernel: drop old versions, <deleted ranges>"
+```
+
+### Bin kernel commit (single atomic commit)
+
+**Bin kernel updates must be in a single commit** that includes both adding new ebuilds and removing old ones. This is because `ebuild manifest` on an old bin version will fail once upstream stops hosting those binaries, making separate add/drop commits break bisection and reproducibility.
+
+```bash
+# Single commit: add new bin ebuilds + remove old bin ebuilds + regenerate Manifest
+git add -v sys-kernel/cachyos-kernel-bin/
+pkgdev commit --signoff -m "sys-kernel: update CachyOS kernels to <V1>, <V2> and <V3> (bin)"
 ```
 
 ---
@@ -255,7 +300,7 @@ For `cachyos-kernel-bin`, USE flags must reflect the exact combinations availabl
 2. **Genpatches version from the script may be wrong** for LTS — always verify against gentoo-sources
 3. **Shared patch directories** (`files/6.19.0/`, `files/6.18.10/`) are version-independent — don't delete during cleanup
 4. **cachyos-kernel/files is a symlink** to cachyos-sources/files — changes to one affect both
-5. **cachyos-kernel-bin only keeps the latest version** — old bin ebuilds should be removed
+5. **cachyos-kernel-bin keeps latest mainline + latest LTS (and any hardened-only version)** — remove old bin ebuilds that are neither. Every upstream bin variant must be covered by the ebuild's USE flags; if the mirror lacks an lto variant, omit the `lto` USE
 6. **Manifest must be regenerated** after adding/removing any ebuild
 7. **`ebuild ... manifest` may need sudo** for binpkgs directory access
 

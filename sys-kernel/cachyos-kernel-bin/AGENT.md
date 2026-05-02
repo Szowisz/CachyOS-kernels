@@ -163,6 +163,7 @@ Total download can be >2GB. Ensure good connectivity.
 | `deckify !lto` | `linux-cachyos-deckify` | `{PV}-{PR}-cachyos-deckify` |
 | `server lto` | `linux-cachyos-server-lto` | `{PV}-{PR}-cachyos-server-lto` |
 | `server !lto` | `linux-cachyos-server` | `{PV}-{PR}-cachyos-server` |
+| `lts` | `linux-cachyos-lts` | `{PV}-{PR}-cachyos-lts` |
 
 ### Kernel release string derivation
 

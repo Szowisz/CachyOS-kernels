@@ -244,6 +244,7 @@ pkg_preinst() {
 
 pkg_postinst() {
 	_cachyos_setup_kv
+	depmod "${KV_FULL}"
 	kernel-install_pkg_postinst
 
 	ewarn ""

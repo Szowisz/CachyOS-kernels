@@ -48,7 +48,7 @@ IUSE="
 	llvm-lto-thin llvm-lto-full +llvm-lto-thin-dist
 	kernel-builtin-zfs
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 +hz_ticks_1000
-	+per-gov tickrate_perodic tickrate_idle +tickrate_full +preempt_full preempt_lazy preempt_voluntary
+	+per-gov tickrate_periodic tickrate_idle +tickrate_full +preempt_full preempt_lazy preempt_voluntary preempt_none
 	+o3 os debug +bbr3
 	+hugepage_always hugepage_madvise
 	mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4
@@ -64,9 +64,8 @@ REQUIRED_USE="
 	llvm-lto-thin-dist? ( clang )
 	kcfi? ( clang )
 	^^ ( hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 hz_ticks_1000 )
-	^^ ( tickrate_perodic tickrate_idle tickrate_full )
-	rt? ( ^^ ( preempt_full preempt_lazy preempt_voluntary ) )
-	rt-bore? ( ^^ ( preempt_full preempt_lazy preempt_voluntary ) )
+	^^ ( tickrate_periodic tickrate_idle tickrate_full )
+	^^ ( preempt_full preempt_lazy preempt_voluntary preempt_none )
 	?? ( o3 os debug )
 	^^ ( hugepage_always hugepage_madvise )
 	?? ( mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative mzen4 )
@@ -305,7 +304,7 @@ src_prepare() {
 	fi
 
 	### Select tick type
-	if use tickrate_perodic; then
+	if use tickrate_periodic; then
 		scripts/config -d NO_HZ_IDLE -d NO_HZ_FULL -d NO_HZ -d NO_HZ_COMMON -e HZ_PERIODIC || die
 	fi
 
@@ -318,14 +317,16 @@ src_prepare() {
 	fi
 
 	### Select preempt type
-	if use preempt_full; then
-		scripts/config -e PREEMPT_DYNAMIC -e PREEMPT -d PREEMPT_VOLUNTARY -d PREEMPT_LAZY -d PREEMPT_NONE || die
-	elif use preempt_lazy; then
-		scripts/config -e PREEMPT_DYNAMIC -d PREEMPT -d PREEMPT_VOLUNTARY -e PREEMPT_LAZY -d PREEMPT_NONE || die
-	elif use preempt_voluntary; then
-		scripts/config -d PREEMPT_DYNAMIC -d PREEMPT -e PREEMPT_VOLUNTARY -d PREEMPT_LAZY -d PREEMPT_NONE || die
-	else
-		scripts/config -d PREEMPT_DYNAMIC -d PREEMPT -d PREEMPT_VOLUNTARY -d PREEMPT_LAZY -e PREEMPT_NONE || die
+	if ! use rt && ! use rt-bore; then
+		if use preempt_full; then
+			scripts/config -e PREEMPT_DYNAMIC -e PREEMPT -d PREEMPT_VOLUNTARY -d PREEMPT_LAZY -d PREEMPT_NONE || die
+		elif use preempt_lazy; then
+			scripts/config -e PREEMPT_DYNAMIC -d PREEMPT -d PREEMPT_VOLUNTARY -e PREEMPT_LAZY -d PREEMPT_NONE || die
+		elif use preempt_voluntary; then
+			scripts/config -d PREEMPT_DYNAMIC -d PREEMPT -e PREEMPT_VOLUNTARY -d PREEMPT_LAZY -d PREEMPT_NONE || die
+		elif use preempt_none; then
+			scripts/config -d PREEMPT_DYNAMIC -d PREEMPT -d PREEMPT_VOLUNTARY -d PREEMPT_LAZY -e PREEMPT_NONE || die
+		fi
 	fi
 
 	### Enable O3

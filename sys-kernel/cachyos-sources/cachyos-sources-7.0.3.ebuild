@@ -47,7 +47,7 @@ IUSE="
 	+llvm-lto-thin llvm-lto-full llvm-lto-thin-dist
 	kernel-builtin-zfs
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 +hz_ticks_1000
-	+per-gov tickrate_perodic tickrate_idle +tickrate_full +preempt_full preempt_lazy preempt_dynamic
+	+per-gov tickrate_periodic tickrate_idle +tickrate_full +preempt_full preempt_lazy
 	+o3 os debug +bbr3
 	+hugepage_always hugepage_madvise
 	mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4
@@ -59,8 +59,8 @@ REQUIRED_USE="
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )
 	?? ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist )
 	^^ ( hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 hz_ticks_1000 )
-	^^ ( tickrate_perodic tickrate_idle tickrate_full )
-	^^ ( preempt_full preempt_lazy preempt_dynamic )
+	^^ ( tickrate_periodic tickrate_idle tickrate_full )
+	^^ ( preempt_full preempt_lazy )
 	?? ( o3 os debug )
 	^^ ( hugepage_always hugepage_madvise )
 	?? ( mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative mzen4 )
@@ -232,7 +232,7 @@ src_prepare() {
 	fi
 
 	### Select tick type
-	if use tickrate_perodic; then
+	if use tickrate_periodic; then
 		scripts/config -d NO_HZ_IDLE -d NO_HZ_FULL -d NO_HZ -d NO_HZ_COMMON -e HZ_PERIODIC || die
 	fi
 
@@ -246,12 +246,11 @@ src_prepare() {
 
 	### Select preempt type
 	if ! use rt && ! use rt-bore; then
+		scripts/config -e PREEMPT_DYNAMIC || die
 		if use preempt_full; then
-			scripts/config -d PREEMPT_DYNAMIC -e PREEMPT -d PREEMPT_LAZY || die
+			scripts/config -e PREEMPT -d PREEMPT_LAZY || die
 		elif use preempt_lazy; then
-			scripts/config -d PREEMPT_DYNAMIC -d PREEMPT -e PREEMPT_LAZY || die
-		elif use preempt_dynamic; then
-			scripts/config -e PREEMPT_DYNAMIC -e PREEMPT -d PREEMPT_LAZY || die
+			scripts/config -d PREEMPT -e PREEMPT_LAZY || die
 		fi
 	fi
 

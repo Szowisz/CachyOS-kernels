@@ -48,7 +48,7 @@ IUSE="
 	+llvm-lto-thin llvm-lto-full llvm-lto-thin-dist
 	kernel-builtin-zfs
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 +hz_ticks_1000
-	+per-gov tickrate_perodic tickrate_idle +tickrate_full +preempt_full preempt_lazy preempt_dynamic
+	+per-gov tickrate_periodic tickrate_idle +tickrate_full +preempt_full preempt_lazy preempt_dynamic
 	+o3 os debug +bbr3
 	+hugepage_always hugepage_madvise
 	mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4
@@ -64,7 +64,7 @@ REQUIRED_USE="
 	llvm-lto-thin-dist? ( clang )
 	kcfi? ( clang )
 	^^ ( hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 hz_ticks_1000 )
-	^^ ( tickrate_perodic tickrate_idle tickrate_full )
+	^^ ( tickrate_periodic tickrate_idle tickrate_full )
 	^^ ( preempt_full preempt_lazy preempt_dynamic )
 	?? ( o3 os debug )
 	^^ ( hugepage_always hugepage_madvise )
@@ -294,7 +294,7 @@ src_prepare() {
 	fi
 
 	### Select tick type
-	if use tickrate_perodic; then
+	if use tickrate_periodic; then
 		scripts/config -d NO_HZ_IDLE -d NO_HZ_FULL -d NO_HZ -d NO_HZ_COMMON -e HZ_PERIODIC || die
 	fi
 

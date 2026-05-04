@@ -49,7 +49,7 @@
     <flag name="per-gov">Set CPU frequency performance governor as default instead of schedutil</flag>
 
     <!-- Tick rate configuration -->
-    <flag name="tickrate_perodic">Use periodic ticks (traditional approach)</flag>
+    <flag name="tickrate_periodic">Use periodic ticks (traditional approach)</flag>
     <flag name="tickrate_idle">Use idle tickless mode (NO_HZ_IDLE)</flag>
     <flag name="tickrate_full">Use full tickless mode (NO_HZ_FULL) - can provide higher performance but lower consistency depending on hardware</flag>
 

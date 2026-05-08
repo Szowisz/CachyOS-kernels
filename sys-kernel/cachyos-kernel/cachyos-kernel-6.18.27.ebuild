@@ -45,7 +45,7 @@ IUSE="
 	+bore bmq rt rt-bore eevdf
 	deckify hardened kcfi
 	+clang +autofdo +propeller
-	llvm-lto-thin llvm-lto-full +llvm-lto-thin-dist
+	llvm-lto-thin llvm-lto-full +llvm-lto-thin-dist llvm-lto-none
 	kernel-builtin-zfs
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 +hz_ticks_1000
 	+per-gov tickrate_periodic tickrate_idle +tickrate_full +preempt_full preempt_lazy preempt_voluntary preempt_none
@@ -58,7 +58,7 @@ REQUIRED_USE="
 	^^ ( bore bmq rt rt-bore eevdf hardened )
 	propeller? ( !llvm-lto-full )
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )
-	?? ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist )
+	^^ ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none )
 	llvm-lto-thin? ( clang )
 	llvm-lto-full? ( clang )
 	llvm-lto-thin-dist? ( clang )
@@ -264,7 +264,7 @@ src_prepare() {
 		scripts/config -e LTO_CLANG_THIN_DIST || die
 	elif use llvm-lto-full; then
 		scripts/config -e LTO_CLANG_FULL || die
-	else
+	elif use llvm-lto-none; then
 		scripts/config -e LTO_NONE || die
 	fi
 

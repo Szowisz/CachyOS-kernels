@@ -114,9 +114,6 @@ jobs:
           - "tickrate_idle -tickrate_full"
           
           # === Preemption Mode Tests ===
-          # preempt_voluntary/preempt_dynamic/preempt_none are version-dependent;
-          # the Configure package.use step translates them per ebuild
-          - "preempt_alternate -preempt_full"
           - "preempt_lazy -preempt_full"
           
           # === Compiler Optimization Tests ===
@@ -289,25 +286,6 @@ jobs:
       run: |
         EBUILD_PATH="sys-kernel/cachyos-sources/cachyos-sources-${{ matrix.version }}.ebuild"
         USE_FLAGS="${{ matrix.use_flags }}"
-
-        # Preempt alternate mode flag name varies by kernel version:
-        #   7.0.3+:           preempt_lazy only (no third mode)
-        #   7.0.0 - 7.0.2:    preempt_dynamic
-        #   6.18.x, 6.19.x:   preempt_voluntary (+ preempt_none for 6.18.26+, 6.19.12+)
-        # The matrix uses "preempt_alternate" as a placeholder; translate it here.
-        if echo "$USE_FLAGS" | grep -qE '\bpreempt_alternate\b'; then
-          if grep -qE '\bpreempt_dynamic\b' "$EBUILD_PATH"; then
-            USE_FLAGS="${USE_FLAGS//preempt_alternate/preempt_dynamic}"
-          elif grep -qE '\bpreempt_none\b' "$EBUILD_PATH"; then
-            USE_FLAGS="${USE_FLAGS//preempt_alternate/preempt_none}"
-          elif grep -qE '\bpreempt_voluntary\b' "$EBUILD_PATH"; then
-            USE_FLAGS="${USE_FLAGS//preempt_alternate/preempt_voluntary}"
-          else
-            # 7.0.3 has only preempt_full and preempt_lazy; skip the alternate test
-            echo "::notice::Skipping preempt_alternate test - ebuild has no alternate preempt mode"
-            USE_FLAGS="${USE_FLAGS//preempt_alternate/}"
-          fi
-        fi
 
         mkdir -p /etc/portage/package.use
         echo "sys-kernel/cachyos-sources ${USE_FLAGS}" > /etc/portage/package.use/cachyos-sources

@@ -872,14 +872,16 @@ def run_get_files(version, previous_commit, files_path, lts=False, dry_run=False
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         log("get_files.py completed successfully")
 
-        # Extract the new commit hash from stdout (last line should be the commit hash)
+        # Extract the kernel-patches commit hash printed by get_files.py.
         new_commit_hash = None
         if result.stdout:
             lines = result.stdout.strip().split("\n")
-            # The commit hash should be the last line and be 40 characters long
-            if lines and re.match(r"^[a-f0-9]{40}$", lines[-1].strip()):
-                new_commit_hash = lines[-1].strip()
-                log(f"New commit hash from get_files.py: {new_commit_hash[:12]}...")
+            for line in reversed(lines):
+                candidate = line.strip()
+                if re.match(r"^[a-f0-9]{40}$", candidate):
+                    new_commit_hash = candidate
+                    log(f"New commit hash from get_files.py: {new_commit_hash[:12]}...")
+                    break
             print("STDOUT:", result.stdout)
 
         return True, new_commit_hash

@@ -87,17 +87,17 @@ def diff_files(repo_path: str, previous_commit: str, lts: bool):
         ["git", "diff", previous_commit, "HEAD", "--", diff_file],
         cwd=repo_path,
     )
-    subprocess.call(["git", "rev-parse", "HEAD"], cwd=repo_path)
 
 
 def main(files_path: str, version: str, previous_commit: str, lts: bool):
     # get the latest version
     clean_files(files_path, version)
     with TemporaryDirectory() as tmp_path:
-        get_patch(version, files_path, tmp_path)
+        patch_commit = get_patch(version, files_path, tmp_path)
         get_config(version, files_path, tmp_path, lts)
         repo_path = f"{tmp_path}/linux-cachyos"
         diff_files(repo_path, previous_commit, lts)
+        print(patch_commit)
 
 
 parser = ArgumentParser()

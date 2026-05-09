@@ -1,49 +1,50 @@
 # Copyright 2023-2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v3
 
-EAPI="8"
-ETYPE="sources"
-EXTRAVERSION="-cachyos"
-K_NOSETEXTRAVERSION="1"
-# Use pre-patched CachyOS tarball from GitHub releases
-K_PREPATCHED="1"
+EAPI=8
+
+# LLVM support for Clang/LTO builds
+LLVM_COMPAT=( {17..22} )
+
+inherit kernel-build toolchain-funcs llvm-r1 optfeature
 
 # CachyOS release number mapping: Gentoo -rN -> CachyOS -N+1
 # -r0 (no revision) -> -1, -r1 -> -2, etc.
 CACHYOS_PR="$((${PR#r} + 1))"
 
-# Genpatches support - apply base and extras patches on top of CachyOS tarball
-K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="5"
+# CachyOS pre-patched tarball
+MY_P="cachyos-$(ver_cut 1-3)-${CACHYOS_PR}"
 
-# Exclude kernel version upgrade patches (10xx_linux-*.patch)
-# CachyOS tarball already includes the latest point release
-UNIPATCH_EXCLUDE="10"
+# Genpatches version - must match K_GENPATCHES_VER in cachyos-sources
+# Sync from: sys-kernel/cachyos-sources/cachyos-sources-${PV}.ebuild (K_GENPATCHES_VER)
+# Cross-reference: /var/db/repos/gentoo/sys-kernel/gentoo-kernel/gentoo-kernel-${PV}.ebuild (PATCHSET)
+GENPATCHES_VER=6
 
+# ZFS commit for kernel-builtin-zfs support
 ZFS_COMMIT="0829cf892b5d7b3a0e8aa76cc7aca02b84f62557"
 
-# make sure kernel-2 know right version without guess
-CKV="$(ver_cut 1-3)"
+DESCRIPTION="Linux kernel built with CachyOS patches (BORE, LTO, AutoFDO, BBR3 and more)"
+HOMEPAGE="
+	https://github.com/CachyOS/linux-cachyos
+	https://github.com/Szowisz/CachyOS-kernels
+"
+SRC_URI="
+	https://github.com/CachyOS/linux/releases/download/${MY_P}/${MY_P}.tar.gz
+	https://dev.gentoo.org/~mpagano/dist/genpatches/genpatches-$(ver_cut 1-2)-${GENPATCHES_VER}.base.tar.xz
+	https://dev.gentoo.org/~mpagano/dist/genpatches/genpatches-$(ver_cut 1-2)-${GENPATCHES_VER}.extras.tar.xz
+	kernel-builtin-zfs? (
+		https://github.com/cachyos/zfs/archive/${ZFS_COMMIT}.tar.gz
+			-> zfs-${ZFS_COMMIT}.tar.gz
+	)
+"
+S="${WORKDIR}/${MY_P}"
 
-inherit kernel-2 optfeature
-detect_version
-
-# Override KERNEL_URI to use CachyOS pre-patched tarball
-KERNEL_URI="https://github.com/CachyOS/linux/releases/download/cachyos-${CKV}-${CACHYOS_PR}/cachyos-${CKV}-${CACHYOS_PR}.tar.gz"
-
-# S is set by detect_version to linux-${KV_FULL}, we'll rename the directory in src_unpack
-
-# Disable kernel-2.eclass's automatic kernel.org incremental patches
-UNIPATCH_LIST_DEFAULT=""
-
-DESCRIPTION="Linux EEVDF + LTO + AutoFDO + Propeller Cachy Sauce Kernel by CachyOS with other patches and improvements."
-HOMEPAGE="https://github.com/CachyOS/linux-cachyos"
 LICENSE="GPL-3"
 KEYWORDS="~amd64"
 IUSE="
 	+bore bmq rt rt-bore eevdf
 	deckify kcfi
-	+autofdo +propeller
+	+clang +autofdo +propeller
 	+llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none
 	kernel-builtin-zfs
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 +hz_ticks_1000
@@ -58,6 +59,10 @@ REQUIRED_USE="
 	propeller? ( !llvm-lto-full )
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )
 	^^ ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none )
+	llvm-lto-thin? ( clang )
+	llvm-lto-full? ( clang )
+	llvm-lto-thin-dist? ( clang )
+	kcfi? ( clang )
 	^^ ( hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 hz_ticks_1000 )
 	^^ ( tickrate_periodic tickrate_idle tickrate_full )
 	^^ ( preempt_full preempt_lazy )
@@ -66,11 +71,28 @@ REQUIRED_USE="
 	?? ( mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative mzen4 )
 "
 
-RDEPEND+=" autofdo? ( dev-util/perf[libpfm] )"
-SRC_URI="
-	${KERNEL_URI}
-	${GENPATCHES_URI}
-	kernel-builtin-zfs? ( https://github.com/cachyos/zfs/archive/$ZFS_COMMIT.tar.gz -> zfs-$ZFS_COMMIT.tar.gz )
+RDEPEND="
+	!sys-kernel/cachyos-sources:${SLOT}
+	autofdo? ( dev-util/perf[libpfm] )
+"
+BDEPEND="
+	clang? (
+		$(llvm_gen_dep '
+			llvm-core/llvm:${LLVM_SLOT}
+			llvm-core/clang:${LLVM_SLOT}
+			llvm-core/lld:${LLVM_SLOT}
+		')
+	)
+	debug? ( dev-util/pahole )
+"
+PDEPEND="
+	>=virtual/dist-kernel-${PV}
+"
+
+QA_FLAGS_IGNORED="
+	usr/src/linux-.*/scripts/gcc-plugins/.*.so
+	usr/src/linux-.*/vmlinux
+	usr/src/linux-.*/arch/powerpc/kernel/vdso.*/vdso.*.so.dbg
 "
 
 _set_hztick_rate() {
@@ -82,41 +104,85 @@ _set_hztick_rate() {
 	fi
 }
 
-# Override kernel-2.eclass universal_unpack to handle CachyOS pre-patched tarball
-universal_unpack() {
-	cd "${WORKDIR}" || die
-	unpack "cachyos-${CKV}-${CACHYOS_PR}.tar.gz"
-	mv "cachyos-${CKV}-${CACHYOS_PR}" "${S}" || die
-	cd "${S}" || die
+pkg_setup() {
+	if use clang && ! tc-is-clang; then
+		llvm-r1_pkg_setup
+
+		export LLVM=1
+		export LLVM_IAS=1
+		export CC=clang
+		export LD=ld.lld
+		export AR=llvm-ar
+		export NM=llvm-nm
+		export OBJCOPY=llvm-objcopy
+		export OBJDUMP=llvm-objdump
+		export READELF=llvm-readelf
+		export STRIP=llvm-strip
+	else
+		tc-export CC CXX
+	fi
+
+	kernel-build_pkg_setup
 }
 
 src_unpack() {
-	# Exclude genpatch that conflicts with BMQ scheduler
-	# 1810_sched_proxy_yield_the_donor_task.patch changes current->sched_class to rq->donor->sched_class
-	# which breaks BMQ's patch context for do_sched_yield() and yield_to()
-	use bmq && UNIPATCH_EXCLUDE+=" 1810_sched_proxy_yield_the_donor_task.patch"
+	default
 
-	# Use kernel-2.eclass src_unpack (will call our overridden universal_unpack)
-	kernel-2_src_unpack
+	# Unpack genpatches
+	# (kernel-build does not use kernel-2's UNIPATCH mechanism)
 
-	### Push ZFS to linux
-	use kernel-builtin-zfs && (unpack zfs-$ZFS_COMMIT.tar.gz && mv zfs-$ZFS_COMMIT zfs || die)
-	use kernel-builtin-zfs && (cp $FILESDIR/kernel-build.sh . || die)
+	# Unpack ZFS if requested
+	if use kernel-builtin-zfs; then
+		unpack "zfs-${ZFS_COMMIT}.tar.gz"
+		mv "zfs-${ZFS_COMMIT}" "${S}/zfs" || die
+		cp "${FILESDIR}/kernel-build.sh" "${S}/" || die
+	fi
 }
 
 src_prepare() {
-	files_dir="${FILESDIR}/${PVR}"
+	local files_dir="${FILESDIR}/${PVR}"
+
+	# --- Apply genpatches (base + extras) ---
+	# Genpatches extract into ${WORKDIR}/ as numbered .patch files
+	# Exclude kernel version upgrade patches (10xx_linux-*.patch) since
+	# the CachyOS tarball already includes the latest point release
+	local genpatch genpatch_name genpatch_num
+	local genpatch_exclude=""
+
+	# Exclude genpatch that conflicts with BMQ scheduler
+	# 1810_sched_proxy_yield_the_donor_task.patch changes current->sched_class
+	# which breaks BMQ's patch context for do_sched_yield() and yield_to()
+	use bmq && genpatch_exclude+=" 1810"
+
+	# CachyOS 7.0.5 already carries the rxrpc skb unshare fix from genpatches.
+	genpatch_exclude+=" 2405"
+
+	for genpatch in "${WORKDIR}"/*.patch; do
+		[[ -f "${genpatch}" ]] || continue
+		genpatch_name=$(basename "${genpatch}")
+		genpatch_num=${genpatch_name%%_*}
+		local skip=false
+
+		# Skip kernel upgrade patches (10xx series)
+		[[ ${genpatch_num} == 10* ]] && skip=true
+
+		# Skip excluded genpatches
+		local exclude
+		for exclude in ${genpatch_exclude}; do
+			[[ ${genpatch_name} == ${exclude}* ]] && skip=true
+		done
+
+		if ! ${skip}; then
+			eapply "${genpatch}"
+		fi
+	done
+
+	# --- Apply CachyOS-specific patches ---
 
 	# Fix AutoFDO/Propeller support for LTO_CLANG_THIN_DIST
-	# The distributed ThinLTO patch by Rong Xu (xur@google.com) did not update
-	# Makefile.autofdo and Makefile.propeller for CONFIG_LTO_CLANG_THIN_DIST.
-	# RFC: https://discourse.llvm.org/t/rfc-distributed-thinlto-build-for-kernel/85934
-	# Original patch: https://github.com/xur-llvm/linux/commit/d970eaf7d90863e7f2ea7bd0c8fe44d4602c2e86
-	# Upstream mail: https://lore.kernel.org/linux-kbuild/20250420010214.1963979-1-xur@google.com/
-	# Fix suggested by marioroy: https://discourse.llvm.org/t/rfc-distributed-thinlto-build-for-kernel/85934/5
-	# https://github.com/Szowisz/CachyOS-kernels/issues/35
 	eapply "${FILESDIR}/6.19.0/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
 
+	# Apply scheduler-specific patches and copy config
 	if use bore; then
 		eapply "${files_dir}/sched/0001-bore-cachy.patch"
 		cp "${files_dir}/config-bore" .config || die
@@ -147,14 +213,13 @@ src_prepare() {
 		scripts/config -d RCU_LAZY_DEFAULT_OFF -e AMD_PRIVATE_COLOR || die
 	fi
 
+	# Apply user patches (from /etc/portage/patches/)
 	eapply_user
 
-	# Remove CachyOS's localversion
-	#find . -name "localversion*" -delete || die
-	#scripts/config -u LOCALVERSION || die
-
-	# Set kernel version suffix using localversion file (same as upstream PKGBUILD)
+	# Set kernel version suffix
 	echo "-cachyos" > localversion.20-pkgname || die
+
+	# --- Kernel config modifications ---
 
 	### Selecting CachyOS config
 	scripts/config -e CACHY || die
@@ -341,12 +406,37 @@ src_prepare() {
 	# Gentoo/OpenRC: restore upstream default console loglevel (CachyOS defaults to 4 for silent systemd boot) #41
 	scripts/config --set-val CONSOLE_LOGLEVEL_DEFAULT 7 || die
 
-	### Set LOCALVERSION
-	#scripts/config --set-str LOCALVERSION "${PVR}" || die
+	### Set LOCALVERSION for dist-kernel identification
+	local myversion="-cachyos-dist"
+	echo "CONFIG_LOCALVERSION=\"${myversion}\"" > "${T}"/version.config || die
+
+	# Ensure modprobe path is correct
+	echo 'CONFIG_MODPROBE_PATH="/sbin/modprobe"' > "${T}"/modprobe.config || die
+
+	# --- Finalize config via kernel-build merge ---
+	local merge_configs=(
+		"${T}"/version.config
+		"${T}"/modprobe.config
+	)
+
+	kernel-build_merge_configs "${merge_configs[@]}"
 }
 
 pkg_postinst() {
-	kernel-2_pkg_postinst
+	kernel-build_pkg_postinst
+
+	ewarn ""
+	ewarn "${PN} is *not* supported by the Gentoo Kernel Project in any way."
+	ewarn "If you need support, please contact the CachyOS project or the overlay maintainer."
+	ewarn "Do *not* open bugs in Gentoo's bugzilla unless you have issues with"
+	ewarn "the ebuilds. Thank you."
+	ewarn ""
+
+	if use mnative; then
+		ewarn "USE=mnative builds the kernel with -march=native, which optimizes for your"
+		ewarn "specific CPU. Binary packages built this way are NOT portable to other machines."
+		ewarn "Use USE=mgeneric_v3 or similar for portable builds."
+	fi
 
 	optfeature "userspace KSM helper" sys-process/uksmd
 	optfeature "NVIDIA opensource module" "x11-drivers/nvidia-drivers[kernel-open]"
@@ -359,13 +449,11 @@ pkg_postinst() {
 		ewarn "WARNING: You are using kernel-builtin-zfs USE flag."
 		ewarn "It is STRONGLY RECOMMENDED to use sys-fs/zfs instead of building ZFS into the kernel."
 		ewarn "sys-fs/zfs provides better compatibility and easier updates."
-		ewarn "ZFS support build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573, and you can check linux/kernel-build.sh as example"
 	fi
-	(use autofdo || use propeller) && ewarn "AutoFDO support build way: https://cachyos.org/blog/2411-kernel-autofdo, and you can check https://github.com/xz-dev/kernel-autofdo-container as example"
-}
-
-pkg_postrm() {
-	kernel-2_pkg_postrm
+	if use autofdo || use propeller; then
+		ewarn "AutoFDO support build way: https://cachyos.org/blog/2411-kernel-autofdo"
+		ewarn "Check https://github.com/xz-dev/kernel-autofdo-container as example"
+	fi
 }
 
 # e80ce8172953b8c199daf6a2850974bb12731ae9

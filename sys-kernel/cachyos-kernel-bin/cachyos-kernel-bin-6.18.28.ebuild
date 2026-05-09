@@ -32,7 +32,7 @@ SRC_URI="
 "
 
 # Binary packages per variant (x86_64_v3 only for this version)
-# 6.18.26 LTS only: linux-cachyos-lts (no scheduler variants, no lto)
+# 6.18.28 LTS only: linux-cachyos-lts (no scheduler variants, no lto)
 SRC_URI+="
 	lts? (
 		${MIRROR_V3}/linux-cachyos-lts-${BINPKG_VER}-x86_64_v3.pkg.tar.zst

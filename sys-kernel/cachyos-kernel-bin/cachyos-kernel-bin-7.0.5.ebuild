@@ -33,12 +33,13 @@ SRC_URI="
 
 # Binary packages per variant (x86_64_v3 only for this version)
 # Naming: linux-cachyos[-variant][-lto]-{ver}-{pkgrel}-{arch}.pkg.tar.zst
-# The default "eevdf + lto" = "linux-cachyos" (no variant suffix in package name)
+# Preserve the existing USE semantics even though upstream's bore+lto build
+# now uses the unsuffixed linux-cachyos package name.
 SRC_URI+="
 	bore? (
 		lto? ( !gcc? (
-			${MIRROR_V3}/linux-cachyos-bore-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-bore-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		) )
 		!lto? ( !gcc? (
 			${MIRROR_V3}/linux-cachyos-bore-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
@@ -51,8 +52,8 @@ SRC_URI+="
 	)
 	eevdf? (
 		lto? (
-			${MIRROR_V3}/linux-cachyos-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-eevdf-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-eevdf-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 		!lto? (
 			${MIRROR_V3}/linux-cachyos-eevdf-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
@@ -127,12 +128,12 @@ QA_PREBUILT='*'
 # This determines the kernel release string: {PV}-{PR}-{suffix}
 _cachyos_variant_suffix() {
 	if use bore; then
-		if use lto; then echo "cachyos-bore-lto"
+		if use lto; then echo "cachyos"
 		elif use gcc; then echo "cachyos-gcc"
 		else echo "cachyos-bore"
 		fi
 	elif use eevdf; then
-		use lto && echo "cachyos" || echo "cachyos-eevdf"
+		use lto && echo "cachyos-eevdf-lto" || echo "cachyos-eevdf"
 	elif use rt-bore; then
 		use lto && echo "cachyos-rt-bore-lto" || echo "cachyos-rt-bore"
 	elif use server; then
@@ -146,12 +147,12 @@ _cachyos_variant_suffix() {
 _cachyos_bin_distfile() {
 	local variant=""
 	if use bore; then
-		if use lto; then variant="-bore-lto"
+		if use lto; then variant=""
 		elif use gcc; then variant="-gcc"
 		else variant="-bore"
 		fi
 	elif use eevdf; then
-		use lto && variant="" || variant="-eevdf"
+		use lto && variant="-eevdf-lto" || variant="-eevdf"
 	elif use rt-bore; then
 		use lto && variant="-rt-bore-lto" || variant="-rt-bore"
 	elif use server; then
@@ -166,12 +167,12 @@ _cachyos_bin_distfile() {
 _cachyos_headers_distfile() {
 	local variant=""
 	if use bore; then
-		if use lto; then variant="-bore-lto"
+		if use lto; then variant=""
 		elif use gcc; then variant="-gcc"
 		else variant="-bore"
 		fi
 	elif use eevdf; then
-		use lto && variant="" || variant="-eevdf"
+		use lto && variant="-eevdf-lto" || variant="-eevdf"
 	elif use rt-bore; then
 		use lto && variant="-rt-bore-lto" || variant="-rt-bore"
 	elif use server; then

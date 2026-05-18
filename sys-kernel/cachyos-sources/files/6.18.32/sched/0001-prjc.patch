@@ -1,7 +1,7 @@
-From 5227cc6a80b96ef5b9b2d29ddb2b7317f044d9c9 Mon Sep 17 00:00:00 2001
+From 77e9a2cf89e86ab95945f4adfe955e7379d304f7 Mon Sep 17 00:00:00 2001
 From: Piotr Gorski <lucjan.lucjanov@gmail.com>
-Date: Mon, 12 Jan 2026 08:23:38 +0100
-Subject: [PATCH] prjc-cachy
+Date: Mon, 12 Jan 2026 08:23:09 +0100
+Subject: [PATCH] prjc
 
 Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
 ---
@@ -489,10 +489,10 @@ index 45c0022b9..d281dabe4 100644
  #else
  static inline void rebuild_sched_domains_energy(void)
 diff --git a/init/Kconfig b/init/Kconfig
-index 3a664a42c..e9666bfe8 100644
+index cab3ad28c..23a443c6b 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -692,6 +692,7 @@ config TASK_IO_ACCOUNTING
+@@ -688,6 +688,7 @@ config TASK_IO_ACCOUNTING
  
  config PSI
  	bool "Pressure stall information tracking"
@@ -500,7 +500,7 @@ index 3a664a42c..e9666bfe8 100644
  	select KERNFS
  	help
  	  Collect metrics that indicate how overcommitted the CPU, memory,
-@@ -915,6 +916,35 @@ config SCHED_PROXY_EXEC
+@@ -911,6 +912,35 @@ config SCHED_PROXY_EXEC
  	  This option enables proxy execution, a mechanism for mutex-owning
  	  tasks to inherit the scheduling context of higher priority waiters.
  
@@ -536,7 +536,7 @@ index 3a664a42c..e9666bfe8 100644
  endmenu
  
  #
-@@ -980,6 +1010,7 @@ config NUMA_BALANCING
+@@ -976,6 +1006,7 @@ config NUMA_BALANCING
  	depends on ARCH_SUPPORTS_NUMA_BALANCING
  	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
  	depends on SMP && NUMA && MIGRATION && !PREEMPT_RT
@@ -544,7 +544,7 @@ index 3a664a42c..e9666bfe8 100644
  	help
  	  This option adds support for automatic NUMA aware memory/task placement.
  	  The mechanism is quite primitive and is based on migrating memory when
-@@ -1445,6 +1476,7 @@ config CHECKPOINT_RESTORE
+@@ -1425,6 +1456,7 @@ config CHECKPOINT_RESTORE
  
  config SCHED_AUTOGROUP
  	bool "Automatic process group scheduling"
@@ -605,7 +605,7 @@ index a55e21892..05f01ffc3 100644
  	.sched_task_group = &root_task_group,
  #endif
 diff --git a/kernel/Kconfig.preempt b/kernel/Kconfig.preempt
-index cf5267cac..3b6c30284 100644
+index da326800c..728036392 100644
 --- a/kernel/Kconfig.preempt
 +++ b/kernel/Kconfig.preempt
 @@ -147,7 +147,7 @@ config PREEMPT_DYNAMIC
@@ -10646,7 +10646,7 @@ index f921302dc..2fade7dab 100644
  
  #endif /* _KERNEL_SCHED_PELT_H */
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index a3f52e493..3578933ca 100644
+index 2f8b06b12..139c1cc8f 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
 @@ -5,6 +5,10 @@
@@ -10660,7 +10660,7 @@ index a3f52e493..3578933ca 100644
  #include <linux/prandom.h>
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
-@@ -3915,4 +3919,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
+@@ -3911,4 +3915,9 @@ void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
  
  #include "ext.h"
  

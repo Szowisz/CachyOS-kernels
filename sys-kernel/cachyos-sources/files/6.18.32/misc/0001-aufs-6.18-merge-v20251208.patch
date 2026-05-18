@@ -1,7 +1,7 @@
-From f71b96b886235ff3637785d6bb464d7d1f286ab8 Mon Sep 17 00:00:00 2001
+From 9b03c5a4bf7bfe39a5c5b78ff282f6b943230a86 Mon Sep 17 00:00:00 2001
 From: Piotr Gorski <lucjan.lucjanov@gmail.com>
-Date: Tue, 7 Jan 2025 11:19:24 +0100
-Subject: [PATCH] aufs-6.12: merge v20250106
+Date: Mon, 8 Dec 2025 11:38:13 +0100
+Subject: [PATCH] aufs-6.18: merge v20251208
 
 Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
 ---
@@ -17,52 +17,53 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  .../filesystems/aufs/design/06dirren.dot      |   44 +
  .../filesystems/aufs/design/06dirren.txt      |  102 +
  .../filesystems/aufs/design/06fhsm.txt        |  118 +
- .../filesystems/aufs/design/06mmap.txt        |   72 +
+ .../filesystems/aufs/design/06mmap.txt        |   40 +
  .../filesystems/aufs/design/06xattr.txt       |   94 +
  .../filesystems/aufs/design/07export.txt      |   58 +
  .../filesystems/aufs/design/08shwh.txt        |   52 +
  .../filesystems/aufs/design/10dynop.txt       |   47 +
  MAINTAINERS                                   |   13 +
- drivers/block/loop.c                          |   60 +-
+ drivers/block/loop.c                          |   62 +-
  fs/Kconfig                                    |    1 +
- fs/Makefile                                   |    1 +
+ fs/Makefile                                   |    4 +
+ fs/au_mf.c                                    |   60 +
  fs/aufs/Kconfig                               |  201 ++
- fs/aufs/Makefile                              |   46 +
+ fs/aufs/Makefile                              |   47 +
  fs/aufs/aufs.h                                |   62 +
  fs/aufs/branch.c                              | 1427 ++++++++++++
  fs/aufs/branch.h                              |  375 ++++
  fs/aufs/conf.mk                               |   40 +
- fs/aufs/cpup.c                                | 1458 +++++++++++++
+ fs/aufs/cpup.c                                | 1466 +++++++++++++
  fs/aufs/cpup.h                                |  101 +
- fs/aufs/dbgaufs.c                             |  526 +++++
+ fs/aufs/dbgaufs.c                             |  525 +++++
  fs/aufs/dbgaufs.h                             |   53 +
  fs/aufs/dcsub.c                               |  225 ++
  fs/aufs/dcsub.h                               |  139 ++
  fs/aufs/debug.c                               |  448 ++++
  fs/aufs/debug.h                               |  226 ++
- fs/aufs/dentry.c                              | 1176 ++++++++++
- fs/aufs/dentry.h                              |  270 +++
+ fs/aufs/dentry.c                              | 1228 +++++++++++
+ fs/aufs/dentry.h                              |  271 +++
  fs/aufs/dinfo.c                               |  555 +++++
  fs/aufs/dir.c                                 |  765 +++++++
  fs/aufs/dir.h                                 |  134 ++
  fs/aufs/dirren.c                              | 1315 +++++++++++
  fs/aufs/dirren.h                              |  140 ++
- fs/aufs/dynop.c                               |  365 ++++
+ fs/aufs/dynop.c                               |  364 ++++
  fs/aufs/dynop.h                               |   77 +
- fs/aufs/export.c                              |  846 ++++++++
- fs/aufs/f_op.c                                |  782 +++++++
+ fs/aufs/export.c                              |  829 +++++++
+ fs/aufs/f_op.c                                |  791 +++++++
  fs/aufs/fhsm.c                                |  426 ++++
- fs/aufs/file.c                                |  858 ++++++++
- fs/aufs/file.h                                |  342 +++
- fs/aufs/finfo.c                               |  147 ++
+ fs/aufs/file.c                                |  855 ++++++++
+ fs/aufs/file.h                                |  327 +++
+ fs/aufs/finfo.c                               |  148 ++
  fs/aufs/fsctx.c                               | 1244 +++++++++++
  fs/aufs/fstype.h                              |  419 ++++
  fs/aufs/hbl.h                                 |   65 +
  fs/aufs/hfsnotify.c                           |  290 +++
  fs/aufs/hfsplus.c                             |   60 +
  fs/aufs/hnotify.c                             |  715 ++++++
- fs/aufs/i_op.c                                | 1526 +++++++++++++
- fs/aufs/i_op_add.c                            |  971 +++++++++
+ fs/aufs/i_op.c                                | 1522 +++++++++++++
+ fs/aufs/i_op_add.c                            |  979 +++++++++
  fs/aufs/i_op_del.c                            |  523 +++++
  fs/aufs/i_op_ren.c                            | 1264 +++++++++++
  fs/aufs/iinfo.c                               |  287 +++
@@ -73,6 +74,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  fs/aufs/loop.c                                |  164 ++
  fs/aufs/loop.h                                |   59 +
  fs/aufs/magic.mk                              |   31 +
+ fs/aufs/mf.c                                  |  119 +
  fs/aufs/module.c                              |  275 +++
  fs/aufs/module.h                              |  180 ++
  fs/aufs/mvdown.c                              |  714 ++++++
@@ -85,54 +87,45 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  fs/aufs/rdu.c                                 |  384 ++++
  fs/aufs/rwsem.h                               |   89 +
  fs/aufs/sbinfo.c                              |  316 +++
- fs/aufs/super.c                               |  874 ++++++++
+ fs/aufs/super.c                               |  875 ++++++++
  fs/aufs/super.h                               |  618 ++++++
  fs/aufs/sysaufs.c                             |   94 +
  fs/aufs/sysaufs.h                             |  102 +
  fs/aufs/sysfs.c                               |  374 ++++
  fs/aufs/sysrq.c                               |  157 ++
  fs/aufs/vdir.c                                |  896 ++++++++
- fs/aufs/vfsub.c                               |  965 +++++++++
+ fs/aufs/vfsub.c                               |  968 +++++++++
  fs/aufs/vfsub.h                               |  441 ++++
- fs/aufs/wbr_policy.c                          |  830 +++++++
- fs/aufs/whout.c                               | 1072 +++++++++
+ fs/aufs/wbr_policy.c                          |  835 +++++++
+ fs/aufs/whout.c                               | 1096 ++++++++++
  fs/aufs/whout.h                               |   87 +
  fs/aufs/wkq.c                                 |  370 ++++
  fs/aufs/wkq.h                                 |   89 +
  fs/aufs/xattr.c                               |  360 +++
  fs/aufs/xino.c                                | 1926 +++++++++++++++++
- fs/dcache.c                                   |    7 +-
+ fs/dcache.c                                   |    6 +-
  fs/exec.c                                     |    1 +
  fs/fcntl.c                                    |    5 +-
  fs/file_table.c                               |    1 +
- fs/namespace.c                                |   10 +
+ fs/namespace.c                                |    9 +
+ fs/notify/fsnotify.c                          |    1 +
  fs/notify/group.c                             |    1 +
  fs/open.c                                     |    1 +
  fs/proc/base.c                                |    2 +-
- fs/proc/nommu.c                               |    5 +-
- fs/proc/task_mmu.c                            |    8 +-
- fs/proc/task_nommu.c                          |    5 +-
+ fs/proc/nommu.c                               |    2 +-
+ fs/proc/task_nommu.c                          |    2 +-
  fs/read_write.c                               |    2 +
  fs/splice.c                                   |    3 +-
  fs/xattr.c                                    |    1 +
- include/linux/fs.h                            |    7 +
+ include/linux/fs.h                            |   32 +
  include/linux/lockdep.h                       |    2 +
- include/linux/mm.h                            |   37 +
- include/linux/mm_types.h                      |    6 +
  include/linux/mnt_namespace.h                 |    3 +
  include/linux/splice.h                        |    3 +
  include/uapi/linux/aufs_type.h                |  452 ++++
- kernel/fork.c                                 |    2 +-
  kernel/locking/lockdep.c                      |    4 +-
  kernel/task_work.c                            |    1 +
- mm/Makefile                                   |    1 +
- mm/filemap.c                                  |    2 +-
- mm/mmap.c                                     |   31 +-
- mm/nommu.c                                    |   10 +-
- mm/prfile.c                                   |   86 +
- mm/vma.c                                      |   10 +-
  security/security.c                           |    8 +
- 127 files changed, 38770 insertions(+), 27 deletions(-)
+ 120 files changed, 38838 insertions(+), 8 deletions(-)
  create mode 100644 Documentation/ABI/testing/debugfs-aufs
  create mode 100644 Documentation/ABI/testing/sysfs-aufs
  create mode 100644 Documentation/filesystems/aufs/README
@@ -150,6 +143,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  create mode 100644 Documentation/filesystems/aufs/design/07export.txt
  create mode 100644 Documentation/filesystems/aufs/design/08shwh.txt
  create mode 100644 Documentation/filesystems/aufs/design/10dynop.txt
+ create mode 100644 fs/au_mf.c
  create mode 100644 fs/aufs/Kconfig
  create mode 100644 fs/aufs/Makefile
  create mode 100644 fs/aufs/aufs.h
@@ -197,6 +191,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  create mode 100644 fs/aufs/loop.c
  create mode 100644 fs/aufs/loop.h
  create mode 100644 fs/aufs/magic.mk
+ create mode 100644 fs/aufs/mf.c
  create mode 100644 fs/aufs/module.c
  create mode 100644 fs/aufs/module.h
  create mode 100644 fs/aufs/mvdown.c
@@ -226,7 +221,6 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  create mode 100644 fs/aufs/xattr.c
  create mode 100644 fs/aufs/xino.c
  create mode 100644 include/uapi/linux/aufs_type.h
- create mode 100644 mm/prfile.c
 
 diff --git a/Documentation/ABI/testing/debugfs-aufs b/Documentation/ABI/testing/debugfs-aufs
 new file mode 100644
@@ -328,7 +322,7 @@ index 000000000..48500c056
 +		will be empty. About XINO files, see the aufs manual.
 diff --git a/Documentation/filesystems/aufs/README b/Documentation/filesystems/aufs/README
 new file mode 100644
-index 000000000..559fbe0d0
+index 000000000..2fd6314f2
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/README
 @@ -0,0 +1,409 @@
@@ -714,7 +708,7 @@ index 000000000..559fbe0d0
 +The Parted Magic Project made a donation (2013/9 and 11).
 +Pavel Barta made a donation (2013/10).
 +Nikolay Pertsev made a donation (2014/5).
-+James B made a donation (2014/7, 2015/7, and 2021/12).
++James B made a donation (2014/7, 2015/7, 2021/12, and 2025/9).
 +Stefano Di Biase made a donation (2014/8).
 +Daniel Epellei made a donation (2015/1).
 +OmegaPhil made a donation (2016/1, 2018/4).
@@ -743,12 +737,12 @@ index 000000000..559fbe0d0
 +# End: ;
 diff --git a/Documentation/filesystems/aufs/design/01intro.txt b/Documentation/filesystems/aufs/design/01intro.txt
 new file mode 100644
-index 000000000..4c468b326
+index 000000000..a22a37bad
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/01intro.txt
 @@ -0,0 +1,171 @@
 +
-+# Copyright (C) 2005-2022 Junjiro R. Okajima
++# Copyright (C) 2005-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -920,12 +914,12 @@ index 000000000..4c468b326
 +about it. But currently I have implemented it in kernel space.
 diff --git a/Documentation/filesystems/aufs/design/02struct.txt b/Documentation/filesystems/aufs/design/02struct.txt
 new file mode 100644
-index 000000000..83be46121
+index 000000000..e89dc7122
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/02struct.txt
 @@ -0,0 +1,258 @@
 +
-+# Copyright (C) 2005-2022 Junjiro R. Okajima
++# Copyright (C) 2005-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -1184,12 +1178,12 @@ index 000000000..83be46121
 +For this purpose, use "aumvdown" command in aufs-util.git.
 diff --git a/Documentation/filesystems/aufs/design/03atomic_open.txt b/Documentation/filesystems/aufs/design/03atomic_open.txt
 new file mode 100644
-index 000000000..4811f2432
+index 000000000..0401e8923
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/03atomic_open.txt
 @@ -0,0 +1,85 @@
 +
-+# Copyright (C) 2015-2022 Junjiro R. Okajima
++# Copyright (C) 2015-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -1275,12 +1269,12 @@ index 000000000..4811f2432
 +       be implemented in aufs, but not all I am afraid.
 diff --git a/Documentation/filesystems/aufs/design/03lookup.txt b/Documentation/filesystems/aufs/design/03lookup.txt
 new file mode 100644
-index 000000000..766a28be0
+index 000000000..35efe7079
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/03lookup.txt
 @@ -0,0 +1,113 @@
 +
-+# Copyright (C) 2005-2022 Junjiro R. Okajima
++# Copyright (C) 2005-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -1394,12 +1388,12 @@ index 000000000..766a28be0
 +   by over-mounting something (or another method).
 diff --git a/Documentation/filesystems/aufs/design/04branch.txt b/Documentation/filesystems/aufs/design/04branch.txt
 new file mode 100644
-index 000000000..ffeb97dca
+index 000000000..0286ccdfc
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/04branch.txt
 @@ -0,0 +1,74 @@
 +
-+# Copyright (C) 2005-2022 Junjiro R. Okajima
++# Copyright (C) 2005-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -1474,12 +1468,12 @@ index 000000000..ffeb97dca
 +    same named entry on the upper branch.
 diff --git a/Documentation/filesystems/aufs/design/05wbr_policy.txt b/Documentation/filesystems/aufs/design/05wbr_policy.txt
 new file mode 100644
-index 000000000..a2143bfe6
+index 000000000..0eeb6ee21
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/05wbr_policy.txt
 @@ -0,0 +1,64 @@
 +
-+# Copyright (C) 2005-2022 Junjiro R. Okajima
++# Copyright (C) 2005-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -1594,12 +1588,12 @@ index 000000000..4e6c7e7c2
 +}
 diff --git a/Documentation/filesystems/aufs/design/06dirren.txt b/Documentation/filesystems/aufs/design/06dirren.txt
 new file mode 100644
-index 000000000..58ec5e22f
+index 000000000..6b305def6
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/06dirren.txt
 @@ -0,0 +1,102 @@
 +
-+# Copyright (C) 2017-2022 Junjiro R. Okajima
++# Copyright (C) 2017-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -1702,12 +1696,12 @@ index 000000000..58ec5e22f
 +equivalen to udba=reval case.
 diff --git a/Documentation/filesystems/aufs/design/06fhsm.txt b/Documentation/filesystems/aufs/design/06fhsm.txt
 new file mode 100644
-index 000000000..d3b56325f
+index 000000000..edb1b765b
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/06fhsm.txt
 @@ -0,0 +1,118 @@
 +
-+# Copyright (C) 2011-2022 Junjiro R. Okajima
++# Copyright (C) 2011-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -1826,12 +1820,12 @@ index 000000000..d3b56325f
 +should restore the original file state after an error happens.
 diff --git a/Documentation/filesystems/aufs/design/06mmap.txt b/Documentation/filesystems/aufs/design/06mmap.txt
 new file mode 100644
-index 000000000..ddc65ce97
+index 000000000..bf155e7ce
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/06mmap.txt
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,40 @@
 +
-+# Copyright (C) 2005-2022 Junjiro R. Okajima
++# Copyright (C) 2005-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -1855,61 +1849,29 @@ index 000000000..ddc65ce97
 +Under /proc, several entries show the mmapped files by its path (with
 +device and inode number), and the printed path will be the path on the
 +branch fs's instead of virtual aufs's.
-+This is not a problem in most cases, but some utilities lsof(1) (and its
-+user) may expect the path on aufs.
++This is not a problem in most cases, but some utilities such like
++lsof(1) (and its user) may expect the path on aufs.
 +
-+To address this issue, aufs adds a new member called vm_prfile in struct
-+vm_area_struct (and struct vm_region). The original vm_file points to
-+the file on the branch fs in order to handle everything correctly as
-+usual. The new vm_prfile points to a virtual file in aufs, and the
-+show-functions in procfs refers to vm_prfile if it is set.
-+Also we need to maintain several other places where touching vm_file
-+such like
-+- fork()/clone() copies vma and the reference count of vm_file is
-+  incremented.
-+- merging vma maintains the ref count too.
++To address this issue, aufs used to take an approach to add a new
++member 'vm_prfile' into struct vm_area_struct (and struct
++vm_region). It was not an ideal solution but worked well for a long
++time. One big disadvantage is that it requires to follow every changes
++around 'vm_file' in every mainline releases.
 +
-+This is not a good approach. It just fakes the printed path. But it
-+leaves all behaviour around f_mapping unchanged. This is surely an
-+advantage.
-+Actually aufs had adopted another complicated approach which calls
-+generic_file_mmap() and handles struct vm_operations_struct. In this
-+approach, aufs met a hard problem and I could not solve it without
-+switching the approach.
-+
-+There may be one more another approach which is
-+- bind-mount the branch-root onto the aufs-root internally
-+- grab the new vfsmount (ie. struct mount)
-+- lazy-umount the branch-root internally
-+- in open(2) the aufs-file, open the branch-file with the hidden
-+  vfsmount (instead of the original branch's vfsmount)
-+- ideally this "bind-mount and lazy-umount" should be done atomically,
-+  but it may be possible from userspace by the mount helper.
-+
-+Adding the internal hidden vfsmount and using it in opening a file, the
-+file path under /proc will be printed correctly. This approach looks
-+smarter, but is not possible I am afraid.
-+- aufs-root may be bind-mount later. when it happens, another hidden
-+  vfsmount will be required.
-+- it is hard to get the chance to bind-mount and lazy-umount
-+  + in kernel-space, FS can have vfsmount in open(2) via
-+    file->f_path, and aufs can know its vfsmount. But several locks are
-+    already acquired, and if aufs tries to bind-mount and lazy-umount
-+    here, then it may cause a deadlock.
-+  + in user-space, bind-mount doesn't invoke the mount helper.
-+- since /proc shows dev and ino, aufs has to give vma these info. it
-+  means a new member vm_prinode will be necessary. this is essentially
-+  equivalent to vm_prfile described above.
-+
-+I have to give up this "looks-smater" approach.
++In linux-v6.7 (and v6.8), VFS internal functions file_user_path() and
++file_user_inode() were introduced for FMODE_BACKING and Overlayfs.
++They are good customization points and aufs gave up 'vm_prfile'
++approach and switched to modifiying file_user_{path,inode}() since
++aufs6.12. It also requires to changes to 'vm_file' in mainline, but it
++will be much smaller than the approach aufs used to take.
 diff --git a/Documentation/filesystems/aufs/design/06xattr.txt b/Documentation/filesystems/aufs/design/06xattr.txt
 new file mode 100644
-index 000000000..4e5ead3ad
+index 000000000..354a8e28d
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/06xattr.txt
 @@ -0,0 +1,94 @@
 +
-+# Copyright (C) 2014-2022 Junjiro R. Okajima
++# Copyright (C) 2014-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -2004,12 +1966,12 @@ index 000000000..4e5ead3ad
 +now, aufs implements the branch attributes to ignore the error.
 diff --git a/Documentation/filesystems/aufs/design/07export.txt b/Documentation/filesystems/aufs/design/07export.txt
 new file mode 100644
-index 000000000..40b2f1f12
+index 000000000..317f84e09
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/07export.txt
 @@ -0,0 +1,58 @@
 +
-+# Copyright (C) 2005-2022 Junjiro R. Okajima
++# Copyright (C) 2005-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -2068,12 +2030,12 @@ index 000000000..40b2f1f12
 +  lookup_one_len(), vfs_getattr(), encode_fh() and others.
 diff --git a/Documentation/filesystems/aufs/design/08shwh.txt b/Documentation/filesystems/aufs/design/08shwh.txt
 new file mode 100644
-index 000000000..67245e98e
+index 000000000..4c7d0b4ab
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/08shwh.txt
 @@ -0,0 +1,52 @@
 +
-+# Copyright (C) 2005-2022 Junjiro R. Okajima
++# Copyright (C) 2005-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -2126,12 +2088,12 @@ index 000000000..67245e98e
 +initramfs will use it to replace the old one at the next boot.
 diff --git a/Documentation/filesystems/aufs/design/10dynop.txt b/Documentation/filesystems/aufs/design/10dynop.txt
 new file mode 100644
-index 000000000..da382ec2d
+index 000000000..973d8d190
 --- /dev/null
 +++ b/Documentation/filesystems/aufs/design/10dynop.txt
 @@ -0,0 +1,47 @@
 +
-+# Copyright (C) 2010-2022 Junjiro R. Okajima
++# Copyright (C) 2010-2025 Junjiro R. Okajima
 +#
 +# This program is free software; you can redistribute it and/or modify
 +# it under the terms of the GNU General Public License as published by
@@ -2178,12 +2140,12 @@ index 000000000..da382ec2d
 +Currently this approach is applied to address_space_operations for
 +regular files only.
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 6bb4ec0c1..4d02da01c 100644
+index e8f06145f..632bc1a51 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -3666,6 +3666,19 @@ F:	kernel/audit*
- F:	lib/*audit.c
- K:	\baudit_[a-z_0-9]\+\b
+@@ -4090,6 +4090,19 @@ S:	Supported
+ F:	Documentation/dev-tools/autofdo.rst
+ F:	scripts/Makefile.autofdo
  
 +AUFS (advanced multi layered unification filesystem) FILESYSTEM
 +M:	"J. R. Okajima" <hooanon05g@gmail.com>
@@ -2202,20 +2164,20 @@ index 6bb4ec0c1..4d02da01c 100644
  M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  R:	Dave Ertman <david.m.ertman@intel.com>
 diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index 86cc3b19f..f5e56b331 100644
+index 13ce229d4..e1f3a84a0 100644
 --- a/drivers/block/loop.c
 +++ b/drivers/block/loop.c
-@@ -54,7 +54,7 @@ struct loop_device {
+@@ -52,7 +52,7 @@ struct loop_device {
  	int		lo_flags;
  	char		lo_file_name[LO_NAME_SIZE];
  
--	struct file *	lo_backing_file;
+-	struct file	*lo_backing_file;
 +	struct file	*lo_backing_file, *lo_backing_virt_file;
+ 	unsigned int	lo_min_dio_size;
  	struct block_device *lo_device;
  
- 	gfp_t		old_gfp_mask;
-@@ -526,6 +526,15 @@ static inline void loop_update_dio(struct loop_device *lo)
- 				lo->use_dio);
+@@ -441,6 +441,15 @@ static int do_req_filebacked(struct loop_device *lo, struct request *rq)
+ 	}
  }
  
 +static struct file *loop_real_file(struct file *file)
@@ -2230,15 +2192,15 @@ index 86cc3b19f..f5e56b331 100644
  static void loop_reread_partitions(struct loop_device *lo)
  {
  	int rc;
-@@ -583,6 +592,7 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
+@@ -542,6 +551,7 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
  {
  	struct file *file = fget(arg);
  	struct file *old_file;
 +	struct file *f, *virt_file = NULL, *old_virt_file;
+ 	unsigned int memflags;
  	int error;
  	bool partscan;
- 	bool is_loop;
-@@ -606,11 +616,19 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
+@@ -572,11 +582,19 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
  	if (!(lo->lo_flags & LO_FLAGS_READ_ONLY))
  		goto out_err;
  
@@ -2258,29 +2220,32 @@ index 86cc3b19f..f5e56b331 100644
  
  	error = -EINVAL;
  
-@@ -623,6 +641,7 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
- 	blk_mq_freeze_queue(lo->lo_queue);
+@@ -596,6 +614,7 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
+ 	memflags = blk_mq_freeze_queue(lo->lo_queue);
  	mapping_set_gfp_mask(old_file->f_mapping, lo->old_gfp_mask);
- 	lo->lo_backing_file = file;
+ 	loop_assign_backing_file(lo, file);
 +	lo->lo_backing_virt_file = virt_file;
- 	lo->old_gfp_mask = mapping_gfp_mask(file->f_mapping);
- 	mapping_set_gfp_mask(file->f_mapping,
- 			     lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
-@@ -645,6 +664,8 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
+ 	loop_update_dio(lo);
+ 	blk_mq_unfreeze_queue(lo->lo_queue, memflags);
+ 	partscan = lo->lo_flags & LO_FLAGS_PARTSCAN;
+@@ -615,6 +634,9 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
  	 * dependency.
  	 */
  	fput(old_file);
 +	if (old_virt_file)
 +		fput(old_virt_file);
++
+ 	dev_set_uevent_suppress(disk_to_dev(lo->lo_disk), 0);
  	if (partscan)
  		loop_reread_partitions(lo);
- 
-@@ -658,9 +679,31 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
+@@ -628,10 +650,33 @@ static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
  	loop_global_unlock(lo, is_loop);
  out_putf:
  	fput(file);
 +	if (virt_file)
 +		fput(virt_file);
++
+ 	dev_set_uevent_suppress(disk_to_dev(lo->lo_disk), 0);
  	goto done;
  }
  
@@ -2307,15 +2272,15 @@ index 86cc3b19f..f5e56b331 100644
  /* loop sysfs attributes */
  
  static ssize_t loop_attr_show(struct device *dev, char *page,
-@@ -1019,6 +1062,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
+@@ -985,6 +1030,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
  			  const struct loop_config *config)
  {
  	struct file *file = fget(config->fd);
 +	struct file *f, *virt_file = NULL;
- 	struct address_space *mapping;
+ 	struct queue_limits lim;
  	int error;
  	loff_t size;
-@@ -1032,6 +1076,13 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
+@@ -1005,6 +1051,13 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
  	/* This is safe, since we have a reference from open(). */
  	__module_get(THIS_MODULE);
  
@@ -2329,15 +2294,15 @@ index 86cc3b19f..f5e56b331 100644
  	/*
  	 * If we don't hold exclusive handle for the device, upgrade to it
  	 * here to avoid changing device under exclusive owner.
-@@ -1088,6 +1139,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
- 	lo->use_dio = lo->lo_flags & LO_FLAGS_DIRECT_IO;
- 	lo->lo_device = bdev;
- 	lo->lo_backing_file = file;
-+	lo->lo_backing_virt_file = virt_file;
- 	lo->old_gfp_mask = mapping_gfp_mask(mapping);
- 	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
+@@ -1059,6 +1112,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
  
-@@ -1130,6 +1182,8 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
+ 	lo->lo_device = bdev;
+ 	loop_assign_backing_file(lo, file);
++	lo->lo_backing_virt_file = virt_file;
+ 
+ 	lim = queue_limits_start_update(lo->lo_queue);
+ 	loop_update_limits(lo, &lim, config->block_size);
+@@ -1109,6 +1163,8 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
  		bd_abort_claiming(bdev, loop_configure);
  out_putf:
  	fput(file);
@@ -2346,7 +2311,7 @@ index 86cc3b19f..f5e56b331 100644
  	/* This is safe: open() is still holding a reference. */
  	module_put(THIS_MODULE);
  	return error;
-@@ -1139,11 +1193,13 @@ static void __loop_clr_fd(struct loop_device *lo)
+@@ -1118,11 +1174,13 @@ static void __loop_clr_fd(struct loop_device *lo)
  {
  	struct queue_limits lim;
  	struct file *filp;
@@ -2360,7 +2325,7 @@ index 86cc3b19f..f5e56b331 100644
  	spin_unlock_irq(&lo->lo_lock);
  
  	lo->lo_device = NULL;
-@@ -1205,6 +1261,8 @@ static void __loop_clr_fd(struct loop_device *lo)
+@@ -1189,6 +1247,8 @@ static void __loop_clr_fd(struct loop_device *lo)
  	 * fput can take open_mutex which is usually taken before lo_mutex.
  	 */
  	fput(filp);
@@ -2370,10 +2335,10 @@ index 86cc3b19f..f5e56b331 100644
  
  static int loop_clr_fd(struct loop_device *lo)
 diff --git a/fs/Kconfig b/fs/Kconfig
-index aae170fc2..d5bb58464 100644
+index 0bfdaecaa..22d84f313 100644
 --- a/fs/Kconfig
 +++ b/fs/Kconfig
-@@ -341,6 +341,7 @@ source "fs/sysv/Kconfig"
+@@ -332,6 +332,7 @@ source "fs/pstore/Kconfig"
  source "fs/ufs/Kconfig"
  source "fs/erofs/Kconfig"
  source "fs/vboxsf/Kconfig"
@@ -2382,14 +2347,90 @@ index aae170fc2..d5bb58464 100644
  endif # MISC_FILESYSTEMS
  
 diff --git a/fs/Makefile b/fs/Makefile
-index 61679fd58..b2539712b 100644
+index e3523ab2e..e4c3707cf 100644
 --- a/fs/Makefile
 +++ b/fs/Makefile
-@@ -130,3 +130,4 @@ obj-$(CONFIG_EROFS_FS)		+= erofs/
- obj-$(CONFIG_VBOXSF_FS)		+= vboxsf/
+@@ -17,6 +17,9 @@ obj-y :=	open.o read_write.o file_table.o super.o \
+ 		fs_types.o fs_context.o fs_parser.o fsopen.o init.o \
+ 		kernel_read_file.o mnt_idmapping.o remap_range.o pidfs.o \
+ 		file_attr.o
++ifeq (${CONFIG_AUFS_FS},m)
++obj-y += au_mf.o
++endif
+ 
+ obj-$(CONFIG_BUFFER_HEAD)	+= buffer.o mpage.o
+ obj-$(CONFIG_PROC_FS)		+= proc_namespace.o
+@@ -129,3 +132,4 @@ obj-$(CONFIG_VBOXSF_FS)		+= vboxsf/
  obj-$(CONFIG_ZONEFS_FS)		+= zonefs/
  obj-$(CONFIG_BPF_LSM)		+= bpf_fs_kfuncs.o
+ obj-$(CONFIG_RESCTRL_FS)	+= resctrl/
 +obj-$(CONFIG_AUFS_FS)           += aufs/
+diff --git a/fs/au_mf.c b/fs/au_mf.c
+new file mode 100644
+index 000000000..bacf13696
+--- /dev/null
++++ b/fs/au_mf.c
+@@ -0,0 +1,60 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (C) 2025 Junjiro R. Okajima
++ */
++
++#include <linux/fs.h>
++#include <linux/module.h>
++
++#if IS_MODULE(CONFIG_AUFS_FS)
++/*
++ * This au_mf.c (aufs mmapped files) is for external AUFS module only,
++ * and statically linked to kernel.
++ * See also $srctree/fs/Makefile.
++ * This linking may seem to be tricky. It is due to support the case when AUFS
++ * is configured as an external module, eg. VFS calls a function defined in the
++ * dynamic module.
++ */
++#else
++BUILD_BUG_ON_MSG(1, "CONFIG_AUFS_FS is disabled.");
++#endif
++
++const struct path *au_file_user_path(const struct file *f)
++{
++	const struct path *path,
++		*(*func)(const struct file *f),
++		*au_do_file_user_path(const struct file *f);
++
++	path = NULL;
++	func = symbol_get(au_do_file_user_path);
++	if (unlikely(!func))
++		/* "aufs" module is not loaded */
++		goto out;
++
++	path = func(f);
++	symbol_put(au_do_file_user_path);
++
++out:
++	return path;
++}
++EXPORT_SYMBOL_GPL(au_file_user_path);
++
++const struct inode *au_file_user_inode(const struct file *f)
++{
++	const struct inode *inode,
++		*(*func)(const struct file *f),
++		*au_do_file_user_inode(const struct file *f);
++
++	inode = NULL;
++	func = symbol_get(au_do_file_user_inode);
++	if (unlikely(!func))
++		/* "aufs" module is not loaded */
++		goto out;
++
++	inode = func(f);
++	symbol_put(au_do_file_user_inode);
++
++out:
++	return inode;
++}
++EXPORT_SYMBOL_GPL(au_file_user_inode);
 diff --git a/fs/aufs/Kconfig b/fs/aufs/Kconfig
 new file mode 100644
 index 000000000..f6434a7da
@@ -2599,10 +2640,10 @@ index 000000000..f6434a7da
 +endif
 diff --git a/fs/aufs/Makefile b/fs/aufs/Makefile
 new file mode 100644
-index 000000000..4af8ecde3
+index 000000000..cd2994e20
 --- /dev/null
 +++ b/fs/aufs/Makefile
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,47 @@
 +# SPDX-License-Identifier: GPL-2.0
 +
 +include ${src}/magic.mk
@@ -2611,6 +2652,7 @@ index 000000000..4af8ecde3
 +endif
 +-include ${src}/priv_def.mk
 +
++ccflags-y += ${EXTRA_CFLAGS}
 +# cf. include/linux/kernel.h
 +# enable pr_debug
 +ccflags-y += -DDEBUG
@@ -2627,7 +2669,7 @@ index 000000000..4af8ecde3
 +	cpup.o whout.o wbr_policy.o \
 +	dinfo.o dentry.o \
 +	dynop.o \
-+	finfo.o file.o f_op.o \
++	finfo.o file.o f_op.o mf.o \
 +	dir.o vdir.o \
 +	iinfo.o inode.o i_op.o i_op_add.o i_op_del.o i_op_ren.o \
 +	mvdown.o ioctl.o
@@ -2651,13 +2693,13 @@ index 000000000..4af8ecde3
 +aufs-$(CONFIG_AUFS_MAGIC_SYSRQ) += sysrq.o
 diff --git a/fs/aufs/aufs.h b/fs/aufs/aufs.h
 new file mode 100644
-index 000000000..20430cf79
+index 000000000..3bee75b16
 --- /dev/null
 +++ b/fs/aufs/aufs.h
 @@ -0,0 +1,62 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -2719,13 +2761,13 @@ index 000000000..20430cf79
 +#endif /* __AUFS_H__ */
 diff --git a/fs/aufs/branch.c b/fs/aufs/branch.c
 new file mode 100644
-index 000000000..44b8700d2
+index 000000000..2c61b267c
 --- /dev/null
 +++ b/fs/aufs/branch.c
 @@ -0,0 +1,1427 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -4152,13 +4194,13 @@ index 000000000..44b8700d2
 +}
 diff --git a/fs/aufs/branch.h b/fs/aufs/branch.h
 new file mode 100644
-index 000000000..6818ba8df
+index 000000000..d2d43b681
 --- /dev/null
 +++ b/fs/aufs/branch.h
 @@ -0,0 +1,375 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -4390,12 +4432,12 @@ index 000000000..6818ba8df
 +aufs_bindex_t au_xi_root(struct super_block *sb, struct dentry *dentry);
 +struct file *au_xino_create(struct super_block *sb, char *fpath, int silent,
 +			    int wbrtop);
-+struct file *au_xino_create2(struct super_block *sb, struct path *base,
++struct file *au_xino_create2(struct super_block *sb, const struct path *base,
 +			     struct file *copy_src);
 +struct au_xi_new {
 +	struct au_xino *xi;	/* switch between xino and xigen */
 +	int idx;
-+	struct path *base;
++	const struct path *base;
 +	struct file *copy_src;
 +};
 +struct file *au_xi_new(struct super_block *sb, struct au_xi_new *xinew);
@@ -4419,7 +4461,7 @@ index 000000000..6818ba8df
 +int au_xino_set(struct super_block *sb, struct au_opt_xino *xiopt, int remount);
 +struct file *au_xino_def(struct super_block *sb);
 +int au_xino_init_br(struct super_block *sb, struct au_branch *br, ino_t hino,
-+		    struct path *base);
++		    const struct path *base);
 +
 +ino_t au_xino_new_ino(struct super_block *sb);
 +void au_xino_delete_inode(struct inode *inode, const int unlinked);
@@ -4579,13 +4621,13 @@ index 000000000..12782f8e0
 +-include ${srctree}/${src}/conf_priv.mk
 diff --git a/fs/aufs/cpup.c b/fs/aufs/cpup.c
 new file mode 100644
-index 000000000..8421719ae
+index 000000000..3ecf694c9
 --- /dev/null
 +++ b/fs/aufs/cpup.c
-@@ -0,0 +1,1458 @@
+@@ -0,0 +1,1466 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -4730,7 +4772,8 @@ index 000000000..8421719ae
 +	attr.ia_atime = dt->dt_atime;
 +	attr.ia_mtime = dt->dt_mtime;
 +	attr.ia_valid = ATTR_FORCE | ATTR_MTIME | ATTR_MTIME_SET
-+		| ATTR_ATIME | ATTR_ATIME_SET;
++		| ATTR_ATIME | ATTR_ATIME_SET
++		| ATTR_CTIME;
 +
 +	/* no delegation since this is a directory */
 +	err = vfsub_notify_change(&dt->dt_h_path, &attr, /*delegated*/NULL);
@@ -4766,7 +4809,7 @@ index 000000000..8421719ae
 +	h_idst = d_inode(h_path.dentry);
 +	h_isrc = d_inode(h_src->dentry);
 +	ia.ia_valid = ATTR_FORCE | ATTR_UID | ATTR_GID
-+		| ATTR_ATIME | ATTR_MTIME
++		| ATTR_ATIME | ATTR_MTIME | ATTR_CTIME
 +		| ATTR_ATIME_SET | ATTR_MTIME_SET;
 +	if (h_src_attr && h_src_attr->valid) {
 +		h_st = &h_src_attr->st;
@@ -5236,7 +5279,7 @@ index 000000000..8421719ae
 +	const unsigned char do_dt = !!au_ftest_cpup(cpg->flags, DTIME);
 +	struct au_dtime dt;
 +	struct path h_path;
-+	struct dentry *h_src, *h_dst, *h_parent;
++	struct dentry *h_src, *h_dst, *h_parent, *ret;
 +	struct inode *h_inode, *h_dir;
 +	struct super_block *sb;
 +
@@ -5275,9 +5318,16 @@ index 000000000..8421719ae
 +		break;
 +	case S_IFDIR:
 +		isdir = 1;
-+		err = vfsub_mkdir(h_dir, &h_path, mode);
-+		if (!err)
++		ret = vfsub_mkdir(h_dir, &h_path, mode);
++		if (IS_ERR(ret))
++			err = PTR_ERR(ret);
++		else {
++			if (ret && ret != h_path.dentry) {
++				h_path.dentry = dget(ret);
++				au_set_h_dptr(cpg->dentry, cpg->bdst, ret);
++			}
 +			err = au_do_cpup_dir(cpg, dst_parent, h_dir, &h_path);
++		}
 +		break;
 +	case S_IFLNK:
 +		err = au_do_cpup_symlink(&h_path, h_src, h_dir);
@@ -6043,13 +6093,13 @@ index 000000000..8421719ae
 +}
 diff --git a/fs/aufs/cpup.h b/fs/aufs/cpup.h
 new file mode 100644
-index 000000000..255deaa61
+index 000000000..b87aeacea
 --- /dev/null
 +++ b/fs/aufs/cpup.h
 @@ -0,0 +1,101 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -6150,13 +6200,13 @@ index 000000000..255deaa61
 +#endif /* __AUFS_CPUP_H__ */
 diff --git a/fs/aufs/dbgaufs.c b/fs/aufs/dbgaufs.c
 new file mode 100644
-index 000000000..d5811df89
+index 000000000..f7a0a1b3b
 --- /dev/null
 +++ b/fs/aufs/dbgaufs.c
-@@ -0,0 +1,526 @@
+@@ -0,0 +1,525 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -6388,7 +6438,7 @@ index 000000000..d5811df89
 +	struct super_block *sb;
 +	struct au_xino *xi;
 +	struct file *xf;
-+	struct qstr *name;
++	const struct qstr *name;
 +	struct au_branch *br;
 +
 +	err = -ENOENT;
@@ -6480,9 +6530,9 @@ index 000000000..d5811df89
 +			      struct au_sbinfo *sbinfo)
 +{
 +	struct au_branch *br;
-+	struct dentry *d;
 +	/* "xi" bindex(5) "-" idx(2) NULL */
 +	char name[sizeof(DbgaufsXi_PREFIX) + 8];
++	int err;
 +
 +	if (!idx)
 +		snprintf(name, sizeof(name), DbgaufsXi_PREFIX "%d", bindex);
@@ -6496,12 +6546,11 @@ index 000000000..d5811df89
 +		if (!au_qstreq(&br->br_dbgaufs->d_name, &qstr)) {
 +			/* debugfs acquires the parent i_mutex */
 +			lockdep_off();
-+			d = debugfs_rename(parent, br->br_dbgaufs, parent,
-+					   name);
++			err = debugfs_change_name(br->br_dbgaufs, name);
 +			lockdep_on();
-+			if (unlikely(!d))
-+				pr_warn("failed renaming %pd/%s, ignored.\n",
-+					parent, name);
++			if (unlikely(err))
++				pr_warn("failed renaming %pd/%s, err %d, ignored.\n",
++					parent, name, err);
 +		}
 +	} else {
 +		lockdep_off();
@@ -6682,13 +6731,13 @@ index 000000000..d5811df89
 +}
 diff --git a/fs/aufs/dbgaufs.h b/fs/aufs/dbgaufs.h
 new file mode 100644
-index 000000000..30f169422
+index 000000000..8ee442569
 --- /dev/null
 +++ b/fs/aufs/dbgaufs.h
 @@ -0,0 +1,53 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -6741,13 +6790,13 @@ index 000000000..30f169422
 +#endif /* __DBGAUFS_H__ */
 diff --git a/fs/aufs/dcsub.c b/fs/aufs/dcsub.c
 new file mode 100644
-index 000000000..fa2a9ad2b
+index 000000000..2c890b0fe
 --- /dev/null
 +++ b/fs/aufs/dcsub.c
 @@ -0,0 +1,225 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -6972,13 +7021,13 @@ index 000000000..fa2a9ad2b
 +}
 diff --git a/fs/aufs/dcsub.h b/fs/aufs/dcsub.h
 new file mode 100644
-index 000000000..b38da8685
+index 000000000..7517cbd12
 --- /dev/null
 +++ b/fs/aufs/dcsub.h
 @@ -0,0 +1,139 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -7093,7 +7142,7 @@ index 000000000..b38da8685
 +	return err;
 +}
 +
-+static inline int au_qstreq(struct qstr *a, struct qstr *b)
++static inline int au_qstreq(const struct qstr *a, const struct qstr *b)
 +{
 +	return a->len == b->len
 +		&& !memcmp(a->name, b->name, a->len);
@@ -7117,13 +7166,13 @@ index 000000000..b38da8685
 +#endif /* __AUFS_DCSUB_H__ */
 diff --git a/fs/aufs/debug.c b/fs/aufs/debug.c
 new file mode 100644
-index 000000000..64949f8ac
+index 000000000..fbf2ee8b8
 --- /dev/null
 +++ b/fs/aufs/debug.c
 @@ -0,0 +1,448 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -7571,13 +7620,13 @@ index 000000000..64949f8ac
 +}
 diff --git a/fs/aufs/debug.h b/fs/aufs/debug.h
 new file mode 100644
-index 000000000..594f16570
+index 000000000..65001ebe7
 --- /dev/null
 +++ b/fs/aufs/debug.h
 @@ -0,0 +1,226 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -7803,13 +7852,13 @@ index 000000000..594f16570
 +#endif /* __AUFS_DEBUG_H__ */
 diff --git a/fs/aufs/dentry.c b/fs/aufs/dentry.c
 new file mode 100644
-index 000000000..1fb01913f
+index 000000000..7f5595830
 --- /dev/null
 +++ b/fs/aufs/dentry.c
-@@ -0,0 +1,1176 @@
+@@ -0,0 +1,1228 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -8057,7 +8106,7 @@ index 000000000..1fb01913f
 +	return err;
 +}
 +
-+struct dentry *au_sio_lkup_one(struct mnt_idmap *idmap, struct qstr *name,
++struct dentry *au_sio_lkup_one(struct mnt_idmap *idmap, const struct qstr *name,
 +			       struct path *ppath)
 +{
 +	struct dentry *dentry;
@@ -8540,7 +8589,7 @@ index 000000000..1fb01913f
 +void au_refresh_dop(struct dentry *dentry, int force_reval)
 +{
 +	const struct dentry_operations *dop
-+		= force_reval ? &aufs_dop : dentry->d_sb->s_d_op;
++		= force_reval ? &aufs_dop : dentry->d_sb->__s_d_op;
 +	static const unsigned int mask
 +		= DCACHE_OP_REVALIDATE | DCACHE_OP_WEAK_REVALIDATE;
 +
@@ -8639,46 +8688,55 @@ index 000000000..1fb01913f
 +	return err;
 +}
 +
-+static int au_do_h_d_reval(struct dentry *h_dentry, unsigned int flags,
-+			   struct dentry *dentry, aufs_bindex_t bindex)
++struct au_d_reval_args {
++	struct inode *dir;		/* NULL when ->d_weak_revalidate() */
++	const struct qstr *qname;	/* NULL when ->d_weak_revalidate() */
++	struct dentry *dentry;
++	unsigned int flags;
++};
++
++static int au_do_h_d_reval(struct au_d_reval_args *h_args)
 +{
 +	int err, valid;
++	struct dentry *h_dentry = h_args->dentry;
 +
 +	err = 0;
-+	if (!(h_dentry->d_flags & DCACHE_OP_REVALIDATE))
-+		goto out;
-+
-+	AuDbg("b%d\n", bindex);
-+	/*
-+	 * gave up supporting LOOKUP_CREATE/OPEN for lower fs,
-+	 * due to whiteout and branch permission.
-+	 */
-+	flags &= ~(/*LOOKUP_PARENT |*/ LOOKUP_OPEN | LOOKUP_CREATE
-+		   | LOOKUP_FOLLOW | LOOKUP_EXCL);
++	valid = 1;
 +	/* it may return tri-state */
-+	valid = h_dentry->d_op->d_revalidate(h_dentry, flags);
++	if (h_args->dir) {
++		if (h_dentry->d_flags & DCACHE_OP_REVALIDATE)
++			valid = h_dentry->d_op->d_revalidate(h_args->dir,
++							     h_args->qname,
++							     h_dentry,
++							     h_args->flags);
++	} else if (h_dentry->d_flags & DCACHE_OP_WEAK_REVALIDATE)
++		valid = h_dentry->d_op->d_weak_revalidate(h_dentry,
++							  h_args->flags);
 +
 +	if (unlikely(valid < 0))
 +		err = valid;
 +	else if (!valid)
 +		err = -EINVAL;
 +
-+out:
 +	AuTraceErr(err);
 +	return err;
 +}
 +
 +/* todo: remove this */
-+static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
-+			  unsigned int flags, int do_udba, int dirren)
++static int h_d_revalidate(struct au_d_reval_args *args, struct inode *inode,
++			  int do_udba, int dirren)
 +{
 +	int err;
 +	umode_t mode, h_mode;
 +	aufs_bindex_t bindex, btail, btop, ibs, ibe, bwh;
 +	unsigned char plus, unhashed, is_root, h_plus, h_nfs, tmpfile;
 +	struct inode *h_inode, *h_cached_inode;
-+	struct dentry *h_dentry;
-+	struct qstr *name, *h_name;
++	struct dentry *h_parent, *dentry = args->dentry;
++	const struct qstr *h_name, *qname = args->qname;
++	struct name_snapshot h_nameshot;
++	struct au_d_reval_args h_args = {
++		.qname	= &h_nameshot.name,
++	};
 +
 +	err = 0;
 +	plus = 0;
@@ -8687,7 +8745,6 @@ index 000000000..1fb01913f
 +	ibe = -1;
 +	unhashed = !!d_unhashed(dentry);
 +	is_root = !!IS_ROOT(dentry);
-+	name = &dentry->d_name;
 +	tmpfile = au_di(dentry)->di_tmpfile;
 +
 +	/*
@@ -8704,6 +8761,16 @@ index 000000000..1fb01913f
 +		ibe = au_ibbot(inode);
 +	}
 +
++	h_args.dir = NULL;
++	h_parent = NULL;
++	h_args.flags = args->flags;
++	/*
++	 * gave up supporting LOOKUP_CREATE/OPEN for lower fs,
++	 * due to whiteout and branch permission.
++	 */
++	h_args.flags &= ~(/*LOOKUP_PARENT |*/ LOOKUP_OPEN | LOOKUP_CREATE
++			  | LOOKUP_FOLLOW | LOOKUP_EXCL);
++
 +	btop = au_dbtop(dentry);
 +	bwh = au_dbwh(dentry);
 +	if (0 <= bwh && bwh < btop)
@@ -8712,41 +8779,52 @@ index 000000000..1fb01913f
 +	if (inode && S_ISDIR(inode->i_mode))
 +		btail = au_dbtaildir(dentry);
 +	for (bindex = btop; bindex <= btail; bindex++) {
-+		h_dentry = au_h_dptr(dentry, bindex);
-+		if (!h_dentry
++		h_args.dentry = au_h_dptr(dentry, bindex);
++		if (!h_args.dentry
 +		    && (bindex == bwh && inode))
-+			h_dentry = au_hi_wh(inode, bindex);
-+		if (!h_dentry)
++			h_args.dentry = au_hi_wh(inode, bindex);
++		if (!h_args.dentry)
 +			continue;
 +
-+		AuDbg("b%d, %pd\n", bindex, h_dentry);
-+		h_nfs = !!au_test_nfs(h_dentry->d_sb);
-+		spin_lock(&h_dentry->d_lock);
-+		h_name = &h_dentry->d_name;
-+		if (unlikely(do_udba
-+			     && bindex != bwh
-+			     && !is_root
-+			     && ((!h_nfs
-+				  && (unhashed != !!d_unhashed(h_dentry)
-+				      || (!tmpfile && !dirren
-+					  && !au_qstreq(name, h_name))
-+					  ))
-+				 || (h_nfs
-+				     && !(flags & LOOKUP_OPEN)
-+				     && (h_dentry->d_flags
-+					 & DCACHE_NFSFS_RENAMED)))
-+			    )) {
-+			int h_unhashed;
++		AuDbg("b%d, %pd\n", bindex, h_args.dentry);
++		h_nfs = !!au_test_nfs(h_args.dentry->d_sb);
++		if (qname) {
++			spin_lock(&h_args.dentry->d_lock);
++			h_name = &h_args.dentry->d_name;
++			if (unlikely(do_udba
++				     && bindex != bwh
++				     && !is_root
++				     && ((!h_nfs
++					  && (unhashed != !!d_unhashed(h_args.dentry)
++					      || (!tmpfile && !dirren
++						  && !au_qstreq(qname, h_name))
++						  ))
++					 || (h_nfs
++					     && !(h_args.flags & LOOKUP_OPEN)
++					     && (h_args.dentry->d_flags
++						 & DCACHE_NFSFS_RENAMED)))
++				    )) {
++				int h_unhashed;
 +
-+			h_unhashed = d_unhashed(h_dentry);
-+			spin_unlock(&h_dentry->d_lock);
-+			AuDbg("unhash 0x%x 0x%x, %pd %pd\n",
-+			      unhashed, h_unhashed, dentry, h_dentry);
-+			goto err;
++				h_unhashed = d_unhashed(h_args.dentry);
++				spin_unlock(&h_args.dentry->d_lock);
++				AuDbg("unhash 0x%x 0x%x, %pd %pd\n",
++				      unhashed, h_unhashed, dentry,
++				      h_args.dentry);
++				goto err;
++			}
++			spin_unlock(&h_args.dentry->d_lock);
++
++			/* is it possible h_args.dentry is NULL or negative? */
++			h_parent = dget_parent(h_args.dentry);
++			h_args.dir = d_inode(h_parent);
 +		}
-+		spin_unlock(&h_dentry->d_lock);
 +
-+		err = au_do_h_d_reval(h_dentry, flags, dentry, bindex);
++		AuDbg("b%d\n", bindex);
++		take_dentry_name_snapshot(&h_nameshot, h_args.dentry);
++		err = au_do_h_d_reval(&h_args);
++		release_dentry_name_snapshot(&h_nameshot);
++		dput(h_parent);
 +		if (unlikely(err))
 +			/* do not goto err, to keep the errno */
 +			break;
@@ -8756,12 +8834,12 @@ index 000000000..1fb01913f
 +			continue;
 +
 +		/* UDBA tests */
-+		if (unlikely(!!inode != d_is_positive(h_dentry)))
++		if (unlikely(!!inode != d_is_positive(h_args.dentry)))
 +			goto err;
 +
 +		h_inode = NULL;
-+		if (d_is_positive(h_dentry))
-+			h_inode = d_inode(h_dentry);
++		if (d_is_positive(h_args.dentry))
++			h_inode = d_inode(h_args.dentry);
 +		h_plus = plus;
 +		h_mode = mode;
 +		h_cached_inode = h_inode;
@@ -8776,10 +8854,10 @@ index 000000000..1fb01913f
 +			if (unlikely(plus != h_plus && !tmpfile))
 +				goto err;
 +		} else {
-+			if (unlikely(!(h_dentry->d_flags & DCACHE_NFSFS_RENAMED)
++			if (unlikely(!(h_args.dentry->d_flags & DCACHE_NFSFS_RENAMED)
 +				     && !is_root
-+				     && !IS_ROOT(h_dentry)
-+				     && unhashed != d_unhashed(h_dentry)))
++				     && !IS_ROOT(h_args.dentry)
++				     && unhashed != d_unhashed(h_args.dentry)))
 +				goto err;
 +		}
 +		if (unlikely(mode != h_mode
@@ -8865,16 +8943,17 @@ index 000000000..1fb01913f
 +/*
 + * if valid returns 1, otherwise 0.
 + */
-+static int aufs_d_revalidate(struct dentry *dentry, unsigned int flags)
++static int au_do_d_reval(struct au_d_reval_args *args)
 +{
 +	int valid, err;
 +	unsigned int sigen;
 +	unsigned char do_udba, dirren;
 +	struct super_block *sb;
 +	struct inode *inode;
++	struct dentry *dentry = args->dentry;
 +
 +	/* todo: support rcu-walk? */
-+	if (flags & LOOKUP_RCU)
++	if (args->flags & LOOKUP_RCU)
 +		return -ECHILD;
 +
 +	valid = 0;
@@ -8920,7 +8999,7 @@ index 000000000..1fb01913f
 +	di_downgrade_lock(dentry, AuLock_IR);
 +
 +	err = -EINVAL;
-+	if (!(flags & (LOOKUP_OPEN | LOOKUP_EMPTY))
++	if (!(args->flags & (LOOKUP_OPEN | LOOKUP_EMPTY))
 +	    && inode
 +	    && !(inode->i_state && I_LINKABLE)
 +	    && (IS_DEADDIR(inode) || !vfsub_inode_nlink(inode, AU_I_AUFS))) {
@@ -8943,7 +9022,7 @@ index 000000000..1fb01913f
 +	}
 +
 +	dirren = !!au_opt_test(au_mntflags(sb), DIRREN);
-+	err = h_d_revalidate(dentry, inode, flags, do_udba, dirren);
++	err = h_d_revalidate(args, inode, do_udba, dirren);
 +	if (unlikely(!err && do_udba && au_dbtop(dentry) < 0)) {
 +		err = -EIO;
 +		AuDbg("both of real entry and whiteout found, %p, err %d\n",
@@ -8965,6 +9044,28 @@ index 000000000..1fb01913f
 +	return valid;
 +}
 +
++static int aufs_d_revalidate(struct inode *dir, const struct qstr *qname,
++			     struct dentry *dentry, unsigned int flags)
++{
++	struct au_d_reval_args args = {
++		.dir	= dir,
++		.qname	= qname,
++		.dentry	= dentry,
++		.flags	= flags
++	};
++	return au_do_d_reval(&args);
++}
++
++static int aufs_d_weak_revalidate(struct dentry *dentry, unsigned int flags)
++{
++	struct au_d_reval_args args = {
++		/* dir and qname are NULL */
++		.dentry	= dentry,
++		.flags	= flags
++	};
++	return au_do_d_reval(&args);
++}
++
 +static void aufs_d_release(struct dentry *dentry)
 +{
 +	if (au_di(dentry)) {
@@ -8975,7 +9076,7 @@ index 000000000..1fb01913f
 +
 +const struct dentry_operations aufs_dop = {
 +	.d_revalidate		= aufs_d_revalidate,
-+	.d_weak_revalidate	= aufs_d_revalidate,
++	.d_weak_revalidate	= aufs_d_weak_revalidate,
 +	.d_release		= aufs_d_release
 +};
 +
@@ -8985,13 +9086,13 @@ index 000000000..1fb01913f
 +};
 diff --git a/fs/aufs/dentry.h b/fs/aufs/dentry.h
 new file mode 100644
-index 000000000..b26c58309
+index 000000000..bb3e20b9e
 --- /dev/null
 +++ b/fs/aufs/dentry.h
-@@ -0,0 +1,270 @@
+@@ -0,0 +1,271 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -9056,7 +9157,8 @@ index 000000000..b26c58309
 +struct au_do_lookup_args {
 +	unsigned int		flags;
 +	mode_t			type;
-+	struct qstr		whname, *name;
++	struct qstr		whname;
++	const struct qstr	*name;
 +	struct au_dr_lookup	dirren;
 +};
 +
@@ -9065,7 +9167,7 @@ index 000000000..b26c58309
 +/* dentry.c */
 +extern const struct dentry_operations aufs_dop, aufs_dop_noreval;
 +struct au_branch;
-+struct dentry *au_sio_lkup_one(struct mnt_idmap *idmap, struct qstr *name,
++struct dentry *au_sio_lkup_one(struct mnt_idmap *idmap, const struct qstr *name,
 +			       struct path *ppath);
 +int au_h_verify(struct dentry *h_dentry, unsigned int udba, struct inode *h_dir,
 +		struct dentry *h_parent, struct au_branch *br);
@@ -9261,13 +9363,13 @@ index 000000000..b26c58309
 +#endif /* __AUFS_DENTRY_H__ */
 diff --git a/fs/aufs/dinfo.c b/fs/aufs/dinfo.c
 new file mode 100644
-index 000000000..bf4a94414
+index 000000000..c99a77cf6
 --- /dev/null
 +++ b/fs/aufs/dinfo.c
 @@ -0,0 +1,555 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -9822,13 +9924,13 @@ index 000000000..bf4a94414
 +}
 diff --git a/fs/aufs/dir.c b/fs/aufs/dir.c
 new file mode 100644
-index 000000000..6f78f7e42
+index 000000000..9fa63600f
 --- /dev/null
 +++ b/fs/aufs/dir.c
 @@ -0,0 +1,765 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -10593,13 +10695,13 @@ index 000000000..6f78f7e42
 +};
 diff --git a/fs/aufs/dir.h b/fs/aufs/dir.h
 new file mode 100644
-index 000000000..382342bd6
+index 000000000..775419669
 --- /dev/null
 +++ b/fs/aufs/dir.h
 @@ -0,0 +1,134 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -10733,13 +10835,13 @@ index 000000000..382342bd6
 +#endif /* __AUFS_DIR_H__ */
 diff --git a/fs/aufs/dirren.c b/fs/aufs/dirren.c
 new file mode 100644
-index 000000000..2a6295ab6
+index 000000000..f4d0a6b49
 --- /dev/null
 +++ b/fs/aufs/dirren.c
 @@ -0,0 +1,1315 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2017-2022 Junjiro R. Okajima
++ * Copyright (C) 2017-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -11213,7 +11315,7 @@ index 000000000..2a6295ab6
 +	struct au_drinfo_fdata *f, *p;
 +	struct au_drinfo *drinfo;
 +	struct inode *h_inode;
-+	struct qstr *qname;
++	const struct qstr *qname;
 +
 +	err = 0;
 +	f = *fdata;
@@ -11353,7 +11455,7 @@ index 000000000..2a6295ab6
 +	};
 +	struct inode *h_dir, *h_inode, *delegated;
 +	struct file *infofile;
-+	struct qstr *qname;
++	const struct qstr *qname;
 +
 +	AuDebugOn(elm
 +		  && memcmp(elm, page_address(ZERO_PAGE(0)), sizeof(*elm)));
@@ -11542,7 +11644,7 @@ index 000000000..2a6295ab6
 +
 +/* caller has to call au_dr_rename_fin() later */
 +static int au_drinfo_store(struct dentry *dentry, aufs_bindex_t btgt,
-+			   struct qstr *dst_name, void *_rev)
++			   const struct qstr *dst_name, void *_rev)
 +{
 +	int err, sz, nelm;
 +	aufs_bindex_t bindex, btail;
@@ -11622,7 +11724,7 @@ index 000000000..2a6295ab6
 +/* ---------------------------------------------------------------------- */
 +
 +int au_dr_rename(struct dentry *src, aufs_bindex_t bindex,
-+		 struct qstr *dst_name, void *_rev)
++		 const struct qstr *dst_name, void *_rev)
 +{
 +	int err, already;
 +	ino_t ino;
@@ -11796,7 +11898,7 @@ index 000000000..2a6295ab6
 +
 +struct au_drinfo_load {
 +	struct path h_ppath;
-+	struct qstr *qname;
++	const struct qstr *qname;
 +	unsigned char no_sio;
 +
 +	aufs_bindex_t ninfo;
@@ -12054,13 +12156,13 @@ index 000000000..2a6295ab6
 +}
 diff --git a/fs/aufs/dirren.h b/fs/aufs/dirren.h
 new file mode 100644
-index 000000000..d2d57d95a
+index 000000000..5d45f58cf
 --- /dev/null
 +++ b/fs/aufs/dirren.h
 @@ -0,0 +1,140 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2017-2022 Junjiro R. Okajima
++ * Copyright (C) 2017-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -12150,7 +12252,7 @@ index 000000000..d2d57d95a
 +		  const struct path *path);
 +int au_dr_br_fin(struct super_block *sb, struct au_branch *br);
 +int au_dr_rename(struct dentry *src, aufs_bindex_t bindex,
-+		 struct qstr *dst_name, void *_rev);
++		 const struct qstr *dst_name, void *_rev);
 +void au_dr_rename_fin(struct dentry *src, aufs_bindex_t btgt, void *rev);
 +void au_dr_rename_rev(struct dentry *src, aufs_bindex_t bindex, void *rev);
 +int au_dr_lkup(struct au_do_lookup_args *lkup, struct dentry *dentry,
@@ -12170,7 +12272,7 @@ index 000000000..d2d57d95a
 +	   const struct path *path);
 +AuStubInt0(au_dr_br_fin, struct super_block *sb, struct au_branch *br);
 +AuStubInt0(au_dr_rename, struct dentry *src, aufs_bindex_t bindex,
-+	   struct qstr *dst_name, void *_rev);
++	   const struct qstr *dst_name, void *_rev);
 +AuStubVoid(au_dr_rename_fin, struct dentry *src, aufs_bindex_t btgt, void *rev);
 +AuStubVoid(au_dr_rename_rev, struct dentry *src, aufs_bindex_t bindex,
 +	   void *rev);
@@ -12200,13 +12302,13 @@ index 000000000..d2d57d95a
 +#endif /* __AUFS_DIRREN_H__ */
 diff --git a/fs/aufs/dynop.c b/fs/aufs/dynop.c
 new file mode 100644
-index 000000000..6552a38b8
+index 000000000..1c992fa47
 --- /dev/null
 +++ b/fs/aufs/dynop.c
-@@ -0,0 +1,365 @@
+@@ -0,0 +1,364 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2010-2022 Junjiro R. Okajima
++ * Copyright (C) 2010-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -12380,7 +12482,6 @@ index 000000000..6552a38b8
 +
 +	AuDbg("%s\n", au_sbtype(h_sb));
 +
-+	DySetAop(writepage);
 +	DySetAopForce(read_folio);	/* force */
 +	DySetAop(writepages);
 +	DySetAop(dirty_folio);
@@ -12571,13 +12672,13 @@ index 000000000..6552a38b8
 +}
 diff --git a/fs/aufs/dynop.h b/fs/aufs/dynop.h
 new file mode 100644
-index 000000000..60d89364b
+index 000000000..22e1f7acf
 --- /dev/null
 +++ b/fs/aufs/dynop.h
 @@ -0,0 +1,77 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2010-2022 Junjiro R. Okajima
++ * Copyright (C) 2010-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -12654,13 +12755,13 @@ index 000000000..60d89364b
 +#endif /* __AUFS_DYNOP_H__ */
 diff --git a/fs/aufs/export.c b/fs/aufs/export.c
 new file mode 100644
-index 000000000..42a187e81
+index 000000000..2937c96a9
 --- /dev/null
 +++ b/fs/aufs/export.c
-@@ -0,0 +1,846 @@
+@@ -0,0 +1,829 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -12840,7 +12941,7 @@ index 000000000..42a187e81
 +	return err;
 +}
 +
-+int au_xigen_set(struct super_block *sb, struct path *path)
++int au_xigen_set(struct super_block *sb, const struct path *path)
 +{
 +	int err;
 +	struct au_sbinfo *sbinfo;
@@ -12932,32 +13033,12 @@ index 000000000..42a187e81
 +/* todo: dirty? */
 +/* if exportfs_decode_fh() passed vfsmount*, we could be happy */
 +
-+struct au_compare_mnt_args {
-+	/* input */
-+	struct super_block *sb;
-+
-+	/* output */
-+	struct vfsmount *mnt;
-+};
-+
-+static int au_compare_mnt(struct vfsmount *mnt, void *arg)
-+{
-+	struct au_compare_mnt_args *a = arg;
-+
-+	if (mnt->mnt_sb != a->sb)
-+		return 0;
-+	a->mnt = mntget(mnt);
-+	return 1;
-+}
-+
 +static struct vfsmount *au_mnt_get(struct super_block *sb)
 +{
-+	int err;
-+	struct path root;
 +	struct vfsmount *mnt;
-+	struct au_compare_mnt_args args = {
-+		.sb = sb
-+	};
++	struct path root;
++	const struct path *paths, *p;
++	struct path a[8];
 +
 +	get_fs_root(current->fs, &root);
 +	/*
@@ -12965,23 +13046,26 @@ index 000000000..42a187e81
 +	 * Really?
 +	 */
 +	si_read_unlock(sb);
-+	mnt = collect_mounts(&root);
-+	if (IS_ERR(mnt)) {
-+		args.mnt = mnt;
++	paths = collect_paths(&root, a, ARRAY_SIZE(a));
++	if (IS_ERR(paths)) {
++		mnt = ERR_CAST(paths);
 +		goto out;
 +	}
 +
-+	rcu_read_lock();
-+	err = iterate_mounts(au_compare_mnt, &args, mnt);
-+	rcu_read_unlock();
-+	drop_collected_mounts(mnt);
-+	AuDebugOn(!err);
++	for (p = paths; p->dentry; p++) {
++		mnt = p->mnt;
++		if (mnt->mnt_sb == sb) {
++			mntget(mnt);
++			break;
++		}
++	}
++	drop_collected_paths(paths, a);
 +
 +out:
 +	si_noflush_read_lock(sb);
-+	AuDebugOn(!args.mnt);
++	AuDebugOn(!mnt);
 +	path_put(&root);
-+	return args.mnt;
++	return mnt;
 +}
 +
 +struct au_nfsd_si_lock {
@@ -13506,13 +13590,13 @@ index 000000000..42a187e81
 +}
 diff --git a/fs/aufs/f_op.c b/fs/aufs/f_op.c
 new file mode 100644
-index 000000000..9a3d7cc18
+index 000000000..1f41b5704
 --- /dev/null
 +++ b/fs/aufs/f_op.c
-@@ -0,0 +1,782 @@
+@@ -0,0 +1,791 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -13619,13 +13703,21 @@ index 000000000..9a3d7cc18
 +{
 +	struct au_finfo *finfo;
 +	aufs_bindex_t bindex;
++	struct file *h_file;
 +
 +	finfo = au_fi(file);
 +	au_hbl_del(&finfo->fi_hlist,
 +		   &au_sbi(file->f_path.dentry->d_sb)->si_files);
 +	bindex = finfo->fi_btop;
-+	if (bindex >= 0)
++	if (bindex >= 0) {
++		if (au_test_mmapped(file)) {
++			/* h_file = au_hf_top(file); */
++			h_file = finfo->fi_htop.hf_file;
++			if (h_file)
++				au_mf_del(h_file, file);
++		}
 +		au_set_h_fptr(file, bindex, NULL);
++	}
 +
 +	au_finfo_fin(file);
 +	return 0;
@@ -13736,7 +13828,8 @@ index 000000000..9a3d7cc18
 +	if (do_ready)
 +		au_unpin(&pin);
 +	di_read_unlock(dentry, /*flags*/0);
-+	vfsub_file_start_write(h_file);
++	if (do_ready)
++		vfsub_file_start_write(h_file);
 +
 +out_fi:
 +	fi_write_unlock(file);
@@ -14140,7 +14233,7 @@ index 000000000..9a3d7cc18
 +	lockdep_off();
 +	si_read_lock(sb, AuLock_NOPLMW);
 +
-+	h_file = au_write_pre(file, wlock, /*wpre*/NULL);
++	h_file = au_write_pre(file, /*do_ready*/wlock, /*wpre*/NULL);
 +	lockdep_on();
 +	err = PTR_ERR(h_file);
 +	if (IS_ERR(h_file))
@@ -14157,9 +14250,9 @@ index 000000000..9a3d7cc18
 +	 *			 au_flag_conv(vma->vm_flags));
 +	 */
 +	if (!err)
-+		err = call_mmap(h_file, vma);
++		err = vfs_mmap(h_file, vma);
 +	if (!err) {
-+		au_vm_prfile_set(vma, file);
++		au_mf_add(h_file, file);
 +		fsstack_copy_attr_atime(inode, file_inode(h_file));
 +		goto out_fput; /* success */
 +	}
@@ -14294,13 +14387,13 @@ index 000000000..9a3d7cc18
 +};
 diff --git a/fs/aufs/fhsm.c b/fs/aufs/fhsm.c
 new file mode 100644
-index 000000000..91262fbbb
+index 000000000..4d8810388
 --- /dev/null
 +++ b/fs/aufs/fhsm.c
 @@ -0,0 +1,426 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2011-2022 Junjiro R. Okajima
++ * Copyright (C) 2011-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -14726,13 +14819,13 @@ index 000000000..91262fbbb
 +}
 diff --git a/fs/aufs/file.c b/fs/aufs/file.c
 new file mode 100644
-index 000000000..3c911689a
+index 000000000..c41bc1f77
 --- /dev/null
 +++ b/fs/aufs/file.c
-@@ -0,0 +1,858 @@
+@@ -0,0 +1,855 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -15522,15 +15615,14 @@ index 000000000..3c911689a
 +
 +/* they will never be called. */
 +#ifdef CONFIG_AUFS_DEBUG
-+static int aufs_write_begin(struct file *file, struct address_space *mapping,
-+			    loff_t pos, unsigned len,
-+			    struct folio **foliop, void **fsdata)
++static int aufs_write_begin(const struct kiocb *iocb,
++			    struct address_space *mapping, loff_t pos,
++			    unsigned len, struct folio **foliop, void **fsdata)
 +{ AuUnsupport(); return 0; }
-+static int aufs_write_end(struct file *file, struct address_space *mapping,
-+			  loff_t pos, unsigned len, unsigned copied,
-+			  struct folio *folio, void *fsdata)
-+{ AuUnsupport(); return 0; }
-+static int aufs_writepage(struct page *page, struct writeback_control *wbc)
++static int aufs_write_end(const struct kiocb *iocb,
++			  struct address_space *mapping, loff_t pos,
++			  unsigned len, unsigned copied, struct folio *folio,
++			  void *fsdata)
 +{ AuUnsupport(); return 0; }
 +
 +static bool aufs_dirty_folio(struct address_space *mapping, struct folio *folio)
@@ -15568,8 +15660,6 @@ index 000000000..3c911689a
 +	.read_folio		= aufs_read_folio,
 +	.direct_IO		= aufs_direct_IO,
 +#ifdef CONFIG_AUFS_DEBUG
-+	.writepage		= aufs_writepage,
-+	/* no writepages, because of writepage */
 +	.dirty_folio		= aufs_dirty_folio,
 +	/* no readpages, because of readpage */
 +	.write_begin		= aufs_write_begin,
@@ -15590,13 +15680,13 @@ index 000000000..3c911689a
 +};
 diff --git a/fs/aufs/file.h b/fs/aufs/file.h
 new file mode 100644
-index 000000000..01d3e960f
+index 000000000..ad40fe7aa
 --- /dev/null
 +++ b/fs/aufs/file.h
-@@ -0,0 +1,342 @@
+@@ -0,0 +1,327 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -15657,6 +15747,7 @@ index 000000000..01d3e960f
 +	struct {				/* for non-dir */
 +		struct au_hfile			fi_htop;
 +		atomic_t			fi_mmapped;
++		struct hlist_bl_node		fi_mf;
 +	};
 +	struct au_fidir		*fi_hdir;	/* for dir only */
 +
@@ -15711,6 +15802,16 @@ index 000000000..01d3e960f
 +int au_do_open_nondir(struct file *file, int flags, struct file *h_file);
 +int aufs_release_nondir(struct inode *inode __maybe_unused, struct file *file);
 +struct file *au_read_pre(struct file *file, int keep_fi, unsigned int lsc);
++
++/* mf.c */
++void au_mf_add(struct file *h_file, struct file *file);
++void au_mf_del(struct file *h_file, struct file *file);
++#if IS_MODULE(CONFIG_AUFS_FS)
++const struct path *au_do_file_user_path(const struct file *h_file);
++const struct inode *au_do_file_user_inode(const struct file *h_file);
++#elif IS_BUILTIN(CONFIG_AUFS_FS)
++/* declared in include/linux/fs.h */
++#endif
 +
 +/* finfo.c */
 +void au_hfput(struct au_hfile *hf, int execed);
@@ -15885,25 +15986,13 @@ index 000000000..01d3e960f
 +}
 +
 +/* customize vma->vm_file */
-+
-+static inline void au_do_vm_file_reset(struct vm_area_struct *vma,
-+				       struct file *file)
-+{
-+	struct file *f;
-+
-+	f = vma->vm_file;
-+	get_file(file);
-+	vma->vm_file = file;
-+	fput(f);
-+}
-+
 +#ifdef CONFIG_MMU
 +AuStubVoid(AuDbgVmRegion, struct file *file, struct vm_area_struct *vma)
 +
 +static inline void au_vm_file_reset(struct vm_area_struct *vma,
 +				    struct file *file)
 +{
-+	au_do_vm_file_reset(vma, file);
++	vma_set_file(vma, file);
 +}
 +#else
 +#define AuDbgVmRegion(file, vma) \
@@ -15912,39 +16001,25 @@ index 000000000..01d3e960f
 +static inline void au_vm_file_reset(struct vm_area_struct *vma,
 +				    struct file *file)
 +{
-+	struct file *f;
++	vma_set_file(vma, file);
 +
-+	au_do_vm_file_reset(vma, file);
-+	f = vma->vm_region->vm_file;
 +	get_file(file);
-+	vma->vm_region->vm_file = file;
-+	fput(f);
++	swap(vma->vm_region->vm_file, file);
++	fput(file);
 +}
 +#endif /* CONFIG_MMU */
-+
-+/* handle vma->vm_prfile */
-+static inline void au_vm_prfile_set(struct vm_area_struct *vma,
-+				    struct file *file)
-+{
-+	get_file(file);
-+	vma->vm_prfile = file;
-+#ifndef CONFIG_MMU
-+	get_file(file);
-+	vma->vm_region->vm_prfile = file;
-+#endif
-+}
 +
 +#endif /* __KERNEL__ */
 +#endif /* __AUFS_FILE_H__ */
 diff --git a/fs/aufs/finfo.c b/fs/aufs/finfo.c
 new file mode 100644
-index 000000000..246d48d53
+index 000000000..7e4a37f5d
 --- /dev/null
 +++ b/fs/aufs/finfo.c
-@@ -0,0 +1,147 @@
+@@ -0,0 +1,148 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -16080,6 +16155,7 @@ index 000000000..246d48d53
 +	au_lcnt_inc(&au_sbi(dentry->d_sb)->si_nfiles);
 +	au_rw_write_lock(&finfo->fi_rwsem);
 +	finfo->fi_btop = -1;
++	INIT_HLIST_BL_NODE(&finfo->fi_mf);
 +	finfo->fi_hdir = fidir;
 +	atomic_set(&finfo->fi_generation, au_digen(dentry));
 +	/* smp_mb(); */ /* atomic_set */
@@ -16091,13 +16167,13 @@ index 000000000..246d48d53
 +}
 diff --git a/fs/aufs/fsctx.c b/fs/aufs/fsctx.c
 new file mode 100644
-index 000000000..de9b64229
+index 000000000..6e10eef10
 --- /dev/null
 +++ b/fs/aufs/fsctx.c
 @@ -0,0 +1,1244 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2022 Junjiro R. Okajima
++ * Copyright (C) 2022-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -16219,7 +16295,7 @@ index 000000000..de9b64229
 +	/* all timestamps always follow the ones on the branch */
 +	sb->s_flags |= SB_NOATIME | SB_NODIRATIME | SB_I_VERSION;
 +	sb->s_op = &aufs_sop;
-+	sb->s_d_op = &aufs_dop;
++	set_default_d_op(sb, &aufs_dop);
 +	sb->s_magic = AUFS_SUPER_MAGIC;
 +	sb->s_maxbytes = 0;
 +	sb->s_stack_depth = 1;
@@ -16242,9 +16318,9 @@ index 000000000..de9b64229
 +	err = au_opts_mount(sb, &a->opts);
 +	AuTraceErr(err);
 +	if (!err && au_ftest_si(sbinfo, NO_DREVAL)) {
-+		sb->s_d_op = &aufs_dop_noreval;
-+		/* infofc(fc, "%ps", sb->s_d_op); */
-+		pr_info("%ps\n", sb->s_d_op);
++		set_default_d_op(sb, &aufs_dop_noreval);
++		/* infofc(fc, "%ps", sb->__s_d_op); */
++		pr_info("%ps\n", sb->__s_d_op);
 +		au_refresh_dop(root, /*force_reval*/0);
 +		sbinfo->si_iop_array = aufs_iop_nogetattr;
 +		au_refresh_iop(inode, /*force_getattr*/0);
@@ -17341,13 +17417,13 @@ index 000000000..de9b64229
 +}
 diff --git a/fs/aufs/fstype.h b/fs/aufs/fstype.h
 new file mode 100644
-index 000000000..1184fc258
+index 000000000..1c4d94511
 --- /dev/null
 +++ b/fs/aufs/fstype.h
 @@ -0,0 +1,419 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -17766,13 +17842,13 @@ index 000000000..1184fc258
 +#endif /* __AUFS_FSTYPE_H__ */
 diff --git a/fs/aufs/hbl.h b/fs/aufs/hbl.h
 new file mode 100644
-index 000000000..7e1e66db0
+index 000000000..6be35b9ab
 --- /dev/null
 +++ b/fs/aufs/hbl.h
 @@ -0,0 +1,65 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2017-2022 Junjiro R. Okajima
++ * Copyright (C) 2017-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -17837,13 +17913,13 @@ index 000000000..7e1e66db0
 +#endif /* __AUFS_HBL_H__ */
 diff --git a/fs/aufs/hfsnotify.c b/fs/aufs/hfsnotify.c
 new file mode 100644
-index 000000000..caa900cea
+index 000000000..0984a7d39
 --- /dev/null
 +++ b/fs/aufs/hfsnotify.c
 @@ -0,0 +1,290 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -18133,13 +18209,13 @@ index 000000000..caa900cea
 +};
 diff --git a/fs/aufs/hfsplus.c b/fs/aufs/hfsplus.c
 new file mode 100644
-index 000000000..c626ff212
+index 000000000..1f33dad7a
 --- /dev/null
 +++ b/fs/aufs/hfsplus.c
 @@ -0,0 +1,60 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2010-2022 Junjiro R. Okajima
++ * Copyright (C) 2010-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -18199,13 +18275,13 @@ index 000000000..c626ff212
 +}
 diff --git a/fs/aufs/hnotify.c b/fs/aufs/hnotify.c
 new file mode 100644
-index 000000000..a9639f7b4
+index 000000000..9ba4eb92c
 --- /dev/null
 +++ b/fs/aufs/hnotify.c
 @@ -0,0 +1,715 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -18399,7 +18475,7 @@ index 000000000..a9639f7b4
 +{
 +	int err;
 +	struct dentry *d;
-+	struct qstr *dname;
++	const struct qstr *dname;
 +
 +	err = 1;
 +	if (unlikely(inode->i_ino == AUFS_ROOT_INO)) {
@@ -18567,7 +18643,7 @@ index 000000000..a9639f7b4
 +					   struct inode *dir)
 +{
 +	struct dentry *dentry, *d, *parent;
-+	struct qstr *dname;
++	const struct qstr *dname;
 +
 +	parent = d_find_any_alias(dir);
 +	if (!parent)
@@ -18920,13 +18996,13 @@ index 000000000..a9639f7b4
 +}
 diff --git a/fs/aufs/i_op.c b/fs/aufs/i_op.c
 new file mode 100644
-index 000000000..e89e15a27
+index 000000000..d948b77e7
 --- /dev/null
 +++ b/fs/aufs/i_op.c
-@@ -0,0 +1,1526 @@
+@@ -0,0 +1,1522 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -19569,7 +19645,7 @@ index 000000000..e89e15a27
 +	atomic_long_set(&p->hdir->hi_inode->i_rwsem.owner, (long)task);
 +#else
 +	p->hdir->hi_inode->i_rwsem.rwbase.rtmutex.owner = task;
-+	smp_mb();
++	smp_mb(); /* advertise the owner */
 +#endif
 +}
 +
@@ -20224,13 +20300,9 @@ index 000000000..e89e15a27
 +		goto out_fill; /* pretending success */
 +
 +	positive = d_is_positive(h_path.dentry);
-+	if (positive) {
++	if (positive)
 +		/* no vfsub version */
-+		if (query & AT_GETATTR_NOSEC)
-+			err = vfs_getattr_nosec(&h_path, st, request, query);
-+		else
-+			err = vfs_getattr(&h_path, st, request, query);
-+	}
++		err = vfs_getattr_nosec(&h_path, st, request, query);
 +	if (!err) {
 +		if (positive)
 +			au_refresh_iattr(inode, st,
@@ -20452,13 +20524,13 @@ index 000000000..e89e15a27
 +};
 diff --git a/fs/aufs/i_op_add.c b/fs/aufs/i_op_add.c
 new file mode 100644
-index 000000000..06e7e1836
+index 000000000..28fc3910f
 --- /dev/null
 +++ b/fs/aufs/i_op_add.c
-@@ -0,0 +1,971 @@
+@@ -0,0 +1,979 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -21319,14 +21391,14 @@ index 000000000..06e7e1836
 +	return err;
 +}
 +
-+int aufs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-+	       struct dentry *dentry, umode_t mode)
++struct dentry *aufs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
++			  struct dentry *dentry, umode_t mode)
 +{
 +	int err, rerr;
 +	aufs_bindex_t bindex;
 +	unsigned char diropq;
 +	struct path h_path;
-+	struct dentry *wh_dentry, *parent, *opq_dentry;
++	struct dentry *wh_dentry, *parent, *opq_dentry, *ret;
 +	struct inode *h_inode;
 +	struct super_block *sb;
 +	struct {
@@ -21340,15 +21412,17 @@ index 000000000..06e7e1836
 +
 +	IMustLock(dir);
 +
-+	err = -ENOMEM;
++	ret = ERR_PTR(-ENOMEM);
 +	a = kmalloc(sizeof(*a), GFP_NOFS);
 +	if (unlikely(!a))
 +		goto out;
 +
 +	err = aufs_read_lock(dentry, AuLock_DW | AuLock_GEN);
++	ret = ERR_PTR(err);
 +	if (unlikely(err))
 +		goto out_free;
 +	err = au_d_may_add(dentry);
++	ret = ERR_PTR(err);
 +	if (unlikely(err))
 +		goto out_unlock;
 +
@@ -21356,7 +21430,7 @@ index 000000000..06e7e1836
 +	di_write_lock_parent(parent);
 +	wh_dentry = lock_hdir_lkup_wh(dentry, &a->dt, /*src_dentry*/NULL,
 +				      &a->pin, &wr_dir_args);
-+	err = PTR_ERR(wh_dentry);
++	ret = wh_dentry;
 +	if (IS_ERR(wh_dentry))
 +		goto out_parent;
 +
@@ -21364,9 +21438,13 @@ index 000000000..06e7e1836
 +	bindex = au_dbtop(dentry);
 +	h_path.dentry = au_h_dptr(dentry, bindex);
 +	h_path.mnt = au_sbr_mnt(sb, bindex);
-+	err = vfsub_mkdir(au_pinned_h_dir(&a->pin), &h_path, mode);
-+	if (unlikely(err))
++	ret = vfsub_mkdir(au_pinned_h_dir(&a->pin), &h_path, mode);
++	if (IS_ERR(ret))
 +		goto out_unpin;
++	if (ret && ret != h_path.dentry) {
++		au_set_h_dptr(dentry, bindex, dget(ret));
++		h_path.dentry = ret;
++	}
 +
 +	/* make the dir opaque */
 +	diropq = 0;
@@ -21376,14 +21454,16 @@ index 000000000..06e7e1836
 +		inode_lock_nested(h_inode, AuLsc_I_CHILD);
 +		opq_dentry = au_diropq_create(dentry, bindex);
 +		inode_unlock(h_inode);
-+		err = PTR_ERR(opq_dentry);
-+		if (IS_ERR(opq_dentry))
++		if (IS_ERR(opq_dentry)) {
++			ret = opq_dentry;
 +			goto out_dir;
++		}
 +		dput(opq_dentry);
 +		diropq = 1;
 +	}
 +
 +	err = epilog(dir, bindex, wh_dentry, dentry);
++	ret = ERR_PTR(err); /* NULL or error */
 +	if (!err) {
 +		vfsub_inc_nlink(dir);
 +		goto out_unpin; /* success */
@@ -21398,7 +21478,7 @@ index 000000000..06e7e1836
 +		if (rerr) {
 +			AuIOErr("%pd reverting diropq failed(%d, %d)\n",
 +				dentry, err, rerr);
-+			err = -EIO;
++			ret = ERR_PTR(-EIO);
 +		}
 +	}
 +
@@ -21408,7 +21488,7 @@ index 000000000..06e7e1836
 +	if (rerr) {
 +		AuIOErr("%pd reverting dir failed(%d, %d)\n",
 +			dentry, err, rerr);
-+		err = -EIO;
++		ret = ERR_PTR(-EIO);
 +	}
 +	au_dtime_revert(&a->dt);
 +out_unpin:
@@ -21417,7 +21497,7 @@ index 000000000..06e7e1836
 +out_parent:
 +	di_write_unlock(parent);
 +out_unlock:
-+	if (unlikely(err)) {
++	if (IS_ERR(ret)) {
 +		au_update_dbtop(dentry);
 +		d_drop(dentry);
 +	}
@@ -21425,17 +21505,17 @@ index 000000000..06e7e1836
 +out_free:
 +	au_kfree_rcu(a);
 +out:
-+	return err;
++	return ret;
 +}
 diff --git a/fs/aufs/i_op_del.c b/fs/aufs/i_op_del.c
 new file mode 100644
-index 000000000..74d9bbb3f
+index 000000000..80943a5ba
 --- /dev/null
 +++ b/fs/aufs/i_op_del.c
 @@ -0,0 +1,523 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -21958,13 +22038,13 @@ index 000000000..74d9bbb3f
 +}
 diff --git a/fs/aufs/i_op_ren.c b/fs/aufs/i_op_ren.c
 new file mode 100644
-index 000000000..89a97081a
+index 000000000..939dcd050
 --- /dev/null
 +++ b/fs/aufs/i_op_ren.c
 @@ -0,0 +1,1264 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -23228,13 +23308,13 @@ index 000000000..89a97081a
 +}
 diff --git a/fs/aufs/iinfo.c b/fs/aufs/iinfo.c
 new file mode 100644
-index 000000000..a96f6d426
+index 000000000..e82a63773
 --- /dev/null
 +++ b/fs/aufs/iinfo.c
 @@ -0,0 +1,287 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -23521,13 +23601,13 @@ index 000000000..a96f6d426
 +}
 diff --git a/fs/aufs/inode.c b/fs/aufs/inode.c
 new file mode 100644
-index 000000000..29345928e
+index 000000000..391de2ea1
 --- /dev/null
 +++ b/fs/aufs/inode.c
 @@ -0,0 +1,532 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -24059,13 +24139,13 @@ index 000000000..29345928e
 +}
 diff --git a/fs/aufs/inode.h b/fs/aufs/inode.h
 new file mode 100644
-index 000000000..bb0fe16f4
+index 000000000..6f4f6a837
 --- /dev/null
 +++ b/fs/aufs/inode.h
 @@ -0,0 +1,727 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -24313,8 +24393,8 @@ index 000000000..bb0fe16f4
 +		 struct file *file, umode_t mode);
 +int aufs_link(struct dentry *src_dentry, struct inode *dir,
 +	      struct dentry *dentry);
-+int aufs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-+	       struct dentry *dentry, umode_t mode);
++struct dentry *aufs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
++			  struct dentry *dentry, umode_t mode);
 +
 +/* i_op_del.c */
 +int au_wr_dir_need_wh(struct dentry *dentry, int isdir, aufs_bindex_t *bcpup);
@@ -24792,13 +24872,13 @@ index 000000000..bb0fe16f4
 +#endif /* __AUFS_INODE_H__ */
 diff --git a/fs/aufs/ioctl.c b/fs/aufs/ioctl.c
 new file mode 100644
-index 000000000..2d8d91084
+index 000000000..0816ca65a
 --- /dev/null
 +++ b/fs/aufs/ioctl.c
 @@ -0,0 +1,220 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -24826,7 +24906,7 @@ index 000000000..2d8d91084
 +#include <linux/file.h>
 +#include "aufs.h"
 +
-+static int au_wbr_fd(struct path *path, struct aufs_wbr_fd __user *arg)
++static int au_wbr_fd(const struct path *path, struct aufs_wbr_fd __user *arg)
 +{
 +	int err, fd;
 +	aufs_bindex_t wbi, bindex, bbot;
@@ -25018,13 +25098,13 @@ index 000000000..2d8d91084
 +#endif
 diff --git a/fs/aufs/lcnt.h b/fs/aufs/lcnt.h
 new file mode 100644
-index 000000000..ef5b18e5f
+index 000000000..95df0ac9b
 --- /dev/null
 +++ b/fs/aufs/lcnt.h
 @@ -0,0 +1,186 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2018-2022 Junjiro R. Okajima
++ * Copyright (C) 2018-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -25210,13 +25290,13 @@ index 000000000..ef5b18e5f
 +#endif /* __AUFS_LCNT_H__ */
 diff --git a/fs/aufs/loop.c b/fs/aufs/loop.c
 new file mode 100644
-index 000000000..e783ca658
+index 000000000..38ed1393d
 --- /dev/null
 +++ b/fs/aufs/loop.c
 @@ -0,0 +1,164 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -25380,13 +25460,13 @@ index 000000000..e783ca658
 +}
 diff --git a/fs/aufs/loop.h b/fs/aufs/loop.h
 new file mode 100644
-index 000000000..9fa46df28
+index 000000000..9d479fa1a
 --- /dev/null
 +++ b/fs/aufs/loop.h
 @@ -0,0 +1,59 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -25480,15 +25560,140 @@ index 000000000..7bc9eef3f
 +ifdef CONFIG_HFSPLUS_FS
 +ccflags-y += -DHFSPLUS_SUPER_MAGIC=0x482b
 +endif
+diff --git a/fs/aufs/mf.c b/fs/aufs/mf.c
+new file mode 100644
+index 000000000..ba36e8101
+--- /dev/null
++++ b/fs/aufs/mf.c
+@@ -0,0 +1,119 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (C) 2025 Junjiro R. Okajima
++ */
++
++/*
++ * mmapped files.
++ */
++
++#include "aufs.h"
++
++/*
++ * File hashtable.
++ * It identifies aufs file by branch's file as a key.
++ * Used by customized file_user_path() and file_user_inode() in
++ * include/linux/fs.h.
++ * This table doesn't make get/put call for the elements.
++ *
++ * INIT_HLIST_BL_HEAD() sets NULL to its member, so we can skip it since this is
++ * 'static'.
++ */
++#define N 0x0ff
++static struct hlist_bl_head au_mmapped_finfo[N + 1];
++
++static unsigned int au_mf_hash(const struct file *h_file)
++{
++	uintptr_t ptr;
++
++	BUILD_BUG_ON(sizeof(ptr) < sizeof(h_file));
++	ptr = (uintptr_t)h_file;
++	return (ptr >> 8) & N;
++}
++
++void au_mf_add(struct file *h_file, struct file *file)
++{
++	struct au_finfo *finfo;
++	unsigned int hash;
++	struct hlist_bl_head *hbl_head;
++
++	finfo = au_fi(file);
++	AuDebugOn(!au_test_mmapped(file));
++	if (atomic_read(&finfo->fi_mmapped) == 1) {
++		hash = au_mf_hash(h_file);
++		hbl_head = au_mmapped_finfo + hash;
++		au_hbl_add(&finfo->fi_mf, hbl_head);
++	}
++}
++
++void au_mf_del(struct file *h_file, struct file *file)
++{
++	struct au_finfo *finfo;
++	unsigned int hash;
++	struct hlist_bl_head *hbl_head;
++
++	finfo = au_fi(file);
++	hash = au_mf_hash(h_file);
++	hbl_head = au_mmapped_finfo + hash;
++	au_hbl_del(&finfo->fi_mf, hbl_head);
++}
++
++static struct file *au_mf_find(const struct file *h_file)
++{
++	struct file *found;
++	unsigned int hash;
++	struct hlist_bl_head *hbl_head;
++	struct hlist_bl_node *hbl_node;
++	struct au_finfo *finfo;
++	struct au_hfile *hfile;
++
++	found = NULL;
++	hash = au_mf_hash(h_file);
++	hbl_head = au_mmapped_finfo + hash;
++	hlist_bl_lock(hbl_head);
++	au_hbl_for_each(hbl_node, hbl_head) {
++		if (!hbl_node)
++			continue;
++
++		finfo = container_of(hbl_node, struct au_finfo, fi_mf);
++		hfile = &finfo->fi_htop;
++		if (hfile->hf_file == h_file) {
++			found = finfo->fi_file;
++			break;
++		}
++	}
++	hlist_bl_unlock(hbl_head);
++
++	return found;
++}
++
++/* ---------------------------------------------------------------------- */
++/* declared in include/linux/fs.h */
++
++const struct path *au_do_file_user_path(const struct file *h_file)
++{
++	const struct path *path;
++	struct file *file;
++
++	path = NULL;
++	file = au_mf_find(h_file);
++	if (file)
++		path = &file->f_path;
++
++	return path;
++}
++EXPORT_SYMBOL_GPL(au_do_file_user_path);
++
++const struct inode *au_do_file_user_inode(const struct file *h_file)
++{
++	struct inode *inode;
++	struct file *file;
++
++	inode = NULL;
++	file = au_mf_find(h_file);
++	if (file)
++		inode = file->f_inode;
++
++	return inode;
++}
++EXPORT_SYMBOL_GPL(au_do_file_user_inode);
 diff --git a/fs/aufs/module.c b/fs/aufs/module.c
 new file mode 100644
-index 000000000..21637b1a9
+index 000000000..e474ade45
 --- /dev/null
 +++ b/fs/aufs/module.c
 @@ -0,0 +1,275 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -25650,7 +25855,7 @@ index 000000000..21637b1a9
 +
 +static char au_esc_chars[0x20 + 3]; /* 0x01-0x20, backslash, del, and NULL */
 +
-+int au_seq_path(struct seq_file *seq, struct path *path)
++int au_seq_path(struct seq_file *seq, const struct path *path)
 +{
 +	int err;
 +
@@ -25763,13 +25968,13 @@ index 000000000..21637b1a9
 +module_exit(aufs_exit);
 diff --git a/fs/aufs/module.h b/fs/aufs/module.h
 new file mode 100644
-index 000000000..3d3f0d2a8
+index 000000000..5b028c2fc
 --- /dev/null
 +++ b/fs/aufs/module.h
 @@ -0,0 +1,180 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -25872,7 +26077,7 @@ index 000000000..3d3f0d2a8
 +#endif
 +}
 +
-+int au_seq_path(struct seq_file *seq, struct path *path);
++int au_seq_path(struct seq_file *seq, const struct path *path);
 +
 +#ifdef CONFIG_PROC_FS
 +/* procfs.c */
@@ -25949,13 +26154,13 @@ index 000000000..3d3f0d2a8
 +#endif /* __AUFS_MODULE_H__ */
 diff --git a/fs/aufs/mvdown.c b/fs/aufs/mvdown.c
 new file mode 100644
-index 000000000..dde408694
+index 000000000..942736a99
 --- /dev/null
 +++ b/fs/aufs/mvdown.c
 @@ -0,0 +1,714 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2011-2022 Junjiro R. Okajima
++ * Copyright (C) 2011-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -26669,13 +26874,13 @@ index 000000000..dde408694
 +}
 diff --git a/fs/aufs/opts.c b/fs/aufs/opts.c
 new file mode 100644
-index 000000000..1ee101090
+index 000000000..533c87bda
 --- /dev/null
 +++ b/fs/aufs/opts.c
 @@ -0,0 +1,1030 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -27705,13 +27910,13 @@ index 000000000..1ee101090
 +}
 diff --git a/fs/aufs/opts.h b/fs/aufs/opts.h
 new file mode 100644
-index 000000000..15118d61a
+index 000000000..62cc3c40b
 --- /dev/null
 +++ b/fs/aufs/opts.h
 @@ -0,0 +1,264 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -27975,13 +28180,13 @@ index 000000000..15118d61a
 +#endif /* __AUFS_OPTS_H__ */
 diff --git a/fs/aufs/plink.c b/fs/aufs/plink.c
 new file mode 100644
-index 000000000..5f9a5b50d
+index 000000000..6a47db86c
 --- /dev/null
 +++ b/fs/aufs/plink.c
 @@ -0,0 +1,516 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -28497,13 +28702,13 @@ index 000000000..5f9a5b50d
 +}
 diff --git a/fs/aufs/poll.c b/fs/aufs/poll.c
 new file mode 100644
-index 000000000..83defa454
+index 000000000..0b8b948fc
 --- /dev/null
 +++ b/fs/aufs/poll.c
 @@ -0,0 +1,51 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -28554,13 +28759,13 @@ index 000000000..83defa454
 +}
 diff --git a/fs/aufs/posix_acl.c b/fs/aufs/posix_acl.c
 new file mode 100644
-index 000000000..03742bcc6
+index 000000000..12ed81a59
 --- /dev/null
 +++ b/fs/aufs/posix_acl.c
 @@ -0,0 +1,108 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2014-2022 Junjiro R. Okajima
++ * Copyright (C) 2014-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -28668,13 +28873,13 @@ index 000000000..03742bcc6
 +}
 diff --git a/fs/aufs/procfs.c b/fs/aufs/procfs.c
 new file mode 100644
-index 000000000..627ba7b99
+index 000000000..2ed220449
 --- /dev/null
 +++ b/fs/aufs/procfs.c
 @@ -0,0 +1,168 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2010-2022 Junjiro R. Okajima
++ * Copyright (C) 2010-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -28842,13 +29047,13 @@ index 000000000..627ba7b99
 +}
 diff --git a/fs/aufs/rdu.c b/fs/aufs/rdu.c
 new file mode 100644
-index 000000000..8a61b9377
+index 000000000..54ebca84a
 --- /dev/null
 +++ b/fs/aufs/rdu.c
 @@ -0,0 +1,384 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -29232,13 +29437,13 @@ index 000000000..8a61b9377
 +#endif
 diff --git a/fs/aufs/rwsem.h b/fs/aufs/rwsem.h
 new file mode 100644
-index 000000000..18e679bf8
+index 000000000..c71f6542f
 --- /dev/null
 +++ b/fs/aufs/rwsem.h
 @@ -0,0 +1,89 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -29272,7 +29477,7 @@ index 000000000..18e679bf8
 +#ifndef CONFIG_PREEMPT_RT
 +#define AuRwMustNoWaiters(rw)	AuDebugOn(rwsem_is_contended(rw))
 +#else
-+#define AuRwMustNoWaiters(rw)	do {} while(0)
++AuStubVoid(AuRwMustNoWaiters, struct rw_semaphore *rw)
 +#endif
 +
 +#ifdef CONFIG_LOCKDEP
@@ -29327,13 +29532,13 @@ index 000000000..18e679bf8
 +#endif /* __AUFS_RWSEM_H__ */
 diff --git a/fs/aufs/sbinfo.c b/fs/aufs/sbinfo.c
 new file mode 100644
-index 000000000..dde9f9c17
+index 000000000..9433b21b3
 --- /dev/null
 +++ b/fs/aufs/sbinfo.c
 @@ -0,0 +1,316 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -29649,13 +29854,13 @@ index 000000000..dde9f9c17
 +}
 diff --git a/fs/aufs/super.c b/fs/aufs/super.c
 new file mode 100644
-index 000000000..ac7778f39
+index 000000000..caa58bebe
 --- /dev/null
 +++ b/fs/aufs/super.c
-@@ -0,0 +1,874 @@
+@@ -0,0 +1,875 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -30389,18 +30594,18 @@ index 000000000..ac7778f39
 +
 +	if (do_idop) {
 +		if (au_ftest_si(sbi, NO_DREVAL)) {
-+			AuDebugOn(sb->s_d_op == &aufs_dop_noreval);
-+			sb->s_d_op = &aufs_dop_noreval;
++			AuDebugOn(sb->__s_d_op == &aufs_dop_noreval);
++			set_default_d_op(sb, &aufs_dop_noreval);
 +			AuDebugOn(sbi->si_iop_array == aufs_iop_nogetattr);
 +			sbi->si_iop_array = aufs_iop_nogetattr;
 +		} else {
-+			AuDebugOn(sb->s_d_op == &aufs_dop);
-+			sb->s_d_op = &aufs_dop;
++			AuDebugOn(sb->__s_d_op == &aufs_dop);
++			set_default_d_op(sb, &aufs_dop);
 +			AuDebugOn(sbi->si_iop_array == aufs_iop);
 +			sbi->si_iop_array = aufs_iop;
 +		}
 +		pr_info("reset to %ps and %ps\n",
-+			sb->s_d_op, sbi->si_iop_array);
++			sb->__s_d_op, sbi->si_iop_array);
 +	}
 +
 +	di_write_unlock(root);
@@ -30422,7 +30627,7 @@ index 000000000..ac7778f39
 +	.destroy_inode	= aufs_destroy_inode,
 +	.free_inode	= aufs_free_inode,
 +	/* always deleting, no clearing */
-+	.drop_inode	= generic_delete_inode,
++	.drop_inode	= inode_just_drop,
 +	.show_options	= aufs_show_options,
 +	.statfs		= aufs_statfs,
 +	.put_super	= aufs_put_super,
@@ -30518,6 +30723,7 @@ index 000000000..ac7778f39
 +	.name		= AUFS_FSTYPE,
 +	/* a race between rename and others */
 +	.fs_flags	= FS_RENAME_DOES_D_MOVE
++				| FS_MGTIME
 +				/* untested */
 +				/*| FS_ALLOW_IDMAP*/
 +				,
@@ -30529,13 +30735,13 @@ index 000000000..ac7778f39
 +};
 diff --git a/fs/aufs/super.h b/fs/aufs/super.h
 new file mode 100644
-index 000000000..feb569e25
+index 000000000..42dcdf466
 --- /dev/null
 +++ b/fs/aufs/super.h
 @@ -0,0 +1,618 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -30888,7 +31094,7 @@ index 000000000..feb569e25
 +void au_export_init(struct super_block *sb);
 +void au_xigen_inc(struct inode *inode);
 +int au_xigen_new(struct inode *inode);
-+int au_xigen_set(struct super_block *sb, struct path *path);
++int au_xigen_set(struct super_block *sb, const struct path *path);
 +void au_xigen_clr(struct super_block *sb);
 +
 +static inline int au_busy_or_stale(void)
@@ -30902,7 +31108,7 @@ index 000000000..feb569e25
 +AuStubVoid(au_export_init, struct super_block *sb)
 +AuStubVoid(au_xigen_inc, struct inode *inode)
 +AuStubInt0(au_xigen_new, struct inode *inode)
-+AuStubInt0(au_xigen_set, struct super_block *sb, struct path *path)
++AuStubInt0(au_xigen_set, struct super_block *sb, const struct path *path)
 +AuStubVoid(au_xigen_clr, struct super_block *sb)
 +AuStub(int, au_busy_or_stale, return -EBUSY, void)
 +#endif /* CONFIG_AUFS_EXPORT */
@@ -31153,13 +31359,13 @@ index 000000000..feb569e25
 +#endif /* __AUFS_SUPER_H__ */
 diff --git a/fs/aufs/sysaufs.c b/fs/aufs/sysaufs.c
 new file mode 100644
-index 000000000..ab109d550
+index 000000000..2c28abfd5
 --- /dev/null
 +++ b/fs/aufs/sysaufs.c
 @@ -0,0 +1,94 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -31253,13 +31459,13 @@ index 000000000..ab109d550
 +}
 diff --git a/fs/aufs/sysaufs.h b/fs/aufs/sysaufs.h
 new file mode 100644
-index 000000000..3f7efd451
+index 000000000..224895b10
 --- /dev/null
 +++ b/fs/aufs/sysaufs.h
 @@ -0,0 +1,102 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -31361,13 +31567,13 @@ index 000000000..3f7efd451
 +#endif /* __SYSAUFS_H__ */
 diff --git a/fs/aufs/sysfs.c b/fs/aufs/sysfs.c
 new file mode 100644
-index 000000000..4e8a4cfa9
+index 000000000..9d68cf89e
 --- /dev/null
 +++ b/fs/aufs/sysfs.c
 @@ -0,0 +1,374 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -31741,13 +31947,13 @@ index 000000000..4e8a4cfa9
 +}
 diff --git a/fs/aufs/sysrq.c b/fs/aufs/sysrq.c
 new file mode 100644
-index 000000000..c9e04cd00
+index 000000000..57fa54ce5
 --- /dev/null
 +++ b/fs/aufs/sysrq.c
 @@ -0,0 +1,157 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -31904,13 +32110,13 @@ index 000000000..c9e04cd00
 +}
 diff --git a/fs/aufs/vdir.c b/fs/aufs/vdir.c
 new file mode 100644
-index 000000000..490273b00
+index 000000000..eb6bd9fb1
 --- /dev/null
 +++ b/fs/aufs/vdir.c
 @@ -0,0 +1,896 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -32806,13 +33012,13 @@ index 000000000..490273b00
 +}
 diff --git a/fs/aufs/vfsub.c b/fs/aufs/vfsub.c
 new file mode 100644
-index 000000000..f6f04b51d
+index 000000000..2ec2d0195
 --- /dev/null
 +++ b/fs/aufs/vfsub.c
-@@ -0,0 +1,965 @@
+@@ -0,0 +1,968 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -32892,7 +33098,8 @@ index 000000000..f6f04b51d
 +void vfsub_clear_nlink(struct inode *inode)
 +{
 +	au_nlink_lock(inode);
-+	AuDebugOn(!inode->i_nlink);
++	/* it can happen */
++	/* AuDebugOn(!inode->i_nlink); */
 +	clear_nlink(inode);
 +	au_nlink_unlock(inode);
 +}
@@ -32909,7 +33116,7 @@ index 000000000..f6f04b51d
 +	au_nlink_unlock(inode);
 +}
 +
-+int vfsub_update_h_iattr(struct path *h_path, int *did)
++int vfsub_update_h_iattr(const struct path *h_path, int *did)
 +{
 +	int err;
 +	struct kstat st;
@@ -32982,8 +33189,8 @@ index 000000000..f6f04b51d
 +		goto out;
 +
 +	au_lcnt_inc(&br->br_nfiles);
-+	file->f_path.dentry = DENTRY_NOT_SET;
-+	file->f_path.mnt = au_br_mnt(br);
++	file->__f_path.dentry = DENTRY_NOT_SET;
++	file->__f_path.mnt = au_br_mnt(br);
 +	AuDbg("%ps\n", dir->i_op->atomic_open);
 +	err = dir->i_op->atomic_open(dir, dentry, file, args->open_flag,
 +				     args->create_mode);
@@ -33030,7 +33237,8 @@ index 000000000..f6f04b51d
 +{
 +	struct path path;
 +
-+	path.dentry = lookup_one_len_unlocked(name, ppath->dentry, len);
++	path.dentry = lookup_noperm_unlocked(&QSTR_LEN(name, len),
++					     ppath->dentry);
 +	if (IS_ERR(path.dentry))
 +		goto out;
 +	if (d_is_positive(path.dentry)) {
@@ -33051,7 +33259,7 @@ index 000000000..f6f04b51d
 +	/* VFS checks it too, but by WARN_ON_ONCE() */
 +	IMustLock(d_inode(ppath->dentry));
 +
-+	path.dentry = lookup_one_len(name, ppath->dentry, len);
++	path.dentry = lookup_noperm(&QSTR_LEN(name, len), ppath->dentry);
 +	if (IS_ERR(path.dentry))
 +		goto out;
 +	if (d_is_positive(path.dentry)) {
@@ -33284,12 +33492,11 @@ index 000000000..f6f04b51d
 +	if (unlikely(err))
 +		goto out;
 +
-+	rd.old_mnt_idmap = mnt_idmap(path->mnt);
-+	rd.old_dir = src_dir;
++	rd.mnt_idmap = mnt_idmap(path->mnt);
 +	rd.old_dentry = src_dentry;
-+	rd.new_mnt_idmap = rd.old_mnt_idmap;
-+	rd.new_dir = dir;
++	rd.old_parent = rd.old_dentry->d_parent;
 +	rd.new_dentry = path->dentry;
++	rd.new_parent = rd.new_dentry->d_parent;
 +	rd.delegated_inode = delegated_inode;
 +	rd.flags = flags;
 +	lockdep_off();
@@ -33313,11 +33520,12 @@ index 000000000..f6f04b51d
 +	return err;
 +}
 +
-+int vfsub_mkdir(struct inode *dir, struct path *path, int mode)
++struct dentry *vfsub_mkdir(struct inode *dir, struct path *path, int mode)
 +{
-+	int err;
-+	struct dentry *d;
++	int err, did;
++	struct dentry *d, *ret;
 +	struct mnt_idmap *idmap;
++	struct path tmp;
 +
 +	IMustLock(dir);
 +
@@ -33325,27 +33533,32 @@ index 000000000..f6f04b51d
 +	path->dentry = d->d_parent;
 +	err = security_path_mkdir(path, d, mode);
 +	path->dentry = d;
++	ret = ERR_PTR(err);
 +	if (unlikely(err))
 +		goto out;
 +	idmap = mnt_idmap(path->mnt);
 +
++	/* vfs_mkdir() calls dput() on error */
++	dget(path->dentry);
 +	lockdep_off();
-+	err = vfs_mkdir(idmap, dir, path->dentry, mode);
++	ret = vfs_mkdir(idmap, dir, path->dentry, mode);
 +	lockdep_on();
-+	if (!err) {
-+		struct path tmp = *path;
-+		int did;
++	if (IS_ERR(ret))
++		goto out;
++	dput(path->dentry);
 +
-+		vfsub_update_h_iattr(&tmp, &did);
-+		if (did) {
-+			tmp.dentry = path->dentry->d_parent;
-+			vfsub_update_h_iattr(&tmp, /*did*/NULL);
-+		}
-+		/*ignore*/
++	tmp = *path;
++	if (ret)
++		tmp.dentry = ret;
++	vfsub_update_h_iattr(&tmp, &did);
++	if (did) {
++		tmp.dentry = tmp.dentry->d_parent;
++		vfsub_update_h_iattr(&tmp, /*did*/NULL);
 +	}
++	/*ignore*/
 +
 +out:
-+	return err;
++	return ret;
 +}
 +
 +int vfsub_rmdir(struct inode *dir, struct path *path)
@@ -33498,7 +33711,7 @@ index 000000000..f6f04b51d
 +	return err;
 +}
 +
-+int vfsub_fsync(struct file *file, struct path *path, int datasync)
++int vfsub_fsync(struct file *file, const struct path *path, int datasync)
 +{
 +	int err;
 +
@@ -33517,7 +33730,7 @@ index 000000000..f6f04b51d
 +}
 +
 +/* cf. open.c:do_sys_truncate() and do_sys_ftruncate() */
-+int vfsub_trunc(struct path *h_path, loff_t length, unsigned int attr,
++int vfsub_trunc(const struct path *h_path, loff_t length, unsigned int attr,
 +		struct file *h_file)
 +{
 +	int err;
@@ -33530,20 +33743,18 @@ index 000000000..f6f04b51d
 +		goto out;
 +	}
 +
++	err = security_file_truncate(h_file);
++	if (err)
++		goto out;
++	err = fsnotify_truncate_perm(&h_file->f_path, length);
++	if (err)
++		goto out;
++	h_idmap = mnt_idmap(h_path->mnt);
 +	h_inode = d_inode(h_path->dentry);
 +	h_sb = h_inode->i_sb;
 +	lockdep_off();
 +	sb_start_write(h_sb);
-+	lockdep_on();
-+	err = security_file_truncate(h_file);
-+	if (!err) {
-+		h_idmap = mnt_idmap(h_path->mnt);
-+		lockdep_off();
-+		err = do_truncate(h_idmap, h_path->dentry, length, attr,
-+				  h_file);
-+		lockdep_on();
-+	}
-+	lockdep_off();
++	err = do_truncate(h_idmap, h_path->dentry, length, attr, h_file);
 +	sb_end_write(h_sb);
 +	lockdep_on();
 +
@@ -33554,7 +33765,7 @@ index 000000000..f6f04b51d
 +/* ---------------------------------------------------------------------- */
 +
 +struct au_vfsub_mkdir_args {
-+	int *errp;
++	struct dentry **errp;
 +	struct inode *dir;
 +	struct path *path;
 +	int mode;
@@ -33566,30 +33777,31 @@ index 000000000..f6f04b51d
 +	*a->errp = vfsub_mkdir(a->dir, a->path, a->mode);
 +}
 +
-+int vfsub_sio_mkdir(struct inode *dir, struct path *path, int mode)
++struct dentry *vfsub_sio_mkdir(struct inode *dir, struct path *path, int mode)
 +{
-+	int err, do_sio, wkq_err;
++	int err, do_sio;
 +	struct mnt_idmap *idmap;
++	struct dentry *ret;
 +
 +	idmap = mnt_idmap(path->mnt);
 +	do_sio = au_test_h_perm_sio(idmap, dir, MAY_EXEC | MAY_WRITE);
 +	if (!do_sio) {
 +		lockdep_off();
-+		err = vfsub_mkdir(dir, path, mode);
++		ret = vfsub_mkdir(dir, path, mode);
 +		lockdep_on();
 +	} else {
 +		struct au_vfsub_mkdir_args args = {
-+			.errp	= &err,
++			.errp	= &ret,
 +			.dir	= dir,
 +			.path	= path,
 +			.mode	= mode
 +		};
-+		wkq_err = au_wkq_wait(au_call_vfsub_mkdir, &args);
-+		if (unlikely(wkq_err))
-+			err = wkq_err;
++		err = au_wkq_wait(au_call_vfsub_mkdir, &args);
++		if (unlikely(err))
++			ret = ERR_PTR(err);
 +	}
 +
-+	return err;
++	return ret;
 +}
 +
 +struct au_vfsub_rmdir_args {
@@ -33633,7 +33845,7 @@ index 000000000..f6f04b51d
 +
 +struct notify_change_args {
 +	int *errp;
-+	struct path *path;
++	const struct path *path;
 +	struct iattr *ia;
 +	struct inode **delegated_inode;
 +};
@@ -33660,7 +33872,7 @@ index 000000000..f6f04b51d
 +	AuTraceErr(*a->errp);
 +}
 +
-+int vfsub_notify_change(struct path *path, struct iattr *ia,
++int vfsub_notify_change(const struct path *path, struct iattr *ia,
 +			struct inode **delegated_inode)
 +{
 +	int err;
@@ -33699,7 +33911,7 @@ index 000000000..f6f04b51d
 +struct unlink_args {
 +	int *errp;
 +	struct inode *dir;
-+	struct path *path;
++	const struct path *path;
 +	struct inode **delegated_inode;
 +};
 +
@@ -33711,12 +33923,14 @@ index 000000000..f6f04b51d
 +	struct mnt_idmap *idmap;
 +	const int stop_sillyrename = (au_test_nfs(d->d_sb)
 +				      && au_dcount(d) == 1);
++	struct path tmp = {
++		.dentry = d->d_parent,
++		.mnt	= a->path->mnt
++	};
 +
 +	IMustLock(a->dir);
 +
-+	a->path->dentry = d->d_parent;
-+	*a->errp = security_path_unlink(a->path, d);
-+	a->path->dentry = d;
++	*a->errp = security_path_unlink(&tmp, d);
 +	if (unlikely(*a->errp))
 +		return;
 +
@@ -33732,13 +33946,8 @@ index 000000000..f6f04b51d
 +	lockdep_off();
 +	*a->errp = vfs_unlink(idmap, a->dir, d, a->delegated_inode);
 +	lockdep_on();
-+	if (!*a->errp) {
-+		struct path tmp = {
-+			.dentry = d->d_parent,
-+			.mnt	= a->path->mnt
-+		};
++	if (!*a->errp)
 +		vfsub_update_h_iattr(&tmp, /*did*/NULL); /*ignore*/
-+	}
 +
 +	if (!stop_sillyrename)
 +		dput(d);
@@ -33752,7 +33961,7 @@ index 000000000..f6f04b51d
 + * @dir: must be locked.
 + * @dentry: target dentry.
 + */
-+int vfsub_unlink(struct inode *dir, struct path *path,
++int vfsub_unlink(struct inode *dir, const struct path *path,
 +		 struct inode **delegated_inode, int force)
 +{
 +	int err;
@@ -33777,13 +33986,13 @@ index 000000000..f6f04b51d
 +}
 diff --git a/fs/aufs/vfsub.h b/fs/aufs/vfsub.h
 new file mode 100644
-index 000000000..5c68c2ec3
+index 000000000..0ed048696
 --- /dev/null
 +++ b/fs/aufs/vfsub.h
 @@ -0,0 +1,441 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -33909,7 +34118,7 @@ index 000000000..5c68c2ec3
 +
 +/* ---------------------------------------------------------------------- */
 +
-+int vfsub_update_h_iattr(struct path *h_path, int *did);
++int vfsub_update_h_iattr(const struct path *h_path, int *did);
 +struct file *vfsub_dentry_open(struct path *path, int flags);
 +struct file *vfsub_filp_open(const char *path, int oflags, int mode);
 +struct au_branch;
@@ -33930,11 +34139,11 @@ index 000000000..5c68c2ec3
 +
 +struct vfsub_lkup_one_args {
 +	struct dentry **errp;
-+	struct qstr *name;
++	const struct qstr *name;
 +	struct path *ppath;
 +};
 +
-+static inline struct dentry *vfsub_lkup_one(struct qstr *name,
++static inline struct dentry *vfsub_lkup_one(const struct qstr *name,
 +					    struct path *ppath)
 +{
 +	return vfsub_lookup_one_len(name->name, ppath, name->len);
@@ -34002,7 +34211,7 @@ index 000000000..5c68c2ec3
 +int vfsub_rename(struct inode *src_hdir, struct dentry *src_dentry,
 +		 struct inode *hdir, struct path *path,
 +		 struct inode **delegated_inode, unsigned int flags);
-+int vfsub_mkdir(struct inode *dir, struct path *path, int mode);
++struct dentry *vfsub_mkdir(struct inode *dir, struct path *path, int mode);
 +int vfsub_rmdir(struct inode *dir, struct path *path);
 +
 +/* ---------------------------------------------------------------------- */
@@ -34089,7 +34298,7 @@ index 000000000..5c68c2ec3
 +ssize_t vfsub_splice_from(struct pipe_inode_info *pipe, struct file *out,
 +			  loff_t *ppos, size_t len, unsigned int flags);
 +
-+static inline long vfsub_truncate(struct path *path, loff_t length)
++static inline long vfsub_truncate(const struct path *path, loff_t length)
 +{
 +	long err;
 +
@@ -34099,9 +34308,9 @@ index 000000000..5c68c2ec3
 +	return err;
 +}
 +
-+int vfsub_trunc(struct path *h_path, loff_t length, unsigned int attr,
++int vfsub_trunc(const struct path *h_path, loff_t length, unsigned int attr,
 +		struct file *h_file);
-+int vfsub_fsync(struct file *file, struct path *path, int datasync);
++int vfsub_fsync(struct file *file, const struct path *path, int datasync);
 +
 +/*
 + * re-use branch fs's ioctl(FICLONE) while aufs itself doesn't support such
@@ -34147,13 +34356,13 @@ index 000000000..5c68c2ec3
 +
 +/* ---------------------------------------------------------------------- */
 +
-+int vfsub_sio_mkdir(struct inode *dir, struct path *path, int mode);
++struct dentry *vfsub_sio_mkdir(struct inode *dir, struct path *path, int mode);
 +int vfsub_sio_rmdir(struct inode *dir, struct path *path);
 +int vfsub_sio_notify_change(struct path *path, struct iattr *ia,
 +			    struct inode **delegated_inode);
-+int vfsub_notify_change(struct path *path, struct iattr *ia,
++int vfsub_notify_change(const struct path *path, struct iattr *ia,
 +			struct inode **delegated_inode);
-+int vfsub_unlink(struct inode *dir, struct path *path,
++int vfsub_unlink(struct inode *dir, const struct path *path,
 +		 struct inode **delegated_inode, int force);
 +
 +static inline int vfsub_getattr(const struct path *path, struct kstat *st)
@@ -34224,13 +34433,13 @@ index 000000000..5c68c2ec3
 +#endif /* __AUFS_VFSUB_H__ */
 diff --git a/fs/aufs/wbr_policy.c b/fs/aufs/wbr_policy.c
 new file mode 100644
-index 000000000..338b49118
+index 000000000..d8b5f1288
 --- /dev/null
 +++ b/fs/aufs/wbr_policy.c
-@@ -0,0 +1,830 @@
+@@ -0,0 +1,835 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -34340,7 +34549,7 @@ index 000000000..338b49118
 +	int err, rerr;
 +	aufs_bindex_t bopq, btop;
 +	struct path h_path;
-+	struct dentry *parent;
++	struct dentry *parent, *ret;
 +	struct inode *h_dir, *h_inode, *inode, *dir;
 +	unsigned int *flags = arg;
 +
@@ -34357,9 +34566,14 @@ index 000000000..338b49118
 +		goto out;
 +	h_path.dentry = au_h_dptr(dentry, bdst);
 +	h_path.mnt = au_sbr_mnt(dentry->d_sb, bdst);
-+	err = vfsub_sio_mkdir(au_h_iptr(dir, bdst), &h_path, 0755);
-+	if (unlikely(err))
++	ret = vfsub_sio_mkdir(au_h_iptr(dir, bdst), &h_path, 0755);
++	if (IS_ERR(ret)) {
++		err = PTR_ERR(ret);
 +		goto out_put;
++	} else if (ret && ret != h_path.dentry) {
++		h_path.dentry = dget(ret);
++		au_set_h_dptr(dentry, bdst, ret);
++	}
 +	au_fset_cpdown(*flags, MADE_DIR);
 +
 +	bopq = au_dbdiropq(dentry);
@@ -35060,13 +35274,13 @@ index 000000000..338b49118
 +};
 diff --git a/fs/aufs/whout.c b/fs/aufs/whout.c
 new file mode 100644
-index 000000000..d67366325
+index 000000000..792618a9e
 --- /dev/null
 +++ b/fs/aufs/whout.c
-@@ -0,0 +1,1072 @@
+@@ -0,0 +1,1096 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -35131,7 +35345,7 @@ index 000000000..d67366325
 + * @try_sio specifies the necessary of super-io.
 + */
 +int au_wh_test(struct mnt_idmap *h_idmap, struct path *h_ppath,
-+	       struct qstr *wh_name, int try_sio)
++	       const struct qstr *wh_name, int try_sio)
 +{
 +	int err;
 +	struct dentry *wh_dentry;
@@ -35183,7 +35397,7 @@ index 000000000..d67366325
 + * returns a negative dentry whose name is unique and temporary.
 + */
 +struct dentry *au_whtmp_lkup(struct dentry *h_parent, struct au_branch *br,
-+			     struct qstr *prefix)
++			     const struct qstr *prefix)
 +{
 +	struct dentry *dentry;
 +	int i;
@@ -35383,6 +35597,7 @@ index 000000000..d67366325
 +static int au_whdir(struct inode *h_dir, struct path *path)
 +{
 +	int err;
++	struct dentry *ret;
 +
 +	err = -EEXIST;
 +	if (d_is_negative(path->dentry)) {
@@ -35390,7 +35605,14 @@ index 000000000..d67366325
 +
 +		if (au_test_nfs(path->dentry->d_sb))
 +			mode |= 0111;
-+		err = vfsub_mkdir(h_dir, path, mode);
++		ret = vfsub_mkdir(h_dir, path, mode);
++		if (IS_ERR(ret))
++			err = PTR_ERR(ret);
++		else {
++			err = 0;
++			if (ret && ret != path->dentry)
++				path->dentry = ret;
++		}
 +	} else if (d_is_dir(path->dentry))
 +		err = 0;
 +	else
@@ -35442,6 +35664,10 @@ index 000000000..d67366325
 +		err = au_whdir(h_dir, h_path);
 +		if (unlikely(err))
 +			goto out;
++		else if (h_path->dentry != base[AuBrWh_PLINK].dentry) {
++			dput(base[AuBrWh_PLINK].dentry);
++			base[AuBrWh_PLINK].dentry = dget(h_path->dentry);
++		}
 +		wbr->wbr_plink = dget(base[AuBrWh_PLINK].dentry);
 +	} else
 +		au_wh_clean(h_dir, h_path, /*isdir*/1);
@@ -35449,6 +35675,10 @@ index 000000000..d67366325
 +	err = au_whdir(h_dir, h_path);
 +	if (unlikely(err))
 +		goto out;
++	else if (h_path->dentry != base[AuBrWh_ORPH].dentry) {
++		dput(base[AuBrWh_ORPH].dentry);
++		base[AuBrWh_ORPH].dentry = dget(h_path->dentry);
++	}
 +	wbr->wbr_orph = dget(base[AuBrWh_ORPH].dentry);
 +
 +out:
@@ -35498,6 +35728,10 @@ index 000000000..d67366325
 +		err = au_whdir(h_dir, h_path);
 +		if (unlikely(err))
 +			goto out;
++		else if (h_path->dentry != base[AuBrWh_PLINK].dentry) {
++			dput(base[AuBrWh_PLINK].dentry);
++			base[AuBrWh_PLINK].dentry = dget(h_path->dentry);
++		}
 +		wbr->wbr_plink = dget(base[AuBrWh_PLINK].dentry);
 +	} else
 +		au_wh_clean(h_dir, h_path, /*isdir*/1);
@@ -35507,6 +35741,10 @@ index 000000000..d67366325
 +	err = au_whdir(h_dir, h_path);
 +	if (unlikely(err))
 +		goto out;
++	else if (h_path->dentry != base[AuBrWh_ORPH].dentry) {
++		dput(base[AuBrWh_ORPH].dentry);
++		base[AuBrWh_ORPH].dentry = dget(h_path->dentry);
++	}
 +	wbr->wbr_orph = dget(base[AuBrWh_ORPH].dentry);
 +
 +out:
@@ -35852,7 +36090,7 @@ index 000000000..d67366325
 + * @base_name: name of dentry which will be whiteouted
 + * returns dentry for whiteout.
 + */
-+struct dentry *au_wh_lkup(struct dentry *h_parent, struct qstr *base_name,
++struct dentry *au_wh_lkup(struct dentry *h_parent, const struct qstr *base_name,
 +			  struct au_branch *br)
 +{
 +	int err;
@@ -36138,13 +36376,13 @@ index 000000000..d67366325
 +}
 diff --git a/fs/aufs/whout.h b/fs/aufs/whout.h
 new file mode 100644
-index 000000000..a7ae8702e
+index 000000000..591bb376e
 --- /dev/null
 +++ b/fs/aufs/whout.h
 @@ -0,0 +1,87 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -36174,11 +36412,11 @@ index 000000000..a7ae8702e
 +/* whout.c */
 +int au_wh_name_alloc(struct qstr *wh, const struct qstr *name);
 +int au_wh_test(struct mnt_idmap *h_idmap, struct path *h_ppath,
-+	       struct qstr *wh_name, int try_sio);
++	       const struct qstr *wh_name, int try_sio);
 +int au_diropq_test(struct mnt_idmap *h_idmap, struct path *h_path);
 +struct au_branch;
 +struct dentry *au_whtmp_lkup(struct dentry *h_parent, struct au_branch *br,
-+			     struct qstr *prefix);
++			     const struct qstr *prefix);
 +int au_whtmp_ren(struct dentry *h_dentry, struct au_branch *br);
 +int au_wh_unlink_dentry(struct inode *h_dir, struct path *h_path,
 +			struct dentry *dentry);
@@ -36194,7 +36432,7 @@ index 000000000..a7ae8702e
 +
 +struct dentry *au_diropq_sio(struct dentry *dentry, aufs_bindex_t bindex,
 +			     unsigned int flags);
-+struct dentry *au_wh_lkup(struct dentry *h_parent, struct qstr *base_name,
++struct dentry *au_wh_lkup(struct dentry *h_parent, const struct qstr *base_name,
 +			  struct au_branch *br);
 +struct dentry *au_wh_create(struct dentry *dentry, aufs_bindex_t bindex,
 +			    struct dentry *h_parent);
@@ -36231,13 +36469,13 @@ index 000000000..a7ae8702e
 +#endif /* __AUFS_WHOUT_H__ */
 diff --git a/fs/aufs/wkq.c b/fs/aufs/wkq.c
 new file mode 100644
-index 000000000..efc13b507
+index 000000000..869f3ff57
 --- /dev/null
 +++ b/fs/aufs/wkq.c
 @@ -0,0 +1,370 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -36607,13 +36845,13 @@ index 000000000..efc13b507
 +}
 diff --git a/fs/aufs/wkq.h b/fs/aufs/wkq.h
 new file mode 100644
-index 000000000..96c61d8e4
+index 000000000..9132cfeae
 --- /dev/null
 +++ b/fs/aufs/wkq.h
 @@ -0,0 +1,89 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -36702,13 +36940,13 @@ index 000000000..96c61d8e4
 +#endif /* __AUFS_WKQ_H__ */
 diff --git a/fs/aufs/xattr.c b/fs/aufs/xattr.c
 new file mode 100644
-index 000000000..72f708f3e
+index 000000000..261510b24
 --- /dev/null
 +++ b/fs/aufs/xattr.c
 @@ -0,0 +1,360 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2014-2022 Junjiro R. Okajima
++ * Copyright (C) 2014-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -37068,13 +37306,13 @@ index 000000000..72f708f3e
 +}
 diff --git a/fs/aufs/xino.c b/fs/aufs/xino.c
 new file mode 100644
-index 000000000..1786dba71
+index 000000000..aae997cd1
 --- /dev/null
 +++ b/fs/aufs/xino.c
 @@ -0,0 +1,1926 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -37200,7 +37438,7 @@ index 000000000..1786dba71
 +	return parent;
 +}
 +
-+static void au_xino_lock_dir(struct super_block *sb, struct path *xipath,
++static void au_xino_lock_dir(struct super_block *sb, const struct path *xipath,
 +			     struct au_xino_lock_dir *ldir)
 +{
 +	aufs_bindex_t bindex;
@@ -37305,13 +37543,13 @@ index 000000000..1786dba71
 +/*
 + * create a new xinofile at the same place/path as @base.
 + */
-+struct file *au_xino_create2(struct super_block *sb, struct path *base,
++struct file *au_xino_create2(struct super_block *sb, const struct path *base,
 +			     struct file *copy_src)
 +{
 +	struct file *file;
 +	struct dentry *dentry;
 +	struct inode *dir, *delegated;
-+	struct qstr *name;
++	const struct qstr *name;
 +	struct path ppath, path;
 +	int err, do_unlock;
 +	struct au_xino_lock_dir ldir;
@@ -38447,7 +38685,7 @@ index 000000000..1786dba71
 +	sbinfo->si_xib_buf = NULL;
 +}
 +
-+static int au_xino_set_xib(struct super_block *sb, struct path *path)
++static int au_xino_set_xib(struct super_block *sb, const struct path *path)
 +{
 +	int err;
 +	loff_t pos;
@@ -38541,7 +38779,7 @@ index 000000000..1786dba71
 +	aufs_bindex_t bshared;
 +};
 +
-+static int au_xino_do_set_br(struct super_block *sb, struct path *path,
++static int au_xino_do_set_br(struct super_block *sb, const struct path *path,
 +			     struct au_xino_do_set_br *args)
 +{
 +	int err;
@@ -38586,7 +38824,7 @@ index 000000000..1786dba71
 +	return err;
 +}
 +
-+static int au_xino_set_br(struct super_block *sb, struct path *path)
++static int au_xino_set_br(struct super_block *sb, const struct path *path)
 +{
 +	int err;
 +	aufs_bindex_t bindex, bbot;
@@ -38627,10 +38865,10 @@ index 000000000..1786dba71
 +{
 +	int err, skip;
 +	struct dentry *dentry, *parent, *cur_dentry, *cur_parent;
-+	struct qstr *dname, *cur_name;
++	const struct qstr *dname, *cur_name;
 +	struct file *cur_xino;
 +	struct au_sbinfo *sbinfo;
-+	struct path *path, *cur_path;
++	const struct path *path, *cur_path;
 +
 +	SiMustWriteLock(sb);
 +
@@ -38743,7 +38981,7 @@ index 000000000..1786dba71
 + * if found then share the xinofile with another branch.
 + */
 +int au_xino_init_br(struct super_block *sb, struct au_branch *br, ino_t h_ino,
-+		    struct path *base)
++		    const struct path *base)
 +{
 +	int err;
 +	struct au_xino_do_set_br args = {
@@ -38999,10 +39237,10 @@ index 000000000..1786dba71
 +	return err;
 +}
 diff --git a/fs/dcache.c b/fs/dcache.c
-index 0f6b16ba3..3a01c42c6 100644
+index 035cccbc9..d32683b6c 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
-@@ -1223,6 +1223,9 @@ enum d_walk_ret {
+@@ -1277,6 +1277,9 @@ enum d_walk_ret {
  	D_WALK_SKIP,
  };
  
@@ -39012,7 +39250,7 @@ index 0f6b16ba3..3a01c42c6 100644
  /**
   * d_walk - walk the dentry tree
   * @parent:	start of walk
-@@ -1231,7 +1234,7 @@ enum d_walk_ret {
+@@ -1285,7 +1288,7 @@ enum d_walk_ret {
   *
   * The @enter() callbacks are called with d_lock held.
   */
@@ -39021,7 +39259,7 @@ index 0f6b16ba3..3a01c42c6 100644
  		   enum d_walk_ret (*enter)(void *, struct dentry *))
  {
  	struct dentry *this_parent, *dentry;
-@@ -1330,6 +1333,7 @@ static void d_walk(struct dentry *parent, void *data,
+@@ -1384,6 +1387,7 @@ static void d_walk(struct dentry *parent, void *data,
  	seq = 1;
  	goto again;
  }
@@ -39029,31 +39267,23 @@ index 0f6b16ba3..3a01c42c6 100644
  
  struct check_mount {
  	struct vfsmount *mnt;
-@@ -2896,6 +2900,7 @@ void d_exchange(struct dentry *dentry1, struct dentry *dentry2)
- 
- 	write_sequnlock(&rename_lock);
- }
-+EXPORT_SYMBOL_GPL(d_exchange);
- 
- /**
-  * d_ancestor - search for an ancestor
 diff --git a/fs/exec.c b/fs/exec.c
-index 9c349a74f..2235f602f 100644
+index 4298e7e08..26a62cfc0 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -114,6 +114,7 @@ bool path_noexec(const struct path *path)
+@@ -120,6 +120,7 @@ bool path_noexec(const struct path *path)
  	return (path->mnt->mnt_flags & MNT_NOEXEC) ||
  	       (path->mnt->mnt_sb->s_iflags & SB_I_NOEXEC);
  }
 +EXPORT_SYMBOL_GPL(path_noexec);
  
- #ifdef CONFIG_USELIB
+ #ifdef CONFIG_MMU
  /*
 diff --git a/fs/fcntl.c b/fs/fcntl.c
-index 3d89de310..23edc0509 100644
+index 72f8433d9..0d3731f14 100644
 --- a/fs/fcntl.c
 +++ b/fs/fcntl.c
-@@ -37,7 +37,7 @@
+@@ -36,7 +36,7 @@
  
  #define SETFL_MASK (O_APPEND | O_NONBLOCK | O_NDELAY | O_DIRECT | O_NOATIME)
  
@@ -39062,7 +39292,7 @@ index 3d89de310..23edc0509 100644
  {
  	struct inode * inode = file_inode(filp);
  	int error = 0;
-@@ -67,6 +67,8 @@ static int setfl(int fd, struct file * filp, unsigned int arg)
+@@ -66,6 +66,8 @@ static int setfl(int fd, struct file * filp, unsigned int arg)
  
  	if (filp->f_op->check_flags)
  		error = filp->f_op->check_flags(arg);
@@ -39071,7 +39301,7 @@ index 3d89de310..23edc0509 100644
  	if (error)
  		return error;
  
-@@ -88,6 +90,7 @@ static int setfl(int fd, struct file * filp, unsigned int arg)
+@@ -87,6 +89,7 @@ static int setfl(int fd, struct file * filp, unsigned int arg)
   out:
  	return error;
  }
@@ -39080,10 +39310,10 @@ index 3d89de310..23edc0509 100644
  /*
   * Allocate an file->f_owner struct if it doesn't exist, handling racing
 diff --git a/fs/file_table.c b/fs/file_table.c
-index eed5ffad9..2f6bead42 100644
+index cd4a3db46..27cd4c4d5 100644
 --- a/fs/file_table.c
 +++ b/fs/file_table.c
-@@ -228,6 +228,7 @@ struct file *alloc_empty_file(int flags, const struct cred *cred)
+@@ -256,6 +256,7 @@ struct file *alloc_empty_file(int flags, const struct cred *cred)
  	}
  	return ERR_PTR(-ENFILE);
  }
@@ -39092,10 +39322,10 @@ index eed5ffad9..2f6bead42 100644
  /*
   * Variant of alloc_empty_file() that doesn't check and modify nr_files.
 diff --git a/fs/namespace.c b/fs/namespace.c
-index d26f5e6d2..8aa96de6c 100644
+index 427234965..62f0eaa57 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
-@@ -966,6 +966,13 @@ static inline int check_mnt(struct mount *mnt)
+@@ -954,6 +954,13 @@ static inline int check_mnt(const struct mount *mnt)
  	return mnt->mnt_ns == current->nsproxy->mnt_ns;
  }
  
@@ -39106,33 +39336,37 @@ index d26f5e6d2..8aa96de6c 100644
 +}
 +EXPORT_SYMBOL_GPL(is_current_mnt_ns);
 +
- /*
-  * vfsmount lock must be held for write
-  */
-@@ -2194,6 +2201,7 @@ struct vfsmount *collect_mounts(const struct path *path)
- 		return ERR_CAST(tree);
- 	return &tree->mnt;
+ static inline bool check_anonymous_mnt(struct mount *mnt)
+ {
+ 	u64 seq;
+@@ -2268,6 +2275,7 @@ const struct path *collect_paths(const struct path *path,
+ 		path_get(p);
+ 	return res;
  }
-+EXPORT_SYMBOL_GPL(collect_mounts);
++EXPORT_SYMBOL_GPL(collect_paths);
  
- static void free_mnt_ns(struct mnt_namespace *);
+ void drop_collected_paths(const struct path *paths, const struct path *prealloc)
+ {
+@@ -2276,6 +2284,7 @@ void drop_collected_paths(const struct path *paths, const struct path *prealloc)
+ 	if (paths != prealloc)
+ 		kfree(paths);
+ }
++EXPORT_SYMBOL_GPL(drop_collected_paths);
+ 
  static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *, bool);
-@@ -2224,6 +2232,7 @@ void drop_collected_mounts(struct vfsmount *mnt)
- 	unlock_mount_hash();
- 	namespace_unlock();
- }
-+EXPORT_SYMBOL_GPL(drop_collected_mounts);
  
- bool has_locked_children(struct mount *mnt, struct dentry *dentry)
- {
-@@ -2295,6 +2304,7 @@ int iterate_mounts(int (*f)(struct vfsmount *, void *), void *arg,
- 	}
- 	return 0;
+diff --git a/fs/notify/fsnotify.c b/fs/notify/fsnotify.c
+index 46bfc543f..49be3944e 100644
+--- a/fs/notify/fsnotify.c
++++ b/fs/notify/fsnotify.c
+@@ -225,6 +225,7 @@ int fsnotify_pre_content(const struct path *path, const loff_t *ppos,
+ 	return fsnotify_parent(path->dentry, FS_PRE_ACCESS, &range,
+ 			       FSNOTIFY_EVENT_FILE_RANGE);
  }
-+EXPORT_SYMBOL_GPL(iterate_mounts);
++EXPORT_SYMBOL_GPL(fsnotify_pre_content);
  
- static void lock_mnt_tree(struct mount *mnt)
- {
+ /*
+  * Notify this dentry's parent about a child's events with child name info
 diff --git a/fs/notify/group.c b/fs/notify/group.c
 index 18446b7b0..09138e0b8 100644
 --- a/fs/notify/group.c
@@ -39146,100 +39380,61 @@ index 18446b7b0..09138e0b8 100644
  /*
   * Drop a reference to a group.  Free it if it's through.
 diff --git a/fs/open.c b/fs/open.c
-index 5da4df2f9..6024098fc 100644
+index 3d64372ec..f264518f6 100644
 --- a/fs/open.c
 +++ b/fs/open.c
-@@ -66,6 +66,7 @@ int do_truncate(struct mnt_idmap *idmap, struct dentry *dentry,
+@@ -69,6 +69,7 @@ int do_truncate(struct mnt_idmap *idmap, struct dentry *dentry,
  	inode_unlock(dentry->d_inode);
  	return ret;
  }
 +EXPORT_SYMBOL_GPL(do_truncate);
  
- long vfs_truncate(const struct path *path, loff_t length)
+ int vfs_truncate(const struct path *path, loff_t length)
  {
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index b31283d81..644bd3d84 100644
+index 6299878e3..2905284f1 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
-@@ -2270,7 +2270,7 @@ static int map_files_get_link(struct dentry *dentry, struct path *path)
- 	rc = -ENOENT;
- 	vma = find_exact_vma(mm, vm_start, vm_end);
- 	if (vma && vma->vm_file) {
--		*path = *file_user_path(vma->vm_file);
-+		*path = vma_pr_or_file(vma)->f_path;
- 		path_get(path);
- 		rc = 0;
- 	}
+@@ -1788,7 +1788,7 @@ static int proc_exe_link(struct dentry *dentry, struct path *exe_path)
+ 	exe_file = get_task_exe_file(task);
+ 	put_task_struct(task);
+ 	if (exe_file) {
+-		*exe_path = exe_file->f_path;
++		*exe_path = *file_user_path(exe_file);
+ 		path_get(&exe_file->f_path);
+ 		fput(exe_file);
+ 		return 0;
 diff --git a/fs/proc/nommu.c b/fs/proc/nommu.c
-index c6e7ebc63..d7ccfd909 100644
+index c6e7ebc63..12c340dcd 100644
 --- a/fs/proc/nommu.c
 +++ b/fs/proc/nommu.c
-@@ -39,7 +39,10 @@ static int nommu_region_show(struct seq_file *m, struct vm_region *region)
+@@ -39,7 +39,7 @@ static int nommu_region_show(struct seq_file *m, struct vm_region *region)
  	file = region->vm_file;
  
  	if (file) {
 -		struct inode *inode = file_inode(region->vm_file);
-+		struct inode *inode;
-+
-+		file = vmr_pr_or_file(region);
-+		inode = file_inode(file);
++		struct inode *inode = file_user_inode(region->vm_file);
  		dev = inode->i_sb->s_dev;
  		ino = inode->i_ino;
  	}
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 7eb010de3..0c576103f 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -264,7 +264,8 @@ static void get_vma_name(struct vm_area_struct *vma,
- 			*name_fmt = "[anon_shmem:%s]";
- 			*name = anon_name->name;
- 		} else {
--			*path = file_user_path(vma->vm_file);
-+			struct file *f = vma_pr_or_file(vma);
-+			*path = file_user_path(f);
- 		}
- 		return;
- 	}
-@@ -333,7 +334,8 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
- 	dev_t dev = 0;
- 
- 	if (vma->vm_file) {
--		const struct inode *inode = file_user_inode(vma->vm_file);
-+		const struct inode *inode
-+			= file_inode(vma_pr_or_file(vma));
- 
- 		dev = inode->i_sb->s_dev;
- 		ino = inode->i_ino;
-@@ -3008,7 +3010,7 @@ static int show_numa_map(struct seq_file *m, void *v)
- 	struct proc_maps_private *proc_priv = &numa_priv->proc_maps;
- 	struct vm_area_struct *vma = v;
- 	struct numa_maps *md = &numa_priv->md;
--	struct file *file = vma->vm_file;
-+	struct file *file = vma_pr_or_file(vma);
- 	struct mm_struct *mm = vma->vm_mm;
- 	char buffer[64];
- 	struct mempolicy *pol;
 diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
-index bce674533..b12b5a75c 100644
+index d362919f4..79a2590d4 100644
 --- a/fs/proc/task_nommu.c
 +++ b/fs/proc/task_nommu.c
-@@ -137,7 +137,10 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
+@@ -137,7 +137,7 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
  	file = vma->vm_file;
  
  	if (file) {
 -		struct inode *inode = file_inode(vma->vm_file);
-+		struct inode *inode;
-+
-+		file = vma_pr_or_file(vma);
-+		inode = file_inode(file);
++		struct inode *inode = file_user_inode(vma->vm_file);
  		dev = inode->i_sb->s_dev;
  		ino = inode->i_ino;
  		pgoff = (loff_t)vma->vm_pgoff << PAGE_SHIFT;
 diff --git a/fs/read_write.c b/fs/read_write.c
-index befec0b5c..622ca6265 100644
+index 833bae068..1e1f8c634 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
-@@ -576,6 +576,7 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
+@@ -579,6 +579,7 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
  	inc_syscr(current);
  	return ret;
  }
@@ -39247,7 +39442,7 @@ index befec0b5c..622ca6265 100644
  
  static ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
  {
-@@ -691,6 +692,7 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
+@@ -694,6 +695,7 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
  	file_end_write(file);
  	return ret;
  }
@@ -39256,10 +39451,10 @@ index befec0b5c..622ca6265 100644
  /* file_ppos returns &file->f_pos or NULL if file is stream */
  static inline loff_t *file_ppos(struct file *file)
 diff --git a/fs/splice.c b/fs/splice.c
-index 06232d7e5..0fdb86c38 100644
+index f5094b6d0..657ad35bd 100644
 --- a/fs/splice.c
 +++ b/fs/splice.c
-@@ -933,13 +933,14 @@ static int warn_unsupported(struct file *file, const char *op)
+@@ -930,13 +930,14 @@ static int warn_unsupported(struct file *file, const char *op)
  /*
   * Attempt to initiate a splice from pipe to file.
   */
@@ -39276,7 +39471,7 @@ index 06232d7e5..0fdb86c38 100644
  /*
   * Indicate to the caller that there was a premature EOF when reading from the
 diff --git a/fs/xattr.c b/fs/xattr.c
-index 05ec7e7d9..e07ffa052 100644
+index 8851a5ef3..01880c373 100644
 --- a/fs/xattr.c
 +++ b/fs/xattr.c
 @@ -405,6 +405,7 @@ vfs_getxattr_alloc(struct mnt_idmap *idmap, struct dentry *dentry,
@@ -39288,10 +39483,10 @@ index 05ec7e7d9..e07ffa052 100644
  ssize_t
  __vfs_getxattr(struct dentry *dentry, struct inode *inode, const char *name,
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 4b5cad44a..e4f0ece36 100644
+index dd3b57cfa..dc57e52d3 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -1160,6 +1160,7 @@ extern void fasync_free(struct fasync_struct *);
+@@ -1341,6 +1341,7 @@ extern void fasync_free(struct fasync_struct *);
  /* can be called from interrupts */
  extern void kill_fasync(struct fasync_struct **, int, int);
  
@@ -39299,7 +39494,7 @@ index 4b5cad44a..e4f0ece36 100644
  extern void __f_setown(struct file *filp, struct pid *, enum pid_type, int force);
  extern int f_setown(struct file *filp, int who, int force);
  extern void f_delown(struct file *filp);
-@@ -2082,6 +2083,7 @@ struct file_operations {
+@@ -2288,6 +2289,7 @@ struct file_operations {
  	int (*lock) (struct file *, int, struct file_lock *);
  	unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
  	int (*check_flags)(int);
@@ -39307,9 +39502,9 @@ index 4b5cad44a..e4f0ece36 100644
  	int (*flock) (struct file *, int, struct file_lock *);
  	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
  	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
-@@ -2246,6 +2248,11 @@ struct super_operations {
- 	long (*free_cached_objects)(struct super_block *,
- 				    struct shrink_control *);
+@@ -2495,6 +2497,11 @@ struct super_operations {
+ 	 */
+ 	int (*remove_bdev)(struct super_block *sb, struct block_device *bdev);
  	void (*shutdown)(struct super_block *sb);
 +
 +#if IS_ENABLED(CONFIG_BLK_DEV_LOOP) || IS_ENABLED(CONFIG_BLK_DEV_LOOP_MODULE)
@@ -39319,6 +39514,54 @@ index 4b5cad44a..e4f0ece36 100644
  };
  
  /*
+@@ -2887,6 +2894,21 @@ struct file *dentry_create(const struct path *path, int flags, umode_t mode,
+ 			   const struct cred *cred);
+ const struct path *backing_file_user_path(const struct file *f);
+ 
++#if IS_MODULE(CONFIG_AUFS_FS)
++/* fs/au_mf.c */
++const struct path *au_file_user_path(const struct file *f);
++const struct inode *au_file_user_inode(const struct file *f);
++#elif IS_BUILTIN(CONFIG_AUFS_FS)
++/* fs/aufs/mf.c */
++const struct path *au_do_file_user_path(const struct file *f);
++const struct inode *au_do_file_user_inode(const struct file *f);
++#define au_file_user_path(f)	au_do_file_user_path(f)
++#define au_file_user_inode(f)	au_do_file_user_inode(f)
++#else
++#define au_file_user_path(f)	NULL
++#define au_file_user_inode(f)	NULL
++#endif
++
+ /*
+  * When mmapping a file on a stackable filesystem (e.g., overlayfs), the file
+  * stored in ->vm_file is a backing file whose f_inode is on the underlying
+@@ -2899,15 +2921,25 @@ const struct path *backing_file_user_path(const struct file *f);
+ /* Get the path to display in /proc/<pid>/maps */
+ static inline const struct path *file_user_path(const struct file *f)
+ {
++	const struct path *path;
++
+ 	if (unlikely(f->f_mode & FMODE_BACKING))
+ 		return backing_file_user_path(f);
++	path = au_file_user_path(f);
++	if (path)
++		return path;
+ 	return &f->f_path;
+ }
+ /* Get the inode whose inode number to display in /proc/<pid>/maps */
+ static inline const struct inode *file_user_inode(const struct file *f)
+ {
++	const struct inode *inode;
++
+ 	if (unlikely(f->f_mode & FMODE_BACKING))
+ 		return d_inode(backing_file_user_path(f)->dentry);
++	inode = au_file_user_inode(f);
++	if (inode)
++		return inode;
+ 	return file_inode(f);
+ }
+ 
 diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
 index 67964dc4d..517ef3ea8 100644
 --- a/include/linux/lockdep.h
@@ -39332,80 +39575,8 @@ index 67964dc4d..517ef3ea8 100644
  /*
   * Acquire a lock.
   *
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 61fff5d34..2550893d7 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2469,6 +2469,43 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
- static inline struct vm_area_struct *vma_lookup(struct mm_struct *mm,
- 						unsigned long addr);
- 
-+#if 1 /* IS_ENABLED(CONFIG_AUFS_FS) */
-+extern void vma_do_file_update_time(struct vm_area_struct *, const char[], int);
-+extern struct file *vma_do_pr_or_file(struct vm_area_struct *, const char[],
-+				      int);
-+extern void vma_do_get_file(struct vm_area_struct *, const char[], int);
-+extern void vma_do_fput(struct vm_area_struct *, const char[], int);
-+
-+#define vma_file_update_time(vma)	vma_do_file_update_time(vma, __func__, \
-+								__LINE__)
-+#define vma_pr_or_file(vma)		vma_do_pr_or_file(vma, __func__, \
-+							  __LINE__)
-+#define vma_get_file(vma)		vma_do_get_file(vma, __func__, __LINE__)
-+#define vma_fput(vma)			vma_do_fput(vma, __func__, __LINE__)
-+
-+#ifndef CONFIG_MMU
-+extern struct file *vmr_do_pr_or_file(struct vm_region *, const char[], int);
-+extern void vmr_do_fput(struct vm_region *, const char[], int);
-+
-+#define vmr_pr_or_file(region)		vmr_do_pr_or_file(region, __func__, \
-+							  __LINE__)
-+#define vmr_fput(region)		vmr_do_fput(region, __func__, __LINE__)
-+#endif /* !CONFIG_MMU */
-+
-+#else
-+
-+#define vma_file_update_time(vma)	file_update_time((vma)->vm_file)
-+#define vma_pr_or_file(vma)		(vma)->vm_file
-+#define vma_get_file(vma)		get_file((vma)->vm_file)
-+#define vma_fput(vma)			fput((vma)->vm_file)
-+
-+#ifndef CONFIG_MMU
-+#define vmr_pr_or_file(region)		(region)->vm_file
-+#define vmr_fput(region)		fput((region)->vm_file)
-+#endif /* !CONFIG_MMU */
-+
-+#endif /* CONFIG_AUFS_FS */
-+
- extern int access_process_vm(struct task_struct *tsk, unsigned long addr,
- 		void *buf, int len, unsigned int gup_flags);
- extern int access_remote_vm(struct mm_struct *mm, unsigned long addr,
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 6e3bdf8e3..9842821dd 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -572,6 +572,9 @@ struct vm_region {
- 	unsigned long	vm_top;		/* region allocated to here */
- 	unsigned long	vm_pgoff;	/* the offset in vm_file corresponding to vm_start */
- 	struct file	*vm_file;	/* the backing file or NULL */
-+#if 1 /* IS_ENABLED(CONFIG_AUFS_FS) */
-+	struct file	*vm_prfile;	/* the virtual backing file or NULL */
-+#endif
- 
- 	int		vm_usage;	/* region usage count (access under nommu_region_sem) */
- 	bool		vm_icache_flushed : 1; /* true if the icache has been flushed for
-@@ -747,6 +750,9 @@ struct vm_area_struct {
- 	unsigned long vm_pgoff;		/* Offset (within vm_file) in PAGE_SIZE
- 					   units */
- 	struct file * vm_file;		/* File we map to (can be NULL). */
-+#if 1 /* IS_ENABLED(CONFIG_AUFS_FS) */
-+	struct file *vm_prfile;		/* shadow of vm_file */
-+#endif
- 	void * vm_private_data;		/* was vm_pte (shared mem) */
- 
- #ifdef CONFIG_ANON_VMA_NAME
 diff --git a/include/linux/mnt_namespace.h b/include/linux/mnt_namespace.h
-index 70b366b64..08cfdabb2 100644
+index 0acd1089d..6fb188373 100644
 --- a/include/linux/mnt_namespace.h
 +++ b/include/linux/mnt_namespace.h
 @@ -10,6 +10,7 @@ struct mnt_namespace;
@@ -39414,9 +39585,9 @@ index 70b366b64..08cfdabb2 100644
  struct ns_common;
 +struct vfsmount;
  
- extern struct mnt_namespace *copy_mnt_ns(unsigned long, struct mnt_namespace *,
- 		struct user_namespace *, struct fs_struct *);
-@@ -17,6 +18,8 @@ extern void put_mnt_ns(struct mnt_namespace *ns);
+ extern struct mnt_namespace init_mnt_ns;
+ 
+@@ -19,6 +20,8 @@ extern void put_mnt_ns(struct mnt_namespace *ns);
  DEFINE_FREE(put_mnt_ns, struct mnt_namespace *, if (!IS_ERR_OR_NULL(_T)) put_mnt_ns(_T))
  extern struct ns_common *from_mnt_ns(struct mnt_namespace *);
  
@@ -39439,13 +39610,13 @@ index 9dec4861d..14583d846 100644
  #endif
 diff --git a/include/uapi/linux/aufs_type.h b/include/uapi/linux/aufs_type.h
 new file mode 100644
-index 000000000..709ba620a
+index 000000000..26b07a497
 --- /dev/null
 +++ b/include/uapi/linux/aufs_type.h
 @@ -0,0 +1,452 @@
 +/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 +/*
-+ * Copyright (C) 2005-2022 Junjiro R. Okajima
++ * Copyright (C) 2005-2025 Junjiro R. Okajima
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -39485,7 +39656,7 @@ index 000000000..709ba620a
 +#include <limits.h>
 +#endif /* __KERNEL__ */
 +
-+#define AUFS_VERSION	"6.12-20250106"
++#define AUFS_VERSION	"6.18-20251208"
 +
 +/* todo? move this to linux-2.6.19/include/magic.h */
 +#define AUFS_SUPER_MAGIC	('a' << 24 | 'u' << 16 | 'f' << 8 | 's')
@@ -39895,24 +40066,11 @@ index 000000000..709ba620a
 +#define AUFS_CTL_FHSM_FD	_IOW(AuCtlType, AuCtl_FHSM_FD, int)
 +
 +#endif /* __AUFS_TYPE_H__ */
-diff --git a/kernel/fork.c b/kernel/fork.c
-index e192bdbc9..8434ff53a 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -733,7 +733,7 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
- 		if (file) {
- 			struct address_space *mapping = file->f_mapping;
- 
--			get_file(file);
-+			vma_get_file(tmp);
- 			i_mmap_lock_write(mapping);
- 			if (vma_is_shared_maywrite(tmp))
- 				mapping_allow_writable(mapping);
 diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index 536bd4715..df6a75129 100644
+index 2d4c5bab5..02c8ce18d 100644
 --- a/kernel/locking/lockdep.c
 +++ b/kernel/locking/lockdep.c
-@@ -218,7 +218,7 @@ unsigned long max_lock_class_idx;
+@@ -224,7 +224,7 @@ unsigned long max_lock_class_idx;
  struct lock_class lock_classes[MAX_LOCKDEP_KEYS];
  DECLARE_BITMAP(lock_classes_in_use, MAX_LOCKDEP_KEYS);
  
@@ -39921,7 +40079,7 @@ index 536bd4715..df6a75129 100644
  {
  	unsigned int class_idx = hlock->class_idx;
  
-@@ -239,6 +239,8 @@ static inline struct lock_class *hlock_class(struct held_lock *hlock)
+@@ -245,6 +245,8 @@ static inline struct lock_class *hlock_class(struct held_lock *hlock)
  	 */
  	return lock_classes + class_idx;
  }
@@ -39931,305 +40089,19 @@ index 536bd4715..df6a75129 100644
  #ifdef CONFIG_LOCK_STAT
  static DEFINE_PER_CPU(struct lock_class_stats[MAX_LOCKDEP_KEYS], cpu_lock_stats);
 diff --git a/kernel/task_work.c b/kernel/task_work.c
-index c969f1f26..68eb672f4 100644
+index d1efec571..eed18cc26 100644
 --- a/kernel/task_work.c
 +++ b/kernel/task_work.c
-@@ -242,3 +242,4 @@ void task_work_run(void)
+@@ -230,3 +230,4 @@ void task_work_run(void)
  		} while (work);
  	}
  }
 +EXPORT_SYMBOL_GPL(task_work_run);
-diff --git a/mm/Makefile b/mm/Makefile
-index d5639b036..dde04ad81 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -145,3 +145,4 @@ obj-$(CONFIG_GENERIC_IOREMAP) += ioremap.o
- obj-$(CONFIG_SHRINKER_DEBUG) += shrinker_debug.o
- obj-$(CONFIG_EXECMEM) += execmem.o
- obj-$(CONFIG_TMPFS_QUOTA) += shmem_quota.o
-+obj-y += prfile.o
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 56fa431c5..d55fe4e7b 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -3707,7 +3707,7 @@ vm_fault_t filemap_page_mkwrite(struct vm_fault *vmf)
- 	vm_fault_t ret = VM_FAULT_LOCKED;
- 
- 	sb_start_pagefault(mapping->host->i_sb);
--	file_update_time(vmf->vma->vm_file);
-+	vma_file_update_time(vmf->vma);
- 	folio_lock(folio);
- 	if (folio->mapping != mapping) {
- 		folio_unlock(folio);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 7fb4c1e97..02b58a61f 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1485,7 +1485,7 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
- 				 * and cause general protection fault
- 				 * ultimately.
- 				 */
--				fput(vma->vm_file);
-+				vma_fput(vma);
- 				vm_area_free(vma);
- 				vma = merge;
- 				/* Update vm_flags to pick up the change. */
-@@ -1666,6 +1666,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
- 	unsigned long ret = -EINVAL;
- 	struct file *file;
- 	vm_flags_t vm_flags;
-+	struct file *prfile = NULL; /* aufs */
- 
- 	pr_warn_once("%s (%d) uses deprecated remap_file_pages() syscall. See Documentation/mm/remap_file_pages.rst.\n",
- 		     current->comm, current->pid);
-@@ -1708,14 +1709,18 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
- 
- 	/* Save vm_flags used to calculate prot and flags, and recheck later. */
- 	vm_flags = vma->vm_flags;
--	file = get_file(vma->vm_file);
-+	vma_get_file(vma);
-+	file = vma->vm_file;
-+#if 1 /* IS_ENABLED(CONFIG_AUFS_FS) */
-+	prfile = vma->vm_prfile;
-+#endif
- 
- 	mmap_read_unlock(mm);
- 
- 	/* Call outside mmap_lock to be consistent with other callers. */
- 	ret = security_mmap_file(file, prot, flags);
- 	if (ret) {
--		fput(file);
-+		vma_fput(vma);
- 		return ret;
- 	}
- 
-@@ -1723,7 +1728,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
- 
- 	/* OK security check passed, take write lock + let it rip. */
- 	if (mmap_write_lock_killable(mm)) {
--		fput(file);
-+		vma_fput(vma);
- 		return -EINTR;
- 	}
- 
-@@ -1765,9 +1770,27 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
- 
- 	ret = do_mmap(vma->vm_file, start, size,
- 			prot, flags, 0, pgoff, &populate, NULL);
-+#if 1 /* IS_ENABLED(CONFIG_AUFS_FS) */
-+	if (!IS_ERR_VALUE(ret) && file && prfile) {
-+		struct vm_area_struct *new_vma;
-+
-+		new_vma = find_vma(mm, ret);
-+		if (!new_vma->vm_prfile)
-+			new_vma->vm_prfile = prfile;
-+		if (prfile)
-+			get_file(prfile);
-+	}
-+#endif
-+
- out:
- 	mmap_write_unlock(mm);
-+	/*
-+	 * two fput()s instead of vma_fput(vma),
-+	 * coz vma may not be available anymore.
-+	 */
- 	fput(file);
-+	if (prfile)
-+		fput(prfile);
- 	if (populate)
- 		mm_populate(ret, populate);
- 	if (!IS_ERR_VALUE(ret))
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 9cb6e9921..5add36afa 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -512,7 +512,7 @@ static void __put_nommu_region(struct vm_region *region)
- 		up_write(&nommu_region_sem);
- 
- 		if (region->vm_file)
--			fput(region->vm_file);
-+			vmr_fput(region);
- 
- 		/* IO memory and memory shared directly out of the pagecache
- 		 * from ramfs/tmpfs mustn't be released here */
-@@ -591,7 +591,7 @@ static void delete_vma(struct mm_struct *mm, struct vm_area_struct *vma)
- {
- 	vma_close(vma);
- 	if (vma->vm_file)
--		fput(vma->vm_file);
-+		vma_fput(vma);
- 	put_nommu_region(vma->vm_region);
- 	vm_area_free(vma);
- }
-@@ -1123,7 +1123,7 @@ unsigned long do_mmap(struct file *file,
- 					goto error_just_free;
- 				}
- 			}
--			fput(region->vm_file);
-+			vmr_fput(region);
- 			kmem_cache_free(vm_region_jar, region);
- 			region = pregion;
- 			result = start;
-@@ -1209,10 +1209,10 @@ unsigned long do_mmap(struct file *file,
- error:
- 	vma_iter_free(&vmi);
- 	if (region->vm_file)
--		fput(region->vm_file);
-+		vmr_fput(region);
- 	kmem_cache_free(vm_region_jar, region);
- 	if (vma->vm_file)
--		fput(vma->vm_file);
-+		vma_fput(vma);
- 	vm_area_free(vma);
- 	return ret;
- 
-diff --git a/mm/prfile.c b/mm/prfile.c
-new file mode 100644
-index 000000000..8f820a235
---- /dev/null
-+++ b/mm/prfile.c
-@@ -0,0 +1,86 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * Mainly for aufs which mmap(2) different file and wants to print different
-+ * path in /proc/PID/maps.
-+ * Call these functions via macros defined in linux/mm.h.
-+ *
-+ * See Documentation/filesystems/aufs/design/06mmap.txt
-+ *
-+ * Copyright (c) 2014-2022 Junjro R. Okajima
-+ * Copyright (c) 2014 Ian Campbell
-+ */
-+
-+#include <linux/mm.h>
-+#include <linux/file.h>
-+#include <linux/fs.h>
-+
-+/* #define PRFILE_TRACE */
-+static inline void prfile_trace(struct file *f, struct file *pr,
-+			      const char func[], int line, const char func2[])
-+{
-+#ifdef PRFILE_TRACE
-+	if (pr)
-+		pr_info("%s:%d: %s, %pD2\n", func, line, func2, f);
-+#endif
-+}
-+
-+void vma_do_file_update_time(struct vm_area_struct *vma, const char func[],
-+			     int line)
-+{
-+	struct file *f = vma->vm_file, *pr = vma->vm_prfile;
-+
-+	prfile_trace(f, pr, func, line, __func__);
-+	file_update_time(f);
-+	if (f && pr)
-+		file_update_time(pr);
-+}
-+
-+struct file *vma_do_pr_or_file(struct vm_area_struct *vma, const char func[],
-+			       int line)
-+{
-+	struct file *f = vma->vm_file, *pr = vma->vm_prfile;
-+
-+	prfile_trace(f, pr, func, line, __func__);
-+	return (f && pr) ? pr : f;
-+}
-+
-+void vma_do_get_file(struct vm_area_struct *vma, const char func[], int line)
-+{
-+	struct file *f = vma->vm_file, *pr = vma->vm_prfile;
-+
-+	prfile_trace(f, pr, func, line, __func__);
-+	get_file(f);
-+	if (f && pr)
-+		get_file(pr);
-+}
-+
-+void vma_do_fput(struct vm_area_struct *vma, const char func[], int line)
-+{
-+	struct file *f = vma->vm_file, *pr = vma->vm_prfile;
-+
-+	prfile_trace(f, pr, func, line, __func__);
-+	fput(f);
-+	if (f && pr)
-+		fput(pr);
-+}
-+
-+#ifndef CONFIG_MMU
-+struct file *vmr_do_pr_or_file(struct vm_region *region, const char func[],
-+			       int line)
-+{
-+	struct file *f = region->vm_file, *pr = region->vm_prfile;
-+
-+	prfile_trace(f, pr, func, line, __func__);
-+	return (f && pr) ? pr : f;
-+}
-+
-+void vmr_do_fput(struct vm_region *region, const char func[], int line)
-+{
-+	struct file *f = region->vm_file, *pr = region->vm_prfile;
-+
-+	prfile_trace(f, pr, func, line, __func__);
-+	fput(f);
-+	if (f && pr)
-+		fput(pr);
-+}
-+#endif /* !CONFIG_MMU */
-diff --git a/mm/vma.c b/mm/vma.c
-index 7621384d6..3bb41fe6a 100644
---- a/mm/vma.c
-+++ b/mm/vma.c
-@@ -248,7 +248,7 @@ static void vma_complete(struct vma_prepare *vp, struct vma_iterator *vmi,
- 		if (vp->file) {
- 			uprobe_munmap(vp->remove, vp->remove->vm_start,
- 				      vp->remove->vm_end);
--			fput(vp->file);
-+			vma_fput(vp->vma);
- 		}
- 		if (vp->remove->anon_vma)
- 			anon_vma_merge(vp->vma, vp->remove);
-@@ -328,7 +328,7 @@ void remove_vma(struct vm_area_struct *vma, bool unreachable)
- 	might_sleep();
- 	vma_close(vma);
- 	if (vma->vm_file)
--		fput(vma->vm_file);
-+		vma_fput(vma);
- 	mpol_put(vma_policy(vma));
- 	if (unreachable)
- 		__vm_area_free(vma);
-@@ -405,7 +405,7 @@ static int __split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
- 		goto out_free_mpol;
- 
- 	if (new->vm_file)
--		get_file(new->vm_file);
-+		vma_get_file(new);
- 
- 	if (new->vm_ops && new->vm_ops->open)
- 		new->vm_ops->open(new);
-@@ -1671,7 +1671,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 		if (anon_vma_clone(new_vma, vma))
- 			goto out_free_mempol;
- 		if (new_vma->vm_file)
--			get_file(new_vma->vm_file);
-+			vma_get_file(new_vma);
- 		if (new_vma->vm_ops && new_vma->vm_ops->open)
- 			new_vma->vm_ops->open(new_vma);
- 		if (vma_link(mm, new_vma))
-@@ -1684,7 +1684,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 	vma_close(new_vma);
- 
- 	if (new_vma->vm_file)
--		fput(new_vma->vm_file);
-+		vma_fput(new_vma);
- 
- 	unlink_anon_vmas(new_vma);
- out_free_mempol:
 diff --git a/security/security.c b/security/security.c
-index c5981e558..045dd716e 100644
+index 4d3c03a45..ed6612a36 100644
 --- a/security/security.c
 +++ b/security/security.c
-@@ -1944,6 +1944,7 @@ int security_path_rmdir(const struct path *dir, struct dentry *dentry)
+@@ -1987,6 +1987,7 @@ int security_path_rmdir(const struct path *dir, struct dentry *dentry)
  		return 0;
  	return call_int_hook(path_rmdir, dir, dentry);
  }
@@ -40237,7 +40109,7 @@ index c5981e558..045dd716e 100644
  
  /**
   * security_path_unlink() - Check if removing a hard link is allowed
-@@ -1979,6 +1980,7 @@ int security_path_symlink(const struct path *dir, struct dentry *dentry,
+@@ -2022,6 +2023,7 @@ int security_path_symlink(const struct path *dir, struct dentry *dentry,
  		return 0;
  	return call_int_hook(path_symlink, dir, dentry, old_name);
  }
@@ -40245,7 +40117,7 @@ index c5981e558..045dd716e 100644
  
  /**
   * security_path_link - Check if creating a hard link is allowed
-@@ -1997,6 +1999,7 @@ int security_path_link(struct dentry *old_dentry, const struct path *new_dir,
+@@ -2040,6 +2042,7 @@ int security_path_link(struct dentry *old_dentry, const struct path *new_dir,
  		return 0;
  	return call_int_hook(path_link, old_dentry, new_dir, new_dentry);
  }
@@ -40253,7 +40125,7 @@ index c5981e558..045dd716e 100644
  
  /**
   * security_path_rename() - Check if renaming a file is allowed
-@@ -2058,6 +2061,7 @@ int security_path_chmod(const struct path *path, umode_t mode)
+@@ -2101,6 +2104,7 @@ int security_path_chmod(const struct path *path, umode_t mode)
  		return 0;
  	return call_int_hook(path_chmod, path, mode);
  }
@@ -40261,7 +40133,7 @@ index c5981e558..045dd716e 100644
  
  /**
   * security_path_chown() - Check if changing the file's owner/group is allowed
-@@ -2075,6 +2079,7 @@ int security_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
+@@ -2118,6 +2122,7 @@ int security_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
  		return 0;
  	return call_int_hook(path_chown, path, uid, gid);
  }
@@ -40269,7 +40141,7 @@ index c5981e558..045dd716e 100644
  
  /**
   * security_path_chroot() - Check if changing the root directory is allowed
-@@ -2319,6 +2324,7 @@ int security_inode_permission(struct inode *inode, int mask)
+@@ -2362,6 +2367,7 @@ int security_inode_permission(struct inode *inode, int mask)
  		return 0;
  	return call_int_hook(inode_permission, inode, mask);
  }
@@ -40277,7 +40149,7 @@ index c5981e558..045dd716e 100644
  
  /**
   * security_inode_setattr() - Check if setting file attributes is allowed
-@@ -2840,6 +2846,7 @@ int security_file_permission(struct file *file, int mask)
+@@ -2912,6 +2918,7 @@ int security_file_permission(struct file *file, int mask)
  {
  	return call_int_hook(file_permission, file, mask);
  }
@@ -40285,7 +40157,7 @@ index c5981e558..045dd716e 100644
  
  /**
   * security_file_alloc() - Allocate and init a file's LSM blob
-@@ -3144,6 +3151,7 @@ int security_file_truncate(struct file *file)
+@@ -3214,6 +3221,7 @@ int security_file_truncate(struct file *file)
  {
  	return call_int_hook(file_truncate, file);
  }
@@ -40294,5 +40166,5 @@ index c5981e558..045dd716e 100644
  /**
   * security_task_alloc() - Allocate a task's LSM blob
 -- 
-2.47.1
+2.52.0
 

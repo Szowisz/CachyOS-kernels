@@ -219,9 +219,6 @@ src_prepare() {
 	# Apply user patches (from /etc/portage/patches/)
 	eapply_user
 
-	# Set kernel version suffix
-	echo "-cachyos" > localversion.20-pkgname || die
-
 	# --- Kernel config modifications ---
 
 	### Selecting CachyOS config

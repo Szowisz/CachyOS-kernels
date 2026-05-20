@@ -15,7 +15,7 @@ CACHYOS_PR="$((${PR#r} + 1))"
 MY_P="cachyos-$(ver_cut 1-3)-${CACHYOS_PR}"
 
 # Binary package version string: {pkgver}-{pkgrel}
-# deckify-7.0.8 uses pkgrel 2, all other variants use 1
+# deckify-7.0.9 uses pkgrel 2, all other variants use 1
 BINPKG_VER="${PV}-${CACHYOS_PR}"
 BINPKG_VER_DECKIFY="${PV}-2"
 

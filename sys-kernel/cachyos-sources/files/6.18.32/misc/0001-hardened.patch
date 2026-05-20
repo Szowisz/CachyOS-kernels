@@ -3103,31 +3103,39 @@ index e713291db873..e05c1399b94e 100644
   * selinux_secmark_enabled - Check to see if SECMARK is currently enabled
   *
 diff --git a/security/selinux/selinuxfs.c b/security/selinux/selinuxfs.c
-index 232e087bce3e..c6da24809b70 100644
+index 6b0d5bd780ba..0902d46e68b4 100644
 --- a/security/selinux/selinuxfs.c
 +++ b/security/selinux/selinuxfs.c
-@@ -699,20 +699,12 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
- 	if (IS_ERR(page))
- 		return PTR_ERR(page);
- 
--	if (sscanf(page, "%u", &new_value) != 1) {
-+	if (sscanf(page, "%u", &new_value) != 1 || new_value) {
- 		length = -EINVAL;
- 		goto out;
- 	}
- 	length = count;
- 
--	if (new_value) {
--		char comm[sizeof(current->comm)];
--
--		strscpy(comm, current->comm);
--		pr_err("SELinux: %s (%d) set checkreqprot to 1. This is no longer supported.\n",
--		       comm, current->pid);
--	}
--
- 	selinux_ima_measure_state();
- 
- out:
+@@ -654,12 +654,26 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
+ 				      size_t count, loff_t *ppos)
+ {
++	char *page;
++	unsigned int new_value;
++	ssize_t length;
++
+ 	/*
+ 	 * Setting checkreqprot is no longer supported, see
+ 	 * https://github.com/SELinuxProject/selinux-kernel/wiki/DEPRECATE-checkreqprot
+ 	 */
+-	pr_err_once("SELinux: %s (%d) wrote to checkreqprot. This is no longer supported.\n",
+-		    current->comm, current->pid);
+-	return count;
++	if (count >= PAGE_SIZE)
++		return -ENOMEM;
++
++	page = memdup_user_nul(buf, count);
++	if (IS_ERR(page))
++		return PTR_ERR(page);
++
++	length = -EINVAL;
++	if (sscanf(page, "%u", &new_value) == 1 && !new_value)
++		length = count;
++
++	kfree(page);
++	return length;
+ }
+ static const struct file_operations sel_checkreqprot_ops = {
+ 	.read		= sel_read_checkreqprot,
 diff --git a/security/yama/Kconfig b/security/yama/Kconfig
 index a810304123ca..b809050b25d2 100644
 --- a/security/yama/Kconfig
@@ -3167,4 +3175,3 @@ index 9df9818e3701..eef46803b2cf 100644
  		 perf_event_paranoid());
 -- 
 2.53.0
-

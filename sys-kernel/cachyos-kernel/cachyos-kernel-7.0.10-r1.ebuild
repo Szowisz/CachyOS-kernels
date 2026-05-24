@@ -140,7 +140,7 @@ src_unpack() {
 }
 
 src_prepare() {
-	local files_dir="${FILESDIR}/${PVR}"
+	local files_dir="${FILESDIR}/${PV}"
 
 	# --- Apply genpatches (base + extras) ---
 	# Genpatches extract into ${WORKDIR}/ as numbered .patch files

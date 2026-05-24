@@ -111,7 +111,7 @@ src_unpack() {
 }
 
 src_prepare() {
-	files_dir="${FILESDIR}/${PVR}"
+	files_dir="${FILESDIR}/${PV}"
 
 	# Fix AutoFDO/Propeller support for LTO_CLANG_THIN_DIST
 	# The distributed ThinLTO patch by Rong Xu (xur@google.com) did not update

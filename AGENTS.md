@@ -231,21 +231,36 @@ pkgdev commit --signoff -m "sys-kernel: drop old versions, <deleted version rang
 
 ### cachyos-sources (full test):
 ```bash
+# Prefer this to avoid sudo and keep build files in repo-owned path (easy to inspect):
+PORTAGE_TMPDIR="$PWD/.ci/portage-tmp" ebuild sys-kernel/cachyos-sources/cachyos-sources-<VER>.ebuild clean package
+
+# Legacy:
 sudo ebuild sys-kernel/cachyos-sources/cachyos-sources-<VER>.ebuild clean package
 ```
 
 ### cachyos-kernel (prepare only, NEVER build):
 ```bash
+# Prefer this to avoid sudo and keep build files in repo-owned path:
+PORTAGE_TMPDIR="$PWD/.ci/portage-tmp" ebuild sys-kernel/cachyos-kernel/cachyos-kernel-<VER>.ebuild clean prepare
+
+# Legacy:
 sudo ebuild sys-kernel/cachyos-kernel/cachyos-kernel-<VER>.ebuild clean prepare
 ```
 
 ### cachyos-kernel-bin (unpack only):
 ```bash
+# Prefer this to avoid sudo and keep build files in repo-owned path:
+PORTAGE_TMPDIR="$PWD/.ci/portage-tmp" ebuild sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-<VER>.ebuild clean unpack
+
+# Legacy:
 sudo ebuild sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-<VER>.ebuild clean unpack
 ```
 
 ### virtual/dist-kernel (manifest check only):
 ```bash
+# Optional non-root run when needed:
+PORTAGE_TMPDIR="$PWD/.ci/portage-tmp" ebuild virtual/dist-kernel/dist-kernel-<VER>.ebuild manifest
+
 ebuild virtual/dist-kernel/dist-kernel-<VER>.ebuild manifest
 ```
 
@@ -295,6 +310,19 @@ For `cachyos-kernel-bin`, USE flags must reflect the exact combinations availabl
 ---
 
 ## Common Pitfalls
+
+### Permission-friendly ebuild troubleshooting
+
+在排障时可直接指定 portage 临时工作目录，避免 `sudo ebuild` 产生的权限问题并便于直接读取构建日志：
+
+```bash
+# 统一建议在仓库根执行
+mkdir -p .ci/portage-tmp
+PORTAGE_TMPDIR="$PWD/.ci/portage-tmp" ebuild ... clean prepare
+# 或 clean unpack/test/package 按需替换
+```
+
+
 
 1. **Don't blindly update all kernel.org versions** — only follow upstream linux-cachyos commits
 2. **Genpatches version from the script may be wrong** for LTS — always verify against gentoo-sources

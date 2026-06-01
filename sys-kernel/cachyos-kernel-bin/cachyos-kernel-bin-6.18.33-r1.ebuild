@@ -12,7 +12,8 @@ inherit kernel-install toolchain-funcs
 CACHYOS_PR="$((${PR#r} + 1))"
 
 # CachyOS pre-patched source tarball (needed for modules_prepare)
-MY_P="cachyos-$(ver_cut 1-3)-${CACHYOS_PR}"
+SRC_PR="1"
+MY_P="cachyos-$(ver_cut 1-3)-${SRC_PR}"
 
 # Binary package version string: {pkgver}-{pkgrel}
 BINPKG_VER="${PV}-${CACHYOS_PR}"
@@ -20,7 +21,7 @@ BINPKG_VER="${PV}-${CACHYOS_PR}"
 # Mirror base URLs
 MIRROR_V3="https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3"
 
-DESCRIPTION="Pre-built CachyOS Linux kernel (hardened, LTO, BBR3 and more)"
+DESCRIPTION="Pre-built CachyOS Linux LTS kernel"
 HOMEPAGE="
 	https://github.com/CachyOS/linux-cachyos
 	https://github.com/Szowisz/CachyOS-kernels
@@ -32,17 +33,11 @@ SRC_URI="
 "
 
 # Binary packages per variant (x86_64_v3 only for this version)
-# 6.19.12 hardened only: hardened + hardened-lto
+# 6.18.32 LTS only: linux-cachyos-lts (no scheduler variants, no lto)
 SRC_URI+="
-	hardened? (
-		lto? (
-			${MIRROR_V3}/linux-cachyos-hardened-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-hardened-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
-		!lto? (
-			${MIRROR_V3}/linux-cachyos-hardened-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-hardened-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
+	lts? (
+		${MIRROR_V3}/linux-cachyos-lts-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		${MIRROR_V3}/linux-cachyos-lts-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 	)
 "
 
@@ -50,9 +45,9 @@ S="${WORKDIR}"
 
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
-IUSE="hardened lto debug"
+IUSE="+lts debug"
 REQUIRED_USE="
-	hardened
+	lts
 "
 
 RDEPEND="
@@ -64,11 +59,6 @@ BDEPEND="
 	dev-util/pahole
 	virtual/libelf
 	app-alternatives/yacc
-	lto? (
-		llvm-core/llvm
-		llvm-core/clang
-		llvm-core/lld
-	)
 "
 PDEPEND="
 	>=virtual/dist-kernel-${PV}
@@ -77,25 +67,15 @@ PDEPEND="
 QA_PREBUILT='*'
 
 _cachyos_variant_suffix() {
-	if use hardened; then
-		use lto && echo "cachyos-hardened-lto" || echo "cachyos-hardened"
-	fi
+	echo "cachyos-lts"
 }
 
 _cachyos_bin_distfile() {
-	local variant=""
-	if use hardened; then
-		use lto && variant="-hardened-lto" || variant="-hardened"
-	fi
-	echo "linux-cachyos${variant}-${BINPKG_VER}-x86_64_v3.pkg.tar.zst"
+	echo "linux-cachyos-lts-${BINPKG_VER}-x86_64_v3.pkg.tar.zst"
 }
 
 _cachyos_headers_distfile() {
-	local variant=""
-	if use hardened; then
-		use lto && variant="-hardened-lto" || variant="-hardened"
-	fi
-	echo "linux-cachyos${variant}-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst"
+	echo "linux-cachyos-lts-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst"
 }
 
 _cachyos_setup_kv() {
@@ -173,33 +153,19 @@ src_configure() {
 		O="${WORKDIR}/modprep"
 	)
 
-	if use lto; then
-		makeargs+=(
-			LLVM=1
-			LLVM_IAS=1
-			CC=clang
-			LD=ld.lld
-			AR=llvm-ar
-			NM=llvm-nm
-			OBJCOPY=llvm-objcopy
-			OBJDUMP=llvm-objdump
-			READELF=llvm-readelf
-			STRIP=llvm-strip
-		)
-	else
-		makeargs+=(
-			CROSS_COMPILE=${CHOST}-
-			AS="$(tc-getAS)"
-			CC="$(tc-getCC)"
-			LD="${LD}"
-			AR="$(tc-getAR)"
-			NM="$(tc-getNM)"
-			STRIP="$(tc-getSTRIP)"
-			OBJCOPY="$(tc-getOBJCOPY)"
-			OBJDUMP="$(tc-getOBJDUMP)"
-			READELF="$(tc-getREADELF)"
-		)
-	fi
+	# LTS kernel is not LTO, use GCC toolchain
+	makeargs+=(
+		CROSS_COMPILE=${CHOST}-
+		AS="$(tc-getAS)"
+		CC="$(tc-getCC)"
+		LD="${LD}"
+		AR="$(tc-getAR)"
+		NM="$(tc-getNM)"
+		STRIP="$(tc-getSTRIP)"
+		OBJCOPY="$(tc-getOBJCOPY)"
+		OBJDUMP="$(tc-getOBJDUMP)"
+		READELF="$(tc-getREADELF)"
+	)
 
 	mkdir "${WORKDIR}/modprep" || die
 	cp "${headers_build}/.config" "${WORKDIR}/modprep/" || die

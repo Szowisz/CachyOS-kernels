@@ -15,9 +15,9 @@ CACHYOS_PR="$((${PR#r} + 1))"
 MY_P="cachyos-$(ver_cut 1-3)-${CACHYOS_PR}"
 
 # Binary package version string: {pkgver}-{pkgrel}
-# deckify-7.0.9 uses pkgrel 2, all other variants use 1
 BINPKG_VER="${PV}-${CACHYOS_PR}"
-BINPKG_VER_DECKIFY="${PV}-2"
+BINPKG_VER_DECKIFY_LTO="${PV}-4"
+BINPKG_VER_DECKIFY="${PV}-5"
 
 # Mirror base URLs
 MIRROR_V3="https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3"
@@ -62,6 +62,16 @@ SRC_URI+="
 			${MIRROR_V3}/linux-cachyos-eevdf-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
+	cachyos-hardened? (
+		lto? (
+			${MIRROR_V3}/linux-cachyos-hardened-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-hardened-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-hardened-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-hardened-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+	)
 	rt-bore? (
 		lto? (
 			${MIRROR_V3}/linux-cachyos-rt-bore-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
@@ -84,8 +94,8 @@ SRC_URI+="
 	)
 	deckify? (
 		lto? (
-			${MIRROR_V3}/linux-cachyos-deckify-lto-${BINPKG_VER_DECKIFY}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${BINPKG_VER_DECKIFY}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-deckify-lto-${BINPKG_VER_DECKIFY_LTO}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${BINPKG_VER_DECKIFY_LTO}-x86_64_v3.pkg.tar.zst
 		)
 		!lto? (
 			${MIRROR_V3}/linux-cachyos-deckify-${BINPKG_VER_DECKIFY}-x86_64_v3.pkg.tar.zst
@@ -98,9 +108,9 @@ S="${WORKDIR}"
 
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
-IUSE="bore +eevdf rt-bore server deckify +lto gcc debug"
+IUSE="bore +eevdf rt-bore server deckify cachyos-hardened +lto gcc debug"
 REQUIRED_USE="
-	^^ ( bore eevdf rt-bore server deckify )
+	^^ ( bore eevdf rt-bore server deckify cachyos-hardened )
 	?? ( lto gcc )
 	gcc? ( bore )
 "
@@ -136,6 +146,8 @@ _cachyos_variant_suffix() {
 		fi
 	elif use eevdf; then
 		use lto && echo "cachyos-eevdf-lto" || echo "cachyos-eevdf"
+	elif use cachyos-hardened; then
+		use lto && echo "cachyos-hardened-lto" || echo "cachyos-hardened"
 	elif use rt-bore; then
 		use lto && echo "cachyos-rt-bore-lto" || echo "cachyos-rt-bore"
 	elif use server; then
@@ -155,13 +167,20 @@ _cachyos_bin_distfile() {
 		fi
 	elif use eevdf; then
 		use lto && variant="-eevdf-lto" || variant="-eevdf"
+	elif use cachyos-hardened; then
+		use lto && variant="-hardened-lto" || variant="-hardened"
 	elif use rt-bore; then
 		use lto && variant="-rt-bore-lto" || variant="-rt-bore"
 	elif use server; then
 		use lto && variant="-server-lto" || variant="-server"
 	elif use deckify; then
-		use lto && variant="-deckify-lto" || variant="-deckify"
-		pkgrel="${BINPKG_VER_DECKIFY}"
+		if use lto; then
+			variant="-deckify-lto"
+			pkgrel="${BINPKG_VER_DECKIFY_LTO}"
+		else
+			variant="-deckify"
+			pkgrel="${BINPKG_VER_DECKIFY}"
+		fi
 	fi
 	echo "linux-cachyos${variant}-${pkgrel}-x86_64_v3.pkg.tar.zst"
 }
@@ -176,13 +195,20 @@ _cachyos_headers_distfile() {
 		fi
 	elif use eevdf; then
 		use lto && variant="-eevdf-lto" || variant="-eevdf"
+	elif use cachyos-hardened; then
+		use lto && variant="-hardened-lto" || variant="-hardened"
 	elif use rt-bore; then
 		use lto && variant="-rt-bore-lto" || variant="-rt-bore"
 	elif use server; then
 		use lto && variant="-server-lto" || variant="-server"
 	elif use deckify; then
-		use lto && variant="-deckify-lto" || variant="-deckify"
-		pkgrel="${BINPKG_VER_DECKIFY}"
+		if use lto; then
+			variant="-deckify-lto"
+			pkgrel="${BINPKG_VER_DECKIFY_LTO}"
+		else
+			variant="-deckify"
+			pkgrel="${BINPKG_VER_DECKIFY}"
+		fi
 	fi
 	echo "linux-cachyos${variant}-headers-${pkgrel}-x86_64_v3.pkg.tar.zst"
 }
@@ -191,7 +217,9 @@ _cachyos_headers_distfile() {
 _cachyos_setup_kv() {
 	local suffix=$(_cachyos_variant_suffix)
 	local pkgrel=${CACHYOS_PR}
-	use deckify && pkgrel=2
+	if use deckify; then
+		use lto && pkgrel=4 || pkgrel=5
+	fi
 	KV_LOCALVERSION="-${pkgrel}-${suffix}"
 	KV_FULL="${PV}${KV_LOCALVERSION}"
 }
@@ -221,7 +249,9 @@ src_prepare() {
 	# Set localversion files to match the CachyOS binary exactly
 	# These determine the kernel release string (uname -r)
 	local pkgrel=${CACHYOS_PR}
-	use deckify && pkgrel=2
+	if use deckify; then
+		use lto && pkgrel=4 || pkgrel=5
+	fi
 	echo "-${pkgrel}" > localversion.10-pkgrel || die
 	echo "-$(_cachyos_variant_suffix)" > localversion.20-pkgname || die
 

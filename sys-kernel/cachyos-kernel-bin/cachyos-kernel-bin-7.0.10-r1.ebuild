@@ -35,13 +35,11 @@ SRC_URI="
 
 # Binary packages per variant (x86_64_v3 only for this version)
 # Naming: linux-cachyos[-variant][-lto]-{ver}-{pkgrel}-{arch}.pkg.tar.zst
-# Preserve the existing USE semantics even though upstream's bore+lto build
-# now uses the unsuffixed linux-cachyos package name.
 SRC_URI+="
 	bore? (
 		lto? ( !gcc? (
-			${MIRROR_V3}/linux-cachyos-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bore-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bore-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		) )
 		!lto? ( !gcc? (
 			${MIRROR_V3}/linux-cachyos-bore-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
@@ -140,7 +138,7 @@ QA_PREBUILT='*'
 # This determines the kernel release string: {PV}-{PR}-{suffix}
 _cachyos_variant_suffix() {
 	if use bore; then
-		if use lto; then echo "cachyos"
+		if use lto; then echo "cachyos-bore-lto"
 		elif use gcc; then echo "cachyos-gcc"
 		else echo "cachyos-bore"
 		fi
@@ -161,7 +159,7 @@ _cachyos_variant_suffix() {
 _cachyos_bin_distfile() {
 	local variant="" pkgrel="${BINPKG_VER}"
 	if use bore; then
-		if use lto; then variant=""
+		if use lto; then variant="-bore-lto"
 		elif use gcc; then variant="-gcc"
 		else variant="-bore"
 		fi
@@ -189,7 +187,7 @@ _cachyos_bin_distfile() {
 _cachyos_headers_distfile() {
 	local variant="" pkgrel="${BINPKG_VER}"
 	if use bore; then
-		if use lto; then variant=""
+		if use lto; then variant="-bore-lto"
 		elif use gcc; then variant="-gcc"
 		else variant="-bore"
 		fi

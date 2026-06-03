@@ -21,6 +21,7 @@ ssh -T git@github.com   # warm SSH connection
 ```
 app-admin/
   cachyos-settings/      # CachyOS system settings/configuration package
+  ananicy-cpp/           # Ananicy C++ service bundled with CachyOS rules
 sys-kernel/
   cachyos-sources/       # kernel-2.eclass — only installs source, no build
   cachyos-kernel/        # kernel-build.eclass — builds & installs full kernel
@@ -48,7 +49,9 @@ Each commit message describes which versions were bumped, e.g.:
 
 Do NOT auto-generate ebuilds for other kernel.org versions (6.12, 6.6, etc.) just because they exist on kernel.org.
 
-**Also check `app-admin/cachyos-settings` during every CachyOS update pass.** It tracks upstream `CachyOS/CachyOS-Settings` tags/releases, not kernel versions, but it is part of the overlay's CachyOS package set and can be bumped independently when upstream has a newer tag.
+**Also check `app-admin/cachyos-settings` and `app-admin/ananicy-cpp` during every CachyOS update pass.** They are not tied to kernel versions, but they are part of the overlay's CachyOS package set and can be bumped independently:
+- `app-admin/cachyos-settings` tracks upstream `CachyOS/CachyOS-Settings` tags/releases.
+- `app-admin/ananicy-cpp` tracks upstream `ananicy-cpp/ananicy-cpp` tags/releases and the bundled `CachyOS/ananicy-rules` commit.
 
 ---
 
@@ -170,6 +173,32 @@ ebuild app-admin/cachyos-settings/cachyos-settings-<NEW_VER>.ebuild manifest
 
 After bumping, verify the installed file layout still matches the ebuild (`src_install`) because upstream may add/remove config directories, systemd units, udev rules, or optional zram/X11 files.
 
+### 6. app-admin/ananicy-cpp (check every update pass)
+
+`app-admin/ananicy-cpp` packages Ananicy C++ plus CachyOS' bundled ananicy rules. Check both upstreams whenever refreshing CachyOS packages:
+
+```bash
+# Check current upstream app tags/releases:
+git ls-remote --tags --sort='v:refname' https://gitlab.com/ananicy-cpp/ananicy-cpp.git 'refs/tags/v*' | tail
+
+# Check current CachyOS rules commit:
+git ls-remote https://github.com/CachyOS/ananicy-rules.git HEAD
+```
+
+Update rules:
+- If upstream `ananicy-cpp` has a newer tag, copy the latest ebuild to the new Gentoo PV and regenerate Manifest.
+- Always compare `ANANICY_COMMIT` with `CachyOS/ananicy-rules` `HEAD`; when bumping the app, update `ANANICY_COMMIT` to the current rules commit unless there is a known compatibility reason not to.
+- If only `CachyOS/ananicy-rules` changed and `ananicy-cpp` did not, create a revision bump (e.g. `ananicy-cpp-<PV>-r1.ebuild`) instead of editing an existing ebuild in place, then update `ANANICY_COMMIT` and Manifest.
+- Preserve `MYPV="${PV/_rc/-rc}"`; upstream archive names use `-rc` while Gentoo PVs use `_rc`.
+- After bumping, verify `SRC_URI` fetches both the GitLab app archive and the GitHub rules archive, and verify `src_install` still installs the OpenRC init script plus `/etc/ananicy.d` rules.
+
+```bash
+cp app-admin/ananicy-cpp/ananicy-cpp-<OLD_VER>.ebuild \
+   app-admin/ananicy-cpp/ananicy-cpp-<NEW_VER>.ebuild
+# edit ANANICY_COMMIT if the rules commit changed
+ebuild app-admin/ananicy-cpp/ananicy-cpp-<NEW_VER>.ebuild manifest
+```
+
 ---
 
 ## Genpatches Version Alignment
@@ -225,7 +254,8 @@ Use `pkgdev commit --signoff` for all commits. Split into two commits:
 
 ### Commit 1: Version update
 ```bash
-# Stage all new/modified files (ebuilds, files dirs, manifests, virtual/dist-kernel, AGENTS.md)
+# Stage all new/modified files (ebuilds, files dirs, manifests, app-admin packages, virtual/dist-kernel, AGENTS.md)
+git add -v app-admin/cachyos-settings/ app-admin/ananicy-cpp/
 git add -v sys-kernel/cachyos-sources/ sys-kernel/cachyos-kernel/ sys-kernel/cachyos-kernel-bin/
 git add -v virtual/dist-kernel/ AGENTS.md
 
@@ -244,6 +274,8 @@ pkgdev commit --signoff -m "sys-kernel: drop old versions, <deleted version rang
 - `sys-kernel: update CachyOS kernels to 6.18.26, 7.0.3`
 - `sys-kernel: update CachyOS kernels to 6.18.25, 7.0.2 and 7.0.1 (bin)`
 - `sys-kernel: drop old versions, 6.6.64-72, 6.19.0-10, ...`
+- `app-admin/ananicy-cpp: update to 1.2.1`
+- `app-admin/ananicy-cpp: revbump for CachyOS ananicy rules`
 
 ---
 
@@ -293,6 +325,15 @@ PORTAGE_TMPDIR="$PWD/.ci/portage-tmp" ebuild app-admin/cachyos-settings/cachyos-
 sudo ebuild app-admin/cachyos-settings/cachyos-settings-<VER>.ebuild clean install
 ```
 
+### ananicy-cpp (install test):
+```bash
+# Prefer repo-owned tempdir for easy inspection:
+PORTAGE_TMPDIR="$PWD/.ci/portage-tmp" ebuild app-admin/ananicy-cpp/ananicy-cpp-<VER>.ebuild clean install
+
+# Legacy:
+sudo ebuild app-admin/ananicy-cpp/ananicy-cpp-<VER>.ebuild clean install
+```
+
 ---
 
 ## Commit
@@ -300,8 +341,8 @@ sudo ebuild app-admin/cachyos-settings/cachyos-settings-<VER>.ebuild clean insta
 After all tests pass and manifests are regenerated:
 
 ```bash
-# First commit: version update (add new ebuilds, files, manifests, virtual, AGENTS.md)
-git add -v app-admin/cachyos-settings/ sys-kernel/cachyos-sources/ sys-kernel/cachyos-kernel/
+# First commit: version update (add new ebuilds, files, manifests, app-admin packages, virtual, AGENTS.md)
+git add -v app-admin/cachyos-settings/ app-admin/ananicy-cpp/ sys-kernel/cachyos-sources/ sys-kernel/cachyos-kernel/
 git add -v virtual/dist-kernel/ AGENTS.md
 pkgdev commit --signoff -m "sys-kernel: update CachyOS kernels to <V1>, <V2> and <V3>"
 
@@ -379,11 +420,16 @@ sys-kernel/cachyos-kernel-bin/
 app-admin/cachyos-settings/
   cachyos-settings-*.ebuild   # CachyOS settings/config package
 
+app-admin/ananicy-cpp/
+  ananicy-cpp-*.ebuild        # Ananicy C++ service with CachyOS rules
+
 Upstream:
   https://github.com/CachyOS/linux-cachyos/commits/    # version bump trigger
   https://github.com/CachyOS/linux/releases             # pre-patched tarballs
   https://github.com/CachyOS/kernel-patches             # patch source
   https://github.com/CachyOS/CachyOS-Settings           # settings package tags/releases
+  https://gitlab.com/ananicy-cpp/ananicy-cpp            # ananicy-cpp source tags/releases
+  https://github.com/CachyOS/ananicy-rules              # bundled CachyOS ananicy rules
   https://mirror.cachyos.org/repo/                      # binary packages
 
 Reference (read-only):

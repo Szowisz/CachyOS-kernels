@@ -1,7 +1,7 @@
 # Copyright 2023 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI=7
+EAPI=9
 
 DESCRIPTION="Virtual for Linux kernel sources"
 SLOT="0"
@@ -24,4 +24,8 @@ RDEPEND="
 		sys-kernel/gentoo-kernel
 		sys-kernel/gentoo-kernel-bin
 		sys-kernel/vanilla-kernel
-	)"
+		sys-kernel/linux-next
+		sys-kernel/asahi-sources
+		sys-kernel/gentoo-kernel-modprep
+	)
+"

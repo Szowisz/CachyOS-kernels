@@ -6,7 +6,7 @@
 		<name>Jakub Wroński</name>
 	</maintainer>
 	<upstream>
-		<bugs-to>https://gitlab.com/ananicy-cpp/ananicy-cpp/-/issues</bugs-to>
 		<remote-id type="gitlab">ananicy-cpp/ananicy-cpp</remote-id>
+		<remote-id type="github">CachyOS/ananicy-rules</remote-id>
 	</upstream>
 </pkgmetadata>

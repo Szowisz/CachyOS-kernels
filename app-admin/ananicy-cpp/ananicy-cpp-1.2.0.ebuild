@@ -3,12 +3,12 @@
 
 EAPI=8
 
-ANANICY_COMMIT="5a46bac4c681d9daaf3ffccecf373c42c84270dd" # for rules
+ANANICY_COMMIT="1964bd98aa9129f48f684827d618c7a6c1826554" # for rules
 MYPV="${PV/_rc/-rc}"
 
 inherit cmake
 
-DESCRIPTION="Ananicy rewritten in C++ for much lower CPU and memory usage (powered by CachyOS rules)"
+DESCRIPTION="Ananicy rewritten in C++ with CachyOS rules"
 HOMEPAGE="https://gitlab.com/ananicy-cpp/ananicy-cpp"
 SRC_URI="
 	https://gitlab.com/ananicy-cpp/ananicy-cpp/-/archive/v${MYPV}/${PN}-v${MYPV}.tar.bz2
@@ -29,13 +29,8 @@ RDEPEND="
 "
 DEPEND="
 	${RDEPEND}
-	dev-cpp/std-format
 	sys-auth/rtkit
 "
-
-PATCHES=(
-	"${FILESDIR}/${P}-system-std-format.patch"
-)
 
 src_configure() {
 	local mycmakeargs=(

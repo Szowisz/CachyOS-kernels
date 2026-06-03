@@ -19,6 +19,8 @@ ssh -T git@github.com   # warm SSH connection
 ## Package Architecture
 
 ```
+app-admin/
+  cachyos-settings/      # CachyOS system settings/configuration package
 sys-kernel/
   cachyos-sources/       # kernel-2.eclass — only installs source, no build
   cachyos-kernel/        # kernel-build.eclass — builds & installs full kernel
@@ -45,6 +47,8 @@ Each commit message describes which versions were bumped, e.g.:
 - `6.19.12-1 && 6.18.22-1` → create ebuilds for 6.19.12 and 6.18.22 only
 
 Do NOT auto-generate ebuilds for other kernel.org versions (6.12, 6.6, etc.) just because they exist on kernel.org.
+
+**Also check `app-admin/cachyos-settings` during every CachyOS update pass.** It tracks upstream `CachyOS/CachyOS-Settings` tags/releases, not kernel versions, but it is part of the overlay's CachyOS package set and can be bumped independently when upstream has a newer tag.
 
 ---
 
@@ -149,6 +153,22 @@ ebuild virtual/dist-kernel/dist-kernel-<VERSION>.ebuild manifest
 ```
 
 The virtual simply depends on `>=sys-kernel/cachyos-sources-${PV}` for source packages and `>=sys-kernel/cachyos-kernel-${PV}` through the dist-kernel eclass.
+
+### 5. app-admin/cachyos-settings (check every update pass)
+
+`app-admin/cachyos-settings` is not tied to kernel PVs, but should be checked whenever refreshing CachyOS packages:
+
+```bash
+# Check current upstream tags/releases:
+git ls-remote --tags --sort='v:refname' https://github.com/CachyOS/CachyOS-Settings.git 'refs/tags/*' | tail
+
+# If newer than the overlay ebuild, copy the latest ebuild and update manifest:
+cp app-admin/cachyos-settings/cachyos-settings-<OLD_VER>.ebuild \
+   app-admin/cachyos-settings/cachyos-settings-<NEW_VER>.ebuild
+ebuild app-admin/cachyos-settings/cachyos-settings-<NEW_VER>.ebuild manifest
+```
+
+After bumping, verify the installed file layout still matches the ebuild (`src_install`) because upstream may add/remove config directories, systemd units, udev rules, or optional zram/X11 files.
 
 ---
 
@@ -264,6 +284,15 @@ PORTAGE_TMPDIR="$PWD/.ci/portage-tmp" ebuild virtual/dist-kernel/dist-kernel-<VE
 ebuild virtual/dist-kernel/dist-kernel-<VER>.ebuild manifest
 ```
 
+### cachyos-settings (install test):
+```bash
+# Prefer repo-owned tempdir for easy inspection:
+PORTAGE_TMPDIR="$PWD/.ci/portage-tmp" ebuild app-admin/cachyos-settings/cachyos-settings-<VER>.ebuild clean install
+
+# Legacy:
+sudo ebuild app-admin/cachyos-settings/cachyos-settings-<VER>.ebuild clean install
+```
+
 ---
 
 ## Commit
@@ -272,7 +301,7 @@ After all tests pass and manifests are regenerated:
 
 ```bash
 # First commit: version update (add new ebuilds, files, manifests, virtual, AGENTS.md)
-git add -v sys-kernel/cachyos-sources/ sys-kernel/cachyos-kernel/
+git add -v app-admin/cachyos-settings/ sys-kernel/cachyos-sources/ sys-kernel/cachyos-kernel/
 git add -v virtual/dist-kernel/ AGENTS.md
 pkgdev commit --signoff -m "sys-kernel: update CachyOS kernels to <V1>, <V2> and <V3>"
 
@@ -347,10 +376,14 @@ sys-kernel/cachyos-kernel/
 sys-kernel/cachyos-kernel-bin/
   AGENT.md                    # detailed bin kernel guide
 
+app-admin/cachyos-settings/
+  cachyos-settings-*.ebuild   # CachyOS settings/config package
+
 Upstream:
   https://github.com/CachyOS/linux-cachyos/commits/    # version bump trigger
   https://github.com/CachyOS/linux/releases             # pre-patched tarballs
   https://github.com/CachyOS/kernel-patches             # patch source
+  https://github.com/CachyOS/CachyOS-Settings           # settings package tags/releases
   https://mirror.cachyos.org/repo/                      # binary packages
 
 Reference (read-only):

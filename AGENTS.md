@@ -113,7 +113,7 @@ curl -s https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3/ | \
   grep -oP "linux-cachyos[^\"]*-${VERSION}-${PKGREL}-x86_64_v3\.pkg\.tar\.zst" | sort -u
 ```
 
-The USE flags must match exactly what's available on the mirror. If a variant (e.g., `hardened`, `deckify`) doesn't exist for this version, remove it from IUSE/REQUIRED_USE/SRC_URI.
+The USE flags must match exactly what's available on the mirror. If a variant (e.g., `cachyos-hardened`, `deckify`) doesn't exist for this version, remove it from IUSE/REQUIRED_USE/SRC_URI.
 
 ### 3a. cachyos-kernel-bin Variant Coverage Rules
 
@@ -125,7 +125,7 @@ curl -s https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3/ | \
   grep -oP "linux-cachyos[^\"]*-${VERSION}-${PKGREL}-x86_64_v3\.pkg\.tar\.zst" | sort -u
 ```
 
-IUSE / REQUIRED_USE / SRC_URI must precisely cover all combinations on the mirror. If a variant (e.g., `hardened`, `deckify`) doesn't exist for this version, remove it from the ebuild. Conversely, if it exists, it MUST be added.
+IUSE / REQUIRED_USE / SRC_URI must precisely cover all combinations on the mirror. If a variant (e.g., `cachyos-hardened`, `deckify`) doesn't exist for this version, remove it from the ebuild. Conversely, if it exists, it MUST be added.
 
 **LTO / GCC USE flags follow the same principle:** only provide `lto` or `gcc` USE when the mirror has the corresponding packages. For example, 6.18.26 LTS only has `linux-cachyos-lts` (no lto variant), so the ebuild does not need an `lto` USE.
 
@@ -135,7 +135,7 @@ Typical IUSE per version:
 
 | Version | Mirror variants | IUSE | REQUIRED_USE |
 |---------|----------------|------|-------------|
-| Mainline (7.x) | bore, eevdf, rt-bore, server, deckify (+ bore's gcc sub-variant), each with lto/non-lto | `bore +eevdf rt-bore server deckify +lto gcc debug` | `^^ ( bore eevdf rt-bore server deckify ) ?? ( lto gcc ) gcc? ( bore )` |
+| Mainline (7.x) | cachyos/default (lto or gcc), bore, bmq, eevdf, rt-bore, server, deckify, cachyos-hardened as mirror provides; scheduler variants usually have lto/non-lto | `+cachyos bore bmq eevdf rt-bore server deckify cachyos-hardened +lto gcc debug` | `^^ ( cachyos bore bmq eevdf rt-bore server deckify cachyos-hardened ) ?? ( lto gcc ) cachyos? ( || ( lto gcc ) ) gcc? ( cachyos )` |
 | 6.19.x (hardened-only) | hardened + hardened-lto | `hardened lto debug` | `hardened` |
 | 6.18.x (LTS) | lts (single package, no lto) | `lts debug` | `lts` |
 
@@ -145,7 +145,7 @@ Typical IUSE per version:
 1. Check mirror for all available variants and their lto/non-lto combinations
 2. Set IUSE to cover all available variants + `lto` (if available) + `gcc` (if available) + `debug`
 3. Ensure REQUIRED_USE `^^ ( ... )` includes all variant options
-4. Update `_cachyos_variant_suffix()`, `_cachyos_bin_distfile()`, `_cachyos_headers_distfile()` functions
+4. Update `_cachyos_pkg_variant()` and verify `_cachyos_variant_suffix()`, `_cachyos_bin_distfile()`, `_cachyos_headers_distfile()` outputs
 5. Compare against the previous ebuild: confirm no missing variants, and remove variants not on the mirror
 
 ### 4. virtual/dist-kernel
@@ -368,14 +368,14 @@ pkgdev commit --signoff -m "sys-kernel: update CachyOS kernels to <V1>, <V2> and
 
 Some USE flags only exist for certain kernel versions. The `update_ebuild.py` script handles this automatically by checking upstream PKGBUILD configs (`.SRCINFO`):
 
-- `hardened`: Not available for 7.0.x series → removed from IUSE/REQUIRED_USE/src_prepare
-- `bmq`: Available for LTS series (6.6.x) but not older versions
+- `hardened`: Availability varies by upstream source/kernel config; `update_ebuild.py` checks `.SRCINFO` before keeping/restoring it
+- `bmq`: Availability varies by upstream config; `update_ebuild.py` checks `.SRCINFO` before keeping/restoring it
 
 When manually creating kernel ebuilds, sync USE flag changes from the corresponding `cachyos-sources` ebuild.
 
 ### Bin kernel USE flags
 
-For `cachyos-kernel-bin`, USE flags must reflect the exact combinations available on CachyOS mirrors. Each scheduler variant (`bore`, `eevdf`, `hardened`, `deckify`, `rt-bore`) may or may not have LTO/non-LTO/GCC variants available at a given version.
+For `cachyos-kernel-bin`, USE flags must reflect the exact combinations available on CachyOS mirrors. Each binary variant (`cachyos`, `bore`, `bmq`, `eevdf`, `cachyos-hardened`, `deckify`, `rt-bore`, `server`, `lts`) may or may not have LTO/non-LTO/GCC variants available at a given version.
 
 ---
 

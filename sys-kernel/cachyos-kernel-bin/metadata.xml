@@ -11,7 +11,9 @@
   </maintainer>
   <use>
     <!-- CPU Schedulers (mutually exclusive) -->
+    <flag name="cachyos">Default CachyOS kernel variant</flag>
     <flag name="bore">BORE (Burst-Oriented Response Enhancer) scheduler variant</flag>
+    <flag name="bmq">BMQ scheduler variant</flag>
     <flag name="eevdf">Default Linux EEVDF (Earliest Eligible Virtual Deadline First) scheduler</flag>
     <flag name="rt-bore">BORE scheduler with realtime patches for low-latency applications</flag>
     <flag name="server">Server-optimized kernel configuration</flag>

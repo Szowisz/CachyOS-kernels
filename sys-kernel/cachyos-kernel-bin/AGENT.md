@@ -103,9 +103,10 @@ grep 'PATCHSET=' /var/db/repos/gentoo/sys-kernel/gentoo-kernel-bin/gentoo-kernel
 ### Step 5: Create the new ebuild
 
 ```bash
-# Copy from latest existing version
-OLD_VER=$(ls sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-*.ebuild | sort -V | tail -1)
-cp "${OLD_VER}" sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-<NEW_VERSION>.ebuild
+# Move from the old mainline bin ebuild so stale distfiles are not kept.
+# Keep the latest LTS bin ebuild separately when upstream still mirrors it.
+git mv sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-<OLD_MAINLINE>.ebuild \
+  sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-<NEW_VERSION>.ebuild
 ```
 
 **Variables to review (most are auto-computed from PV/PR, no change needed):**
@@ -125,11 +126,11 @@ cp "${OLD_VER}" sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-<NEW_VERSION>.e
 When adding/removing scheduler variants, update these sections in sync:
 
 1. **IUSE** — add/remove scheduler flags (e.g., `bmq`)
-2. **REQUIRED_USE** — update `^^ ( bore eevdf ... )` constraint
+2. **REQUIRED_USE** — update the mutually exclusive variant constraint
 3. **SRC_URI** — add/remove the download blocks for each variant
-4. **`_cachyos_variant_suffix()`** — add/remove variant cases
-5. **`_cachyos_bin_distfile()`** — add/remove variant cases
-6. **`_cachyos_headers_distfile()`** — add/remove variant cases
+4. **`_cachyos_pkg_variant()`** — add/remove variant cases
+5. **`_cachyos_variant_suffix()`** — verify generated kernel release suffix
+6. **`_cachyos_bin_distfile()` / `_cachyos_headers_distfile()`** — verify generated distfile names
 
 ### Step 7: Generate Manifest
 
@@ -150,13 +151,16 @@ Total download can be >2GB. Ensure good connectivity.
 
 | USE flags | CachyOS package name | Kernel release string |
 |-----------|---------------------|-----------------------|
-| `bore lto` | `linux-cachyos` (default) | `{PV}-{PR}-cachyos` |
-| `bore !lto !gcc` | `linux-cachyos-bore` | `{PV}-{PR}-cachyos-bore` |
-| `bore gcc` | `linux-cachyos-gcc` | `{PV}-{PR}-cachyos-gcc` |
+| `cachyos lto` | `linux-cachyos` (default) | `{PV}-{PR}-cachyos` |
+| `cachyos gcc` | `linux-cachyos-gcc` | `{PV}-{PR}-cachyos-gcc` |
+| `bore lto` | `linux-cachyos-bore-lto` | `{PV}-{PR}-cachyos-bore-lto` |
+| `bore !lto` | `linux-cachyos-bore` | `{PV}-{PR}-cachyos-bore` |
+| `bmq lto` | `linux-cachyos-bmq-lto` | `{PV}-{PR}-cachyos-bmq-lto` |
+| `bmq !lto` | `linux-cachyos-bmq` | `{PV}-{PR}-cachyos-bmq` |
 | `eevdf lto` | `linux-cachyos-eevdf-lto` | `{PV}-{PR}-cachyos-eevdf-lto` |
 | `eevdf !lto` | `linux-cachyos-eevdf` | `{PV}-{PR}-cachyos-eevdf` |
-| `hardened lto` | `linux-cachyos-hardened-lto` | `{PV}-{PR}-cachyos-hardened-lto` |
-| `hardened !lto` | `linux-cachyos-hardened` | `{PV}-{PR}-cachyos-hardened` |
+| `cachyos-hardened lto` | `linux-cachyos-hardened-lto` | `{PV}-{PR}-cachyos-hardened-lto` |
+| `cachyos-hardened !lto` | `linux-cachyos-hardened` | `{PV}-{PR}-cachyos-hardened` |
 | `rt-bore lto` | `linux-cachyos-rt-bore-lto` | `{PV}-{PR}-cachyos-rt-bore-lto` |
 | `rt-bore !lto` | `linux-cachyos-rt-bore` | `{PV}-{PR}-cachyos-rt-bore` |
 | `deckify lto` | `linux-cachyos-deckify-lto` | `{PV}-{PR}-cachyos-deckify-lto` |
@@ -208,8 +212,8 @@ pkgcheck scan sys-kernel/cachyos-kernel-bin
 emerge --pretend --verbose =sys-kernel/cachyos-kernel-bin-<VERSION>
 
 # Test with non-default USE flags
-USE="eevdf -bore lto" emerge --pretend --verbose =sys-kernel/cachyos-kernel-bin-<VERSION>
-USE="hardened -bore -lto" emerge --pretend --verbose =sys-kernel/cachyos-kernel-bin-<VERSION>
+USE="eevdf -cachyos lto" emerge --pretend --verbose =sys-kernel/cachyos-kernel-bin-<VERSION>
+USE="cachyos-hardened -cachyos -lto" emerge --pretend --verbose =sys-kernel/cachyos-kernel-bin-<VERSION>
 ```
 
 ### Download and unpack test
@@ -258,15 +262,15 @@ Since -bin ebuilds don't compile the kernel, CI tests are fast (minutes):
 
 ```yaml
 test_matrix:
-  - ""                           # default: bore + lto
-  - "bore -lto -gcc"             # bore without LTO
+  - ""                           # default: cachyos + lto
+  - "bore -cachyos -lto -gcc"    # bore without LTO
   - "gcc -lto"                   # GCC variant
-  - "eevdf -bore lto"            # EEVDF + LTO
-  - "eevdf -bore -lto"           # EEVDF without LTO
-  - "hardened -bore lto"         # hardened + LTO
-  - "rt-bore -bore lto"          # RT-BORE + LTO
-  - "deckify -bore lto"          # deckify + LTO
-  - "server -bore lto"           # server + LTO
+  - "eevdf -cachyos lto"         # EEVDF + LTO
+  - "eevdf -cachyos -lto"        # EEVDF without LTO
+  - "cachyos-hardened -cachyos lto" # hardened + LTO
+  - "rt-bore -cachyos lto"       # RT-BORE + LTO
+  - "deckify -cachyos lto"       # deckify + LTO
+  - "server -cachyos lto"        # server + LTO
 ```
 
 ## Troubleshooting

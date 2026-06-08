@@ -3,7 +3,7 @@
 
 EAPI=8
 
-ANANICY_COMMIT="1964bd98aa9129f48f684827d618c7a6c1826554" # for rules
+ANANICY_COMMIT="652b56e506af036814357e27fe1849b6a779f631" # for rules
 MYPV="${PV/_rc/-rc}"
 
 inherit cmake
@@ -31,6 +31,19 @@ DEPEND="
 	${RDEPEND}
 	sys-auth/rtkit
 "
+
+src_prepare() {
+	default
+
+	# GCC 16 no longer exposes getpid() transitively via unrelated headers.
+	# Upstream still misses the direct include in v1.2.0.
+	sed -i '/#include <string_view>/a #include <unistd.h>' \
+		src/platform/linux/debug.cpp || die
+	sed -i '/#include <thread>/a #include <unistd.h>' \
+		src/platform/linux/process.cpp || die
+
+	cmake_prepare
+}
 
 src_configure() {
 	local mycmakeargs=(

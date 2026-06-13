@@ -10,8 +10,8 @@ KEYWORDS="~amd64"
 RDEPEND="
 	|| (
 		~sys-kernel/cachyos-kernel-${PV%_p*}
-		~sys-kernel/gentoo-kernel-${PV}
-		~sys-kernel/gentoo-kernel-bin-${PV}
+		~sys-kernel/gentoo-kernel-${PV%_p*}
+		~sys-kernel/gentoo-kernel-bin-${PV%_p*}
 		~sys-kernel/vanilla-kernel-${PV%_p*}
 	)
 "

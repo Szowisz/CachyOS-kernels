@@ -87,11 +87,10 @@ Signed-off-by: Peter Jung <admin@ptr1337.dev>
  security/Kconfig.hardening                    |  21 ++
  security/selinux/Kconfig                      |   2 +-
  security/selinux/hooks.c                      |  12 -
- security/selinux/selinuxfs.c                  |  10 +-
  security/yama/Kconfig                         |   2 +-
  tools/perf/Documentation/security.txt         |   1 +
  tools/perf/util/evsel.c                       |   1 +
- 86 files changed, 907 insertions(+), 189 deletions(-)
+ 85 files changed, 906 insertions(+), 181 deletions(-)
  create mode 100644 drivers/usb/core/sysctl.c
 
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
@@ -3102,32 +3101,6 @@ index e713291db873..e05c1399b94e 100644
  /**
   * selinux_secmark_enabled - Check to see if SECMARK is currently enabled
   *
-diff --git a/security/selinux/selinuxfs.c b/security/selinux/selinuxfs.c
-index 232e087bce3e..c6da24809b70 100644
---- a/security/selinux/selinuxfs.c
-+++ b/security/selinux/selinuxfs.c
-@@ -699,20 +699,12 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
- 	if (IS_ERR(page))
- 		return PTR_ERR(page);
- 
--	if (sscanf(page, "%u", &new_value) != 1) {
-+	if (sscanf(page, "%u", &new_value) != 1 || new_value) {
- 		length = -EINVAL;
- 		goto out;
- 	}
- 	length = count;
- 
--	if (new_value) {
--		char comm[sizeof(current->comm)];
--
--		strscpy(comm, current->comm);
--		pr_err("SELinux: %s (%d) set checkreqprot to 1. This is no longer supported.\n",
--		       comm, current->pid);
--	}
--
- 	selinux_ima_measure_state();
- 
- out:
 diff --git a/security/yama/Kconfig b/security/yama/Kconfig
 index a810304123ca..b809050b25d2 100644
 --- a/security/yama/Kconfig

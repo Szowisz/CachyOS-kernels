@@ -12,7 +12,9 @@ inherit kernel-install toolchain-funcs
 CACHYOS_PR="$((${PR#r} + 1))"
 
 # CachyOS pre-patched source tarball (needed for modules_prepare)
-MY_P="cachyos-$(ver_cut 1-3)-${CACHYOS_PR}"
+# Upstream built the 7.0.12-1 binary from the cachyos-7.0.12-2 source tag.
+SRC_PR="2"
+MY_P="cachyos-$(ver_cut 1-3)-${SRC_PR}"
 
 # Binary package version string: {pkgver}-{pkgrel}
 BINPKG_VER="${PV}-${CACHYOS_PR}"

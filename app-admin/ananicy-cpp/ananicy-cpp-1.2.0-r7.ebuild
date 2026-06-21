@@ -41,6 +41,8 @@ src_prepare() {
 		src/platform/linux/debug.cpp || die
 	sed -i '/#include <thread>/a #include <unistd.h>' \
 		src/platform/linux/process.cpp || die
+	sed -i '/#include <systemd\/sd-login.h>/a #include <unistd.h>' \
+		src/platform/systemd/service.cpp || die
 
 	cmake_prepare
 }

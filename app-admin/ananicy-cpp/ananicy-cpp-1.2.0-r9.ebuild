@@ -3,7 +3,7 @@
 
 EAPI=8
 
-ANANICY_COMMIT="417ba0228388e9b74efa189980e91a8260e45053" # for rules
+ANANICY_COMMIT="702e66092f1306d8bf3e3e6b4ceb0da5fba4353a" # for rules
 MYPV="${PV/_rc/-rc}"
 
 inherit cmake

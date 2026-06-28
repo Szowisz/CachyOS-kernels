@@ -103,7 +103,7 @@ sudo ebuild sys-kernel/cachyos-kernel/cachyos-kernel-<VERSION>.ebuild clean prep
 
 ### 3. cachyos-kernel-bin
 
-**Bin kernel tracks both the latest mainline kernel AND the latest LTS kernel** (if upstream provides one). Old bin ebuilds that are neither the latest mainline nor the latest LTS should be removed.
+**Bin kernel tracks the latest mainline kernel, the latest LTS kernel, AND hardened coverage** (if upstream provides them). If the latest mainline/LTS bin ebuilds do not include `cachyos-hardened`/hardened packages but the mirror still provides a hardened-capable version, keep the latest mirrored hardened-capable bin ebuild too. Old bin ebuilds that are none of latest mainline, latest LTS, or latest hardened coverage should be removed.
 
 **When updating a bin ebuild, always `mv` the old ebuild to the new version first, then edit it.** Do NOT `cp` and keep the old ebuild around — upstream stops hosting old binaries, so running `ebuild manifest` on the old version will fail because the distfiles are no longer downloadable. Renaming instead of copying avoids this problem.
 
@@ -230,7 +230,7 @@ grep 'PATCHSET' /var/db/repos/gentoo/sys-kernel/gentoo-kernel/gentoo-kernel-<VER
 |-------------|------------------|
 | `cachyos-sources` | `/var/db/repos/gentoo/sys-kernel/gentoo-sources/` |
 | `cachyos-kernel` | `/var/db/repos/gentoo/sys-kernel/gentoo-kernel/` |
-| `cachyos-kernel-bin` | Keep latest mainline + latest LTS (if upstream has one) |
+| `cachyos-kernel-bin` | Keep latest mainline + latest LTS (if upstream has one) + latest mirrored hardened coverage if separate |
 | `virtual/dist-kernel` | Align with kernel cleanup |
 
 Match by kernel version (ignore `-rN` revision suffix):
@@ -398,7 +398,7 @@ PORTAGE_TMPDIR="$PWD/.ci/portage-tmp" ebuild ... clean prepare
 2. **Genpatches version from the script may be wrong** for LTS — always verify against gentoo-sources
 3. **Shared patch directories** (`files/6.19.0/`, `files/6.18.10/`) are version-independent — don't delete during cleanup
 4. **cachyos-kernel/files is a symlink** to cachyos-sources/files — changes to one affect both
-5. **cachyos-kernel-bin keeps latest mainline + latest LTS (and any hardened-only version)** — remove old bin ebuilds that are neither. Every upstream bin variant must be covered by the ebuild's USE flags; if the mirror lacks an lto variant, omit the `lto` USE
+5. **cachyos-kernel-bin keeps latest mainline + latest LTS + latest hardened coverage when separate** — remove old bin ebuilds that are none of those. Every upstream bin variant must be covered by the ebuild's USE flags; if the mirror lacks an lto variant, omit the `lto` USE
 6. **Manifest must be regenerated** after adding/removing any ebuild
 7. **`ebuild ... manifest` may need sudo** for binpkgs directory access
 

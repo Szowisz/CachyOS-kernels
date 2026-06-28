@@ -44,7 +44,9 @@ pkg_postinst  -> kernel-install runs depmod, generates initramfs, updates bootlo
 ### Step 1: Check which versions are available on CachyOS mirrors
 
 The CachyOS mirrors may have DIFFERENT versions per architecture repo.
-Always verify before creating an ebuild.
+Always verify before creating an ebuild. Retain the latest mainline bin,
+the latest LTS bin, and the latest mirrored hardened-capable bin when hardened
+coverage is not included in the latest mainline/LTS ebuilds.
 
 ```bash
 # Check x86_64_v3 (primary repo, usually most up-to-date)
@@ -105,6 +107,7 @@ grep 'PATCHSET=' /var/db/repos/gentoo/sys-kernel/gentoo-kernel-bin/gentoo-kernel
 ```bash
 # Move from the old mainline bin ebuild so stale distfiles are not kept.
 # Keep the latest LTS bin ebuild separately when upstream still mirrors it.
+# Keep/restore the latest hardened-capable bin ebuild separately when needed.
 git mv sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-<OLD_MAINLINE>.ebuild \
   sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-<NEW_VERSION>.ebuild
 ```

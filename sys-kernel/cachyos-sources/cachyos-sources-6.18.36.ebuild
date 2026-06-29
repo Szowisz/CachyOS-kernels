@@ -159,6 +159,15 @@ src_prepare() {
 	#find . -name "localversion*" -delete || die
 	#scripts/config -u LOCALVERSION || die
 
+	# Set kernel version suffix using localversion file (same as upstream PKGBUILD).
+	# Keep non-revision ebuilds at -cachyos; append the Gentoo revision number for -rN.
+	local cachyos_revision="${PR#r}"
+	local cachyos_localversion="-cachyos"
+	if [[ ${cachyos_revision} != 0 ]]; then
+		cachyos_localversion+="${cachyos_revision}"
+	fi
+	echo "${cachyos_localversion}" > localversion.20-pkgname || die
+
 	### Selecting CachyOS config
 	scripts/config -e CACHY || die
 

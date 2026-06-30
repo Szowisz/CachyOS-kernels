@@ -7,14 +7,18 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit kernel-install toolchain-funcs
 
-# CachyOS package release numbers. For 7.1.1, the mirror carries
-# linux-cachyos/linux-cachyos-gcc at pkgrel 2 and scheduler variants at pkgrel 1.
+# CachyOS package release numbers. For 7.1.2, the mirror carries
+# linux-cachyos at pkgrel 3, linux-cachyos-gcc at pkgrel 2, and
+# scheduler variants at pkgrel 1.
 CACHYOS_MAIN_PR="$((${PR#r} + 1))"
+CACHYOS_GCC_PR="2"
 CACHYOS_VARIANT_PR="1"
 
 MAIN_MY_P="cachyos-${PV}-${CACHYOS_MAIN_PR}"
+GCC_MY_P="cachyos-${PV}-${CACHYOS_GCC_PR}"
 VARIANT_MY_P="cachyos-${PV}-${CACHYOS_VARIANT_PR}"
 MAIN_BINPKG_VER="${PV}-${CACHYOS_MAIN_PR}"
+GCC_BINPKG_VER="${PV}-${CACHYOS_GCC_PR}"
 VARIANT_BINPKG_VER="${PV}-${CACHYOS_VARIANT_PR}"
 
 # Mirror base URLs
@@ -26,10 +30,14 @@ HOMEPAGE="
 	https://github.com/Szowisz/CachyOS-kernels
 "
 
-# Source tarball. The default/gcc packages were rebuilt as pkgrel 2, while
-# scheduler variants still use pkgrel 1 on the CachyOS mirror.
+# Source tarball. The default package was rebuilt as pkgrel 3, the gcc
+# package remains pkgrel 2, and scheduler variants still use pkgrel 1 on the
+# CachyOS mirror.
 SRC_URI="
-	cachyos? ( https://github.com/CachyOS/linux/releases/download/${MAIN_MY_P}/${MAIN_MY_P}.tar.gz )
+	cachyos? (
+		gcc? ( https://github.com/CachyOS/linux/releases/download/${GCC_MY_P}/${GCC_MY_P}.tar.gz )
+		!gcc? ( https://github.com/CachyOS/linux/releases/download/${MAIN_MY_P}/${MAIN_MY_P}.tar.gz )
+	)
 	!cachyos? ( https://github.com/CachyOS/linux/releases/download/${VARIANT_MY_P}/${VARIANT_MY_P}.tar.gz )
 "
 
@@ -42,8 +50,8 @@ SRC_URI+="
 			${MIRROR_V3}/linux-cachyos-headers-${MAIN_BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 		gcc? (
-			${MIRROR_V3}/linux-cachyos-gcc-${MAIN_BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-gcc-headers-${MAIN_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-gcc-${GCC_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-gcc-headers-${GCC_BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
 	bore? (
@@ -169,7 +177,11 @@ _cachyos_distfile_stem() {
 
 _cachyos_pkgrel() {
 	if use cachyos; then
-		echo "${CACHYOS_MAIN_PR}"
+		if use gcc; then
+			echo "${CACHYOS_GCC_PR}"
+		else
+			echo "${CACHYOS_MAIN_PR}"
+		fi
 	else
 		echo "${CACHYOS_VARIANT_PR}"
 	fi
@@ -177,7 +189,11 @@ _cachyos_pkgrel() {
 
 _cachyos_source_pkg() {
 	if use cachyos; then
-		echo "${MAIN_MY_P}"
+		if use gcc; then
+			echo "${GCC_MY_P}"
+		else
+			echo "${MAIN_MY_P}"
+		fi
 	else
 		echo "${VARIANT_MY_P}"
 	fi
@@ -185,7 +201,11 @@ _cachyos_source_pkg() {
 
 _cachyos_binpkg_ver() {
 	if use cachyos; then
-		echo "${MAIN_BINPKG_VER}"
+		if use gcc; then
+			echo "${GCC_BINPKG_VER}"
+		else
+			echo "${MAIN_BINPKG_VER}"
+		fi
 	else
 		echo "${VARIANT_BINPKG_VER}"
 	fi

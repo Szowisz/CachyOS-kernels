@@ -181,6 +181,23 @@ jobs:
           fi
         done
 
+        # dev-util/perf-7.1 auto-detects Rust and then builds the optional
+        # code_with_type test workload. Keep Rust support enabled, but patch the
+        # workload non-standard glibc-ism uint so it also compiles on musl.
+        mkdir -p /etc/portage/patches/dev-util/perf
+        cat > /etc/portage/patches/dev-util/perf/perf-7.1-musl-code-with-type-uint.patch <<PATCHEOF
+        --- a/tests/workloads/code_with_type.c
+        +++ b/tests/workloads/code_with_type.c
+        @@ -6,7 +6,7 @@
+         #include <linux/compiler.h>
+         #include "../tests.h"
+
+        -extern void test_rs(uint count);
+        +extern void test_rs(unsigned int count);
+
+         static volatile sig_atomic_t done;
+        PATCHEOF
+
         # Configure USE flags
         mkdir -p /etc/portage/package.use
         echo "sys-kernel/cachyos-sources ${USE_FLAGS}" > /etc/portage/package.use/cachyos-sources

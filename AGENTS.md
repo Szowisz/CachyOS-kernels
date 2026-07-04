@@ -77,7 +77,7 @@ The script does:
 - Updates commit hash and manifest
 
 **Manually verify after script runs:**
-- `K_GENPATCHES_VER` aligns with official `gentoo-sources` (see Genpatches section below)
+- `K_GENPATCHES_VER` aligns with official `gentoo-sources` when Gentoo has published the matching version (see Genpatches section below); if Gentoo has not caught up but CachyOS upstream has, follow the CachyOS upstream target and document the temporary Gentoo-reference gap
 - The last-line commit hash matches the `commit` file in `files/<VERSION>/commit`
 
 ### 2. cachyos-kernel
@@ -203,9 +203,9 @@ ebuild app-admin/ananicy-cpp/ananicy-cpp-<NEW_VER>.ebuild manifest
 
 ## Genpatches Version Alignment
 
-**The genpatches version MUST match the official Gentoo `gentoo-sources` package.**
+**When official Gentoo `gentoo-sources` has the matching version, the genpatches version MUST match it.** If CachyOS upstream publishes a target before Gentoo adds the matching `gentoo-sources`/`gentoo-kernel` ebuilds, still follow the CachyOS upstream trigger; use the latest available matching-branch genpatches tarballs, document the Gentoo-reference gap in the update notes, and re-check alignment when Gentoo catches up.
 
-The auto-generated version from `update_ebuild.py` can be WRONG (especially for LTS). Always verify:
+The auto-generated version from `update_ebuild.py` can be WRONG (especially for LTS). Always verify when a reference exists:
 
 ```bash
 # Check the official version:
@@ -224,7 +224,7 @@ grep 'PATCHSET' /var/db/repos/gentoo/sys-kernel/gentoo-kernel/gentoo-kernel-<VER
 
 ## Cleanup Rules
 
-**Delete ebuilds whose version does NOT exist in the corresponding official Gentoo package:**
+**Delete ebuilds whose version does NOT exist in the corresponding official Gentoo package, except for the current CachyOS upstream target when Gentoo has not caught up yet:**
 
 | Our package | Reference package |
 |-------------|------------------|

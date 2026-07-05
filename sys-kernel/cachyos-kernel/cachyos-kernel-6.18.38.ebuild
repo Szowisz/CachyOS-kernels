@@ -18,7 +18,7 @@ MY_P="cachyos-$(ver_cut 1-3)-${CACHYOS_PR}"
 # Genpatches version - must match K_GENPATCHES_VER in cachyos-sources
 # Sync from: sys-kernel/cachyos-sources/cachyos-sources-${PV}.ebuild (K_GENPATCHES_VER)
 # Cross-reference: /var/db/repos/gentoo/sys-kernel/gentoo-kernel/gentoo-kernel-${PV}.ebuild (PATCHSET)
-GENPATCHES_VER=44
+GENPATCHES_VER=45
 
 # ZFS commit for kernel-builtin-zfs support
 ZFS_COMMIT="c681af76c5a6a15caada25eb13090e41218c7831"
@@ -153,9 +153,6 @@ src_prepare() {
 	# 1810_sched_proxy_yield_the_donor_task.patch changes current->sched_class
 	# which breaks BMQ's patch context for do_sched_yield() and yield_to()
 	use bmq && genpatch_exclude+=" 1810"
-
-	# CachyOS tarball already carries these genpatches net fixes.
-	genpatch_exclude+=" 1500 1502 1605 2405"
 
 	# Exclude genpatches that conflict with the hardened patchset:
 	# 1510: fs link security defaults conflict with hardened's stricter values

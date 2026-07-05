@@ -14,14 +14,14 @@ CACHYOS_PR="$((${PR#r} + 1))"
 
 # Genpatches support - apply base and extras patches on top of CachyOS tarball
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="44"
+K_GENPATCHES_VER="45"
 
 # Exclude kernel version upgrade patches (10xx_linux-*.patch)
 # CachyOS tarball already includes the latest point release
 UNIPATCH_EXCLUDE="10"
 
-# Gentoo's matching genpatches patchset has no point-release patch for this
-# version because the CachyOS tarball already includes the point release.
+# CachyOS tarball already includes the point release, while we skip Gentoo's
+# 10xx point-release genpatches above.
 K_NO_VERSION_CHECK="1"
 
 ZFS_COMMIT="c681af76c5a6a15caada25eb13090e41218c7831"
@@ -99,9 +99,6 @@ src_unpack() {
 	# 1810_sched_proxy_yield_the_donor_task.patch changes current->sched_class to rq->donor->sched_class
 	# which breaks BMQ's patch context for do_sched_yield() and yield_to()
 	use bmq && UNIPATCH_EXCLUDE+=" 1810_sched_proxy_yield_the_donor_task.patch"
-
-	# CachyOS tarball already includes these genpatches net fixes.
-	UNIPATCH_EXCLUDE+=" 1500 1502 1605 2405"
 
 	# Exclude genpatches that conflict with the hardened patchset:
 	# 1510: sets fs link security defaults (symlinks=1,hardlinks=1,fifos=1,regular=1) in fs/namei.c,

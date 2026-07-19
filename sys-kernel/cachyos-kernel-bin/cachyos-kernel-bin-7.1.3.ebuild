@@ -7,19 +7,18 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit kernel-install toolchain-funcs
 
-# CachyOS package release numbers. For 7.1.2, the mirror carries
-# linux-cachyos at pkgrel 3, linux-cachyos-gcc at pkgrel 2, and
-# scheduler variants at pkgrel 1.
-CACHYOS_MAIN_PR="$((${PR#r} + 1))"
-CACHYOS_GCC_PR="2"
-CACHYOS_VARIANT_PR="1"
+# CachyOS package release numbers. For 7.1.3, the source tarball release
+# is cachyos-7.1.3-1 while every binary package on the mirror (default,
+# gcc and scheduler variants) is at pkgrel 2.
+CACHYOS_SOURCE_PR="1"
+CACHYOS_BIN_PR="2"
 
-MAIN_MY_P="cachyos-${PV}-${CACHYOS_MAIN_PR}"
-GCC_MY_P="cachyos-${PV}-${CACHYOS_GCC_PR}"
-VARIANT_MY_P="cachyos-${PV}-${CACHYOS_VARIANT_PR}"
-MAIN_BINPKG_VER="${PV}-${CACHYOS_MAIN_PR}"
-GCC_BINPKG_VER="${PV}-${CACHYOS_GCC_PR}"
-VARIANT_BINPKG_VER="${PV}-${CACHYOS_VARIANT_PR}"
+MAIN_MY_P="cachyos-${PV}-${CACHYOS_SOURCE_PR}"
+GCC_MY_P="${MAIN_MY_P}"
+VARIANT_MY_P="${MAIN_MY_P}"
+MAIN_BINPKG_VER="${PV}-${CACHYOS_BIN_PR}"
+GCC_BINPKG_VER="${MAIN_BINPKG_VER}"
+VARIANT_BINPKG_VER="${MAIN_BINPKG_VER}"
 
 # Mirror base URLs
 MIRROR_V3="https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3"
@@ -30,9 +29,8 @@ HOMEPAGE="
 	https://github.com/Szowisz/CachyOS-kernels
 "
 
-# Source tarball. The default package was rebuilt as pkgrel 3, the gcc
-# package remains pkgrel 2, and scheduler variants still use pkgrel 1 on the
-# CachyOS mirror.
+# Source tarball (shared by all variants, needed for modules_prepare).
+# All binary variants of this version are at pkgrel 2 on the CachyOS mirror.
 SRC_URI="
 	cachyos? (
 		gcc? ( https://github.com/CachyOS/linux/releases/download/${GCC_MY_P}/${GCC_MY_P}.tar.gz )
@@ -62,6 +60,16 @@ SRC_URI+="
 		!lto? (
 			${MIRROR_V3}/linux-cachyos-bore-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
 			${MIRROR_V3}/linux-cachyos-bore-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+	)
+	deckify? (
+		lto? (
+			${MIRROR_V3}/linux-cachyos-deckify-lto-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-deckify-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-deckify-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
 	eevdf? (
@@ -100,9 +108,9 @@ S="${WORKDIR}"
 
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
-IUSE="+cachyos bore eevdf rt-bore server +lto gcc debug"
+IUSE="+cachyos bore deckify eevdf rt-bore server +lto gcc debug"
 REQUIRED_USE="
-	^^ ( cachyos bore eevdf rt-bore server )
+	^^ ( cachyos bore deckify eevdf rt-bore server )
 	?? ( lto gcc )
 	cachyos? ( || ( lto gcc ) )
 	gcc? ( cachyos )
@@ -138,6 +146,8 @@ _cachyos_pkg_variant() {
 		use gcc && variant="gcc"
 	elif use bore; then
 		variant="bore"
+	elif use deckify; then
+		variant="deckify"
 	elif use eevdf; then
 		variant="eevdf"
 	elif use rt-bore; then
@@ -176,15 +186,7 @@ _cachyos_distfile_stem() {
 }
 
 _cachyos_pkgrel() {
-	if use cachyos; then
-		if use gcc; then
-			echo "${CACHYOS_GCC_PR}"
-		else
-			echo "${CACHYOS_MAIN_PR}"
-		fi
-	else
-		echo "${CACHYOS_VARIANT_PR}"
-	fi
+	echo "${CACHYOS_BIN_PR}"
 }
 
 _cachyos_source_pkg() {

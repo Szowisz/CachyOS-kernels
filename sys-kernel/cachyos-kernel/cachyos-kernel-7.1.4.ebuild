@@ -18,7 +18,7 @@ MY_P="cachyos-$(ver_cut 1-3)-${CACHYOS_PR}"
 # Genpatches version - must match K_GENPATCHES_VER in cachyos-sources
 # Sync from: sys-kernel/cachyos-sources/cachyos-sources-${PV}.ebuild (K_GENPATCHES_VER)
 # Cross-reference: /var/db/repos/gentoo/sys-kernel/gentoo-kernel/gentoo-kernel-${PV}.ebuild (PATCHSET)
-GENPATCHES_VER=6
+GENPATCHES_VER=7
 
 # ZFS commit for kernel-builtin-zfs support
 ZFS_COMMIT="c681af76c5a6a15caada25eb13090e41218c7831"
@@ -153,13 +153,6 @@ src_prepare() {
 	# 1810_sched_proxy_yield_the_donor_task.patch changes current->sched_class
 	# which breaks BMQ's patch context for do_sched_yield() and yield_to()
 	use bmq && genpatch_exclude+=" 1810"
-
-	# Exclude 2300_thunderbolt-Assert-downstream-port-reset-on-shutdown.patch
-	# from genpatches-7.1-6: two-part backport series whose second part modifies
-	# the drivers/thunderbolt/pci.c the first part creates, so it can never pass
-	# patch --dry-run on the 7.1.4 thunderbolt layout (no pci.c in vanilla 7.1.4).
-	# gentoo-sources has no 7.1.4 ebuild yet; re-check when Gentoo catches up.
-	genpatch_exclude+=" 2300"
 
 	for genpatch in "${WORKDIR}"/*.patch; do
 		[[ -f "${genpatch}" ]] || continue

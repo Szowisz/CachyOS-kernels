@@ -14,18 +14,11 @@ CACHYOS_PR="$((${PR#r} + 1))"
 
 # Genpatches support - apply base and extras patches on top of CachyOS tarball
 K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="6"
+K_GENPATCHES_VER="7"
 
 # Exclude kernel version upgrade patches (10xx_linux-*.patch)
 # CachyOS tarball already includes the latest point release
-# Also exclude 2300_thunderbolt-Assert-downstream-port-reset-on-shutdown.patch
-# from genpatches-7.1-6: it is a two-part backport series (NHI pci.c refactor
-# + shutdown fix) whose second part modifies the pci.c the first part creates.
-# A concatenated create-then-modify series can never pass patch --dry-run on
-# the 7.1.4 thunderbolt layout (vanilla 7.1.4 has no drivers/thunderbolt/pci.c),
-# so unipatch dies. gentoo-sources has no 7.1.4 ebuild yet to cross-reference;
-# re-check once Gentoo catches up and respins the genpatch.
-UNIPATCH_EXCLUDE="10 2300"
+UNIPATCH_EXCLUDE="10"
 
 # CachyOS tarball already includes the point release, while we skip Gentoo's
 # 10xx point-release genpatches above.

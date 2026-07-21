@@ -39,13 +39,21 @@ virtual/
 
 ## Version Update Trigger
 
-**Only follow upstream `linux-cachyos` commits**, NOT kernel.org releases.
+**Follow upstream `linux-cachyos` commits and CachyOS `linux` release tags**, NOT kernel.org releases.
 
-Upstream commit page: https://github.com/CachyOS/linux-cachyos/commits/
+Upstream pages:
+- Version/config commits: https://github.com/CachyOS/linux-cachyos/commits/
+- Pre-patched releases and same-version pkgrel bumps: https://github.com/CachyOS/linux/releases
 
-Each commit message describes which versions were bumped, e.g.:
+Each `linux-cachyos` commit message describes which versions were bumped, e.g.:
 - `7.0.3-1 && 6.18.26-1` → create ebuilds for 7.0.3 and 6.18.26 only
 - `6.19.12-1 && 6.18.22-1` → create ebuilds for 6.19.12 and 6.18.22 only
+
+Also check `CachyOS/linux` releases for a newer pkgrel of an already packaged version. Map the CachyOS release suffix to the Gentoo revision:
+- `cachyos-7.1.4-1` → `cachyos-sources-7.1.4` / `cachyos-kernel-7.1.4`
+- `cachyos-7.1.4-2` → `cachyos-sources-7.1.4-r1` / `cachyos-kernel-7.1.4-r1`
+
+A same-version release pkgrel bump can appear before or without a matching new `linux-cachyos` commit, so a commit-only check is insufficient. For `cachyos-kernel-bin`, independently inspect the mirror because source release pkgrel and binary package pkgrel can differ.
 
 Do NOT auto-generate ebuilds for other kernel.org versions (6.12, 6.6, etc.) just because they exist on kernel.org.
 
@@ -60,14 +68,15 @@ Do NOT auto-generate ebuilds for other kernel.org versions (6.12, 6.6, etc.) jus
 ### 1. cachyos-sources (always first)
 
 ```bash
-# Auto-detect latest kernel version and create new ebuild:
-python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py
+# Prefer an explicit version derived from linux-cachyos commits + CachyOS/linux releases:
+python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py --version 7.1.4-r1
 
 # For LTS versions, specify --lts and --version:
 python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py --lts --version 6.18.26
 
-# For specific version override:
-python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py --version 7.0.3
+# The no-argument mode consults kernel.org and is NOT authoritative for this overlay.
+# Use it only for diagnostics, never as the update trigger:
+python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py --dry-run
 ```
 
 The script does:

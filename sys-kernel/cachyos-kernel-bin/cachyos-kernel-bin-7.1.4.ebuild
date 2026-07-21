@@ -7,11 +7,12 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit kernel-install toolchain-funcs
 
-# CachyOS package release numbers. For 7.1.3, the source tarball release
-# is cachyos-7.1.3-1 while every binary package on the mirror (default,
-# gcc and scheduler variants) is at pkgrel 2.
+# CachyOS package release numbers. For 7.1.4, every binary package on the
+# mirror (default, gcc and scheduler variants) is at pkgrel 1 and was built
+# from cachyos-7.1.4-1. Keep that matching source for modules_prepare; the
+# later cachyos-7.1.4-2 source respin has no corresponding binary rebuild yet.
 CACHYOS_SOURCE_PR="1"
-CACHYOS_BIN_PR="2"
+CACHYOS_BIN_PR="1"
 
 MAIN_MY_P="cachyos-${PV}-${CACHYOS_SOURCE_PR}"
 GCC_MY_P="${MAIN_MY_P}"
@@ -30,7 +31,7 @@ HOMEPAGE="
 "
 
 # Source tarball (shared by all variants, needed for modules_prepare).
-# All binary variants of this version are at pkgrel 2 on the CachyOS mirror.
+# All binary variants of this version are at pkgrel 1 on the CachyOS mirror.
 SRC_URI="
 	cachyos? (
 		gcc? ( https://github.com/CachyOS/linux/releases/download/${GCC_MY_P}/${GCC_MY_P}.tar.gz )

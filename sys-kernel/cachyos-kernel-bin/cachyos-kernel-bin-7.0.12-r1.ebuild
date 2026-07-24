@@ -11,8 +11,9 @@ inherit kernel-install toolchain-funcs
 # -r0 (no revision) -> 1, -r1 -> 2, etc.
 CACHYOS_PR="$((${PR#r} + 1))"
 
-# CachyOS pre-patched source tarball (needed for modules_prepare)
-# Upstream built the 7.0.12-1 binary from the cachyos-7.0.12-2 source tag.
+# CachyOS pre-patched source tarball (needed for modules_prepare).
+# The mirror's retained hardened binaries are at pkgrel 2 and use the
+# cachyos-7.0.12-2 source tag.
 SRC_PR="2"
 MY_P="cachyos-$(ver_cut 1-3)-${SRC_PR}"
 
@@ -22,7 +23,7 @@ BINPKG_VER="${PV}-${CACHYOS_PR}"
 # Mirror base URLs
 MIRROR_V3="https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3"
 
-DESCRIPTION="Pre-built CachyOS Linux kernel (BORE, LTO, BBR3 and more)"
+DESCRIPTION="Pre-built CachyOS Linux hardened kernel"
 HOMEPAGE="
 	https://github.com/CachyOS/linux-cachyos
 	https://github.com/Szowisz/CachyOS-kernels
@@ -33,31 +34,10 @@ SRC_URI="
 	https://github.com/CachyOS/linux/releases/download/${MY_P}/${MY_P}.tar.gz
 "
 
-# Binary packages per variant (x86_64_v3 only for this version)
-# Naming: linux-cachyos[-variant][-lto]-{ver}-{pkgrel}-{arch}.pkg.tar.zst
-# The mirror currently keeps 7.0.12 only for BMQ, deckify, and hardened coverage.
+# Binary packages for the retained hardened variant (x86_64_v3 only).
+# Naming: linux-cachyos-hardened[-lto][-headers]-{ver}-{pkgrel}-{arch}.pkg.tar.zst
 SRC_URI+="
-	bmq? (
-		lto? (
-			${MIRROR_V3}/linux-cachyos-bmq-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-bmq-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
-		!lto? (
-			${MIRROR_V3}/linux-cachyos-bmq-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-bmq-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
-	)
-	deckify? (
-		lto? (
-			${MIRROR_V3}/linux-cachyos-deckify-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
-		!lto? (
-			${MIRROR_V3}/linux-cachyos-deckify-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-deckify-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
-	)
-	cachyos-hardened? (
+	hardened? (
 		lto? (
 			${MIRROR_V3}/linux-cachyos-hardened-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 			${MIRROR_V3}/linux-cachyos-hardened-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
@@ -73,10 +53,8 @@ S="${WORKDIR}"
 
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
-IUSE="bmq deckify +cachyos-hardened +lto debug"
-REQUIRED_USE="
-	^^ ( bmq deckify cachyos-hardened )
-"
+IUSE="+hardened lto debug"
+REQUIRED_USE="^^ ( hardened )"
 
 RDEPEND="
 	!sys-kernel/cachyos-kernel:${SLOT}
@@ -99,56 +77,24 @@ PDEPEND="
 
 QA_PREBUILT='*'
 
-# Compute the CachyOS package variant suffix used in distfile names.
-# Empty means the default `linux-cachyos` package.
-_cachyos_pkg_variant() {
-	local variant=""
-
-	if use bmq; then
-		variant="bmq"
-	elif use deckify; then
-		variant="deckify"
-	elif use cachyos-hardened; then
-		variant="hardened"
-	fi
-
-	if [[ -n ${variant} ]] && use lto; then
-		variant+="-lto"
-	fi
-
-	echo "${variant}"
-}
-
 # Compute the CachyOS variant suffix (matches localversion.20-pkgname in PKGBUILD)
 # This determines the kernel release string: {PV}-{PR}-{suffix}
 _cachyos_variant_suffix() {
-	local variant=$(_cachyos_pkg_variant)
-
-	if [[ -n ${variant} ]]; then
-		echo "cachyos-${variant}"
-	else
-		echo "cachyos"
-	fi
-}
-
-_cachyos_distfile_stem() {
-	local variant=$(_cachyos_pkg_variant)
-
-	if [[ -n ${variant} ]]; then
-		echo "linux-cachyos-${variant}"
-	else
-		echo "linux-cachyos"
-	fi
+	use lto && echo "cachyos-hardened-lto" || echo "cachyos-hardened"
 }
 
 # Compute distfile name for the binary kernel package
 _cachyos_bin_distfile() {
-	echo "$(_cachyos_distfile_stem)-${BINPKG_VER}-x86_64_v3.pkg.tar.zst"
+	local variant="-hardened"
+	use lto && variant+="-lto"
+	echo "linux-cachyos${variant}-${BINPKG_VER}-x86_64_v3.pkg.tar.zst"
 }
 
 # Compute distfile name for the binary headers package
 _cachyos_headers_distfile() {
-	echo "$(_cachyos_distfile_stem)-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst"
+	local variant="-hardened"
+	use lto && variant+="-lto"
+	echo "linux-cachyos${variant}-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst"
 }
 
 # Set KV_FULL and KV_LOCALVERSION based on USE flags

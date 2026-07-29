@@ -7,10 +7,9 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit kernel-install toolchain-funcs
 
-# CachyOS package release numbers. For 7.1.4, every binary package on the
-# mirror (default, gcc and scheduler variants) is at pkgrel 1 and was built
-# from cachyos-7.1.4-1. Keep that matching source for modules_prepare; the
-# later cachyos-7.1.4-2 source respin has no corresponding binary rebuild yet.
+# CachyOS package release numbers. Every 7.1.5 binary package on the mirror
+# (default, gcc and scheduler variants) is at pkgrel 1 and was built from
+# cachyos-7.1.5-1.
 CACHYOS_SOURCE_PR="1"
 CACHYOS_BIN_PR="1"
 

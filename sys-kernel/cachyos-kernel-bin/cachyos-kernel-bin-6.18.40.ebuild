@@ -7,10 +7,8 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit kernel-install toolchain-funcs
 
-# CachyOS package release number. For 6.18.38, the source tarball release
-# is cachyos-6.18.38-1 while the lts binary package on the mirror is at
-# pkgrel 2.
-CACHYOS_PR="2"
+# CachyOS source and LTS binary packages for 6.18.40 are both at pkgrel 1.
+CACHYOS_PR="1"
 
 # CachyOS pre-patched source tarball (needed for modules_prepare)
 SRC_PR="1"
@@ -34,7 +32,7 @@ SRC_URI="
 "
 
 # Binary packages per variant (x86_64_v3 only for this version)
-# 6.18.38 LTS only: linux-cachyos-lts (no scheduler variants, no lto)
+# 6.18.40 LTS only: linux-cachyos-lts (no scheduler variants, no lto)
 SRC_URI+="
 	lts? (
 		${MIRROR_V3}/linux-cachyos-lts-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
@@ -47,9 +45,7 @@ S="${WORKDIR}"
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
 IUSE="+lts debug"
-REQUIRED_USE="
-	lts
-"
+REQUIRED_USE="^^ ( lts )"
 
 RDEPEND="
 	!sys-kernel/cachyos-kernel:${SLOT}

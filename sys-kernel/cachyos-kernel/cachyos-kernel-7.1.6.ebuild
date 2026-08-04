@@ -18,7 +18,7 @@ MY_P="cachyos-$(ver_cut 1-3)-${CACHYOS_PR}"
 # Genpatches version - must match K_GENPATCHES_VER in cachyos-sources
 # Sync from: sys-kernel/cachyos-sources/cachyos-sources-${PV}.ebuild (K_GENPATCHES_VER)
 # Cross-reference: /var/db/repos/gentoo/sys-kernel/gentoo-kernel/gentoo-kernel-${PV}.ebuild (PATCHSET)
-GENPATCHES_VER=8
+GENPATCHES_VER=9
 
 # ZFS commit for kernel-builtin-zfs support
 ZFS_COMMIT="c681af76c5a6a15caada25eb13090e41218c7831"

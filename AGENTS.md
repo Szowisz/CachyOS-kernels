@@ -5,17 +5,6 @@
 
 ---
 
-## Before Starting Any Work
-
-```bash
-# Warm up keys (avoids interactive password prompts later)
-ssh-add -l          # verify SSH agent loaded
-gpg --sign --armor --local-user <KEYID> -o /dev/null <<<"warmup"
-ssh -T git@github.com   # warm SSH connection
-```
-
----
-
 ## Package Architecture
 
 ```

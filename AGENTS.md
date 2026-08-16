@@ -63,6 +63,11 @@ python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py --version 7.1.4-r1
 # For LTS versions, specify --lts and --version:
 python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py --lts --version 6.18.26
 
+# For a variant-only Gentoo revbump with no new CachyOS source release,
+# pin the source pkgrel that actually exists (for example, cachyos-7.1.8-1):
+python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py \
+  --version 7.1.8-r1 --source-pkgrel 1
+
 # The no-argument mode consults kernel.org and is NOT authoritative for this overlay.
 # Use it only for diagnostics, never as the update trigger:
 python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py --dry-run
@@ -77,6 +82,7 @@ The script does:
 **Manually verify after script runs:**
 - `K_GENPATCHES_VER` aligns with official `gentoo-sources` when Gentoo has published the matching version (see Genpatches section below); if Gentoo has not caught up but CachyOS upstream has, follow the CachyOS upstream target and document the temporary Gentoo-reference gap
 - The last-line commit hash matches the `commit` file in `files/<VERSION>/commit`
+- For variant-only revbumps, the pinned `CACHYOS_PR` points to an existing `CachyOS/linux` release asset; do not let Gentoo `-rN` imply a nonexistent source pkgrel
 
 ### 2. cachyos-kernel
 

@@ -37,6 +37,12 @@ COMPOUND_USE_PATTERNS = {
     "hardened": [
         # "use bore || false" -> "use bore || use hardened"  (SCHED_BORE enablement)
         (r'\buse bore \|\| false\b', 'use bore || use hardened'),
+        # Restore the genpatch conflict exclusion left by an unavailable
+        # hardened flag in a previous generated ebuild.
+        (
+            r'\bfalse && UNIPATCH_EXCLUDE\+=" 1510 4567"',
+            'use hardened && UNIPATCH_EXCLUDE+=" 1510 4567"',
+        ),
     ],
 }
 
@@ -362,6 +368,68 @@ def restore_use_flags_in_src_prepare(content, flags_to_restore):
                     content = re.sub(search_re, replacement, content)
                     log(f"Restored compound pattern for '{flag}': {replacement}")
 
+        # Hardened is a scheduler variant: the upstream package applies the
+        # BORE scheduler patch before its hardened patch and enables BORE in
+        # the final config. Keep those operations in sync when restoring the
+        # flag after a version where it was unavailable.
+        if flag == "hardened":
+            exclusion = 'use hardened && UNIPATCH_EXCLUDE+=" 1510 4567"'
+            if exclusion not in content:
+                bmq_exclusion = (
+                    'use bmq && UNIPATCH_EXCLUDE+='
+                    '" 1810_sched_proxy_yield_the_donor_task.patch"'
+                )
+                if bmq_exclusion in content:
+                    content = content.replace(
+                        bmq_exclusion,
+                        bmq_exclusion + '\n\n\t# Exclude genpatches that conflict with the hardened patchset.\n\t' + exclusion,
+                        1,
+                    )
+                    log("Restored hardened genpatch exclusion")
+
+            hardened_patch = (
+                r'if use hardened; then\n'
+                r'(\s*)eapply "\$\{files_dir\}/misc/0001-hardened\.patch"'
+            )
+            content, count = re.subn(
+                hardened_patch,
+                'if use hardened; then\n'
+                r'\1eapply "${files_dir}/sched/0001-bore-cachy.patch"' '\n'
+                r'\1eapply "${files_dir}/misc/0001-hardened.patch"',
+                content,
+                count=1,
+            )
+            if count:
+                log("Restored BORE patch before hardened patch")
+            elif 'if use hardened; then' not in content:
+                deckify_block = (
+                    '\tif use deckify; then\n'
+                    '\t\tcp "${files_dir}/config-deckify" .config || die\n'
+                    '\t\tscripts/config -d RCU_LAZY_DEFAULT_OFF -e AMD_PRIVATE_COLOR || die\n'
+                    '\tfi\n'
+                )
+                hardened_block = (
+                    '\n\tif use hardened; then\n'
+                    '\t\teapply "${files_dir}/sched/0001-bore-cachy.patch"\n'
+                    '\t\teapply "${files_dir}/misc/0001-hardened.patch"\n'
+                    '\t\tcp "${files_dir}/config-hardened" .config || die\n'
+                    '\tfi\n'
+                )
+                if deckify_block in content:
+                    content = content.replace(
+                        deckify_block,
+                        deckify_block + hardened_block,
+                        1,
+                    )
+                    log("Added missing hardened prepare block")
+
+            content = re.sub(
+                r'if use bore; then\n(\s*)scripts/config -e SCHED_BORE \|\| die',
+                r'if use bore || use hardened; then\n\1scripts/config -e SCHED_BORE || die',
+                content,
+                count=1,
+            )
+
     return content
 
 
@@ -653,7 +721,7 @@ def extract_version_from_ebuild_name(ebuild_path):
 
 def copy_and_update_ebuild(
     template_path, new_version, ebuild_dir, dry_run=False, force=False, lts=False,
-    skip_version_check=False, upstream_versions=None
+    skip_version_check=False, upstream_versions=None, source_pkgrel=None
 ):
     """Copy and update ebuild for new version"""
     new_ebuild_name = f"cachyos-sources-{new_version}.ebuild"
@@ -680,6 +748,8 @@ def copy_and_update_ebuild(
             f"DRY RUN: Would copy and update ebuild with genpatches version {genpatches_version}",
             "INFO",
         )
+        if source_pkgrel is not None:
+            log(f"DRY RUN: Would use CachyOS source pkgrel {source_pkgrel}", "INFO")
 
         # Show which USE flags would be removed or restored
         if not skip_version_check and upstream_versions:
@@ -708,6 +778,22 @@ def copy_and_update_ebuild(
 
     # Extract template version for comparison
     template_version = extract_version_from_ebuild_name(template_path)
+
+    # A Gentoo revision can track a variant-only CachyOS rebuild without a
+    # new source tarball release. In that case, override the normal PR-based
+    # mapping so the generated SRC_URI continues to use the published archive.
+    if source_pkgrel is not None:
+        content, count = re.subn(
+            r'^CACHYOS_PR=.*$',
+            f'CACHYOS_PR="{source_pkgrel}"',
+            content,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if count != 1:
+            log("Could not find CACHYOS_PR to override", "ERROR")
+            return None
+        log(f"Using CachyOS source pkgrel: {source_pkgrel}")
 
     # Update genpatches version (increment from template or reset for major version)
     genpatches_version = get_genpatches_version_from_template(
@@ -983,8 +1069,17 @@ def main():
         action="store_true",
         help="Skip upstream config version check, keep all USE flags"
     )
+    parser.add_argument(
+        "--source-pkgrel",
+        type=int,
+        help="Override CachyOS source pkgrel for variant-only Gentoo revisions"
+    )
 
     args = parser.parse_args()
+
+    if args.source_pkgrel is not None and args.source_pkgrel < 1:
+        log("--source-pkgrel must be a positive integer", "ERROR")
+        sys.exit(1)
 
     # Determine ebuild directory
     script_dir = Path(__file__).parent
@@ -1056,7 +1151,7 @@ def main():
     # Copy and update ebuild
     new_ebuild_path = copy_and_update_ebuild(
         template_ebuild, target_version, ebuild_dir, args.dry_run, args.force, args.lts,
-        args.skip_version_check, upstream_versions
+        args.skip_version_check, upstream_versions, args.source_pkgrel
     )
 
     if not new_ebuild_path:

@@ -83,7 +83,7 @@ BDEPEND="
 			llvm-core/lld:${LLVM_SLOT}
 		')
 	)
-	debug? ( dev-util/pahole )
+	dev-util/pahole
 "
 PDEPEND="
 	>=virtual/dist-kernel-${PV}_p${PR#r}

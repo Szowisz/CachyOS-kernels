@@ -1,7 +1,44 @@
 # CachyOS-kernels AGENTS.md
 
 > **Repo**: Gentoo overlay for CachyOS kernel ebuilds (sources, dist-kernel, binary, virtuals)
-> **Upstream**: https://github.com/CachyOS/linux-cachyos
+> **Packaging/version metadata**: https://github.com/CachyOS/linux-cachyos
+> **Canonical patch and kernel sources**: https://github.com/CachyOS/kernel-patches and https://github.com/CachyOS/linux
+
+---
+
+## Highest-Priority Work — Do This Before Routine Version Bumps
+
+### 1. Audit every ebuild against upstream for complete synchronization
+
+**The first responsibility of every update pass is to verify that the ebuild contents still match upstream, not merely that package versions match.** Compare every relevant ebuild with the current upstream packaging metadata, source trees, release assets, patch sets, configuration fragments, and binary mirror contents. Track upstream additions, removals, renames, and behavior changes downstream in the same pass.
+
+At minimum, audit:
+- USE flags and scheduler/kernel variants
+- patch selection and application order
+- Kconfig/config-fragment wiring and defaults
+- dependencies, source URIs, release/pkgrel mappings, and binary asset names
+- installed files, package splits, build options, and mutually exclusive combinations
+
+Do not copy an old ebuild, change only its version, and assume it is current. For every upstream capability, identify the corresponding ebuild USE flag/logic, or document a concrete compatibility reason for excluding it. When upstream removes or renames functionality, remove or rename the stale downstream flag, conditional branch, patch reference, and distfile entry as appropriate. The audit must cover `cachyos-sources`, `cachyos-kernel`, and `cachyos-kernel-bin` independently because their upstream feature sets can differ.
+
+### 2. Exhaustively mine both canonical CachyOS kernel repositories
+
+**Do not rely only on `linux-cachyos`, `.SRCINFO`, documented/default variants, or release notes.** Treat the following as the authoritative places to discover the complete CachyOS kernel feature set and inspect them thoroughly on every update pass:
+- https://github.com/CachyOS/kernel-patches
+- https://github.com/CachyOS/linux
+
+Fetch all branches and tags, then inspect current and historical patch directories, series files, config fragments, commits, release-tag diffs, and features that are unadvertised, disabled by default, omitted from normal packaging metadata, or otherwise hidden from the usual build path. For `CachyOS/linux`, compare the relevant CachyOS release tag/tree with the matching vanilla kernel so patches carried only in the pre-patched tree are not missed. Do not assume that the default branch or the currently advertised package variants provide complete coverage.
+
+Every viable upstream-provided feature must be surfaced in the Gentoo ebuilds with explicit, granular USE flags and the required patch/config logic, rather than silently omitted merely because CachyOS does not advertise it. This explicitly includes scheduler patch families such as `prjc` and `prjc-lfbmq`, and applies equally to any similarly concealed or non-default feature discovered later. “Include every feature” means making incompatible alternatives selectable, not applying mutually exclusive patches simultaneously: encode conflicts/dependencies in `REQUIRED_USE`, verify per-kernel-version applicability, and fail clearly for unsupported combinations.
+
+For each update, keep an explicit inventory mapping:
+
+```text
+upstream patch/config/feature -> ebuild USE flag and implementation
+                              -> or documented technical exclusion
+```
+
+Before declaring an update complete, diff that inventory against the previous pass so newly added features are exposed and deleted features are retired. Regenerate manifests and run the applicable prepare/package/unpack tests after changing feature coverage.
 
 ---
 

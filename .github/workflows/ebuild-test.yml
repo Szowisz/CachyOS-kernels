@@ -27,11 +27,14 @@ jobs:
     - name: Detect new ebuild versions
       id: detect
       run: |
-        # Get the base branch (main or master)
+        # Compare the complete pushed range so multi-commit pushes do not miss ebuilds.
         if [ "${{ github.event_name }}" = "pull_request" ]; then
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
+        elif [ "${{ github.event_name }}" = "push" ] &&
+             [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] &&
+             git cat-file -e "${{ github.event.before }}^{commit}"; then
+          BASE_SHA="${{ github.event.before }}"
         else
-          # For push events and manual trigger, compare with previous commit
           BASE_SHA="HEAD~1"
         fi
         
@@ -92,6 +95,7 @@ jobs:
           
           # === Scheduler Tests (mutually exclusive) ===
           - "bmq -bore"
+          - "bmq-lfbmq -bore"
           - "eevdf -bore"
           - "rt -bore"
           - "rt-bore -bore"
@@ -163,8 +167,8 @@ jobs:
           - "rt hz_ticks_1000 tickrate_full -bore"
           # Power saving laptop
           - "eevdf os hz_ticks_250 tickrate_idle -per-gov -bore -tickrate_full -hz_ticks_1000 -o3"
-          # Steam Deck optimized
-          - "deckify bmq hz_ticks_500 o3 -bore -hz_ticks_1000"
+          # Steam Deck optimized (deckify requires a BORE-family scheduler)
+          - "deckify hz_ticks_500 o3 -hz_ticks_1000"
           # Development workstation with debugging
           - "debug eevdf tickrate_periodic -o3 -bore -tickrate_full"
           # Maximum optimization build
@@ -287,6 +291,15 @@ jobs:
         EBUILD_PATH="sys-kernel/cachyos-sources/cachyos-sources-${{ matrix.version }}.ebuild"
         USE_FLAGS="${{ matrix.use_flags }}"
 
+        # bmq-lfbmq is version-dependent. Keep its matrix case, but skip versions
+        # whose ebuild does not expose it instead of creating an invalid -bore build.
+        if [[ "${USE_FLAGS}" == *bmq-lfbmq* ]] &&
+           ! grep -Eq '(^|[[:space:]])\+?bmq-lfbmq([[:space:]]|$)' "${EBUILD_PATH}"; then
+          echo "::notice::Skipping ${USE_FLAGS}: unsupported by cachyos-sources-${{ matrix.version }}"
+          echo "SKIP_USE_CASE=true" >> "$GITHUB_ENV"
+          exit 0
+        fi
+
         mkdir -p /etc/portage/package.use
         echo "sys-kernel/cachyos-sources ${USE_FLAGS}" > /etc/portage/package.use/cachyos-sources
 
@@ -295,6 +308,7 @@ jobs:
         emerge --pretend --verbose =sys-kernel/cachyos-sources-${{ matrix.version }} | grep USE
 
     - name: Install kernel sources
+      if: env.SKIP_USE_CASE != 'true'
       run: |
         # Install the kernel sources package
         # This is a sources package, it doesn't compile anything, just installs sources

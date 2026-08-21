@@ -10795,9 +10795,9 @@ index bf360a6fb..417eb6a63 100644
 +	__task_access_unlock(p, lock);
 +	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 +#else
- 	bool queued, running;
  	struct rq *rq;
  	int old_prio;
+ 
 @@ -112,6 +156,7 @@ void set_user_nice(struct task_struct *p, long nice)
  	 * lowered its priority, then reschedule its CPU:
  	 */

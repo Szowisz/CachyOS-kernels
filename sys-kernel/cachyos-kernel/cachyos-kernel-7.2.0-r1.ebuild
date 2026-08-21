@@ -58,6 +58,7 @@ IUSE="
 "
 REQUIRED_USE="
 	^^ ( bore bmq rt rt-bore eevdf )
+	deckify? ( !bmq !rt )
 	propeller? ( !llvm-lto-full )
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )
 	^^ ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none )
@@ -211,8 +212,33 @@ src_prepare() {
 	fi
 
 	if use deckify; then
+		# Upstream linux-cachyos-deckify applies the handheld + acpi-call
+		# patchsets on top of the pre-patched tarball (see its PKGBUILD source array),
+		# and always builds with the BORE scheduler (_cpusched=cachyos).
+		eapply "${files_dir}/misc/0001-acpi-call.patch"
+		eapply "${files_dir}/misc/0001-handheld.patch"
+		if ! use bore && ! use rt-bore; then
+			eapply "${files_dir}/sched/0001-bore-cachy.patch"
+		fi
 		cp "${files_dir}/config-deckify" .config || die
-		scripts/config -d RCU_LAZY_DEFAULT_OFF -e AMD_PRIVATE_COLOR || die
+		# Upstream handheld config knobs from linux-cachyos-deckify prepare()
+		scripts/config \
+			-d RCU_LAZY_DEFAULT_OFF \
+			-e AMD_PRIVATE_COLOR \
+			-m SENSORS_STEAMDECK \
+			-m MFD_STEAMDECK \
+			-m SND_SOC_AW87XXX \
+			-m HID_ASUS_ALLY \
+			-m HID_LENOVO_GO \
+			-m HID_LENOVO_GO_S \
+			-m HID_MSI_CLAW \
+			-m ZOTAC_ZONE_HID \
+			-m LEDS_STEAMDECK \
+			-m LEDS_VALVE \
+			-e ACPI_CALL \
+			-m ZOTAC_ZONE_PLATFORM \
+			-m EXTCON_STEAMDECK \
+			-m HID_MSI || die
 	fi
 
 	# Apply user patches (from /etc/portage/patches/)
@@ -225,7 +251,7 @@ src_prepare() {
 
 	### Selecting the CPU scheduler
 	# CachyOS Scheduler (BORE)
-	if use bore; then
+	if use bore || use deckify; then
 		scripts/config -e SCHED_BORE || die
 	fi
 

@@ -13,12 +13,13 @@
     <!-- CPU Schedulers -->
     <flag name="bore">CachyOS Scheduler (BORE - Burst-Oriented Response Enhancer), optimized for desktop responsiveness</flag>
     <flag name="bmq">Project C BMQ (BitMap Queue) scheduler, alternative CPU scheduler with different performance characteristics</flag>
+    <flag name="bmq-lfbmq">PRJC BMQ scheduler with the LFBMQ (lock-free bitmap queue) runqueue variant from kernel-patches</flag>
     <flag name="rt">EEVDF scheduler with realtime patches for low-latency applications</flag>
     <flag name="rt-bore">BORE scheduler with realtime patches for low-latency applications</flag>
     <flag name="eevdf">Default Linux EEVDF (Earliest Eligible Virtual Deadline First) scheduler</flag>
 
     <!-- Hardware-specific patches -->
-    <flag name="deckify">Enable patches for handheld devices like Steam Deck (includes WiFi, ACPI, and handheld-specific patches)</flag>
+    <flag name="deckify">Steam-Deck-style handheld variant: applies the upstream handheld + acpi-call patchsets (Steam Deck, ASUS Ally, MSI Claw, ZOTAC Zone support) on top of the BORE scheduler, following linux-cachyos-deckify</flag>
 
     <!-- Security features -->
     <flag name="hardened">Enable hardened kernel patches for enhanced security</flag>

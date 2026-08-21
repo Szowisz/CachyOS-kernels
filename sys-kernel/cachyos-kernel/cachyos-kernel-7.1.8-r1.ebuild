@@ -42,7 +42,7 @@ S="${WORKDIR}/${MY_P}"
 LICENSE="GPL-3"
 KEYWORDS="~amd64"
 IUSE="
-	+bore bmq rt rt-bore eevdf
+	+bore bmq bmq-lfbmq rt rt-bore eevdf
 	deckify hardened kcfi
 	+clang +autofdo +propeller
 	+llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none
@@ -55,7 +55,8 @@ IUSE="
 	+mnative mzen4
 "
 REQUIRED_USE="
-	^^ ( bore bmq rt rt-bore eevdf hardened )
+	^^ ( bore bmq bmq-lfbmq rt rt-bore eevdf hardened )
+	deckify? ( !bmq !bmq-lfbmq !rt !hardened )
 	propeller? ( !llvm-lto-full )
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )
 	^^ ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none )
@@ -156,6 +157,7 @@ src_prepare() {
 	# 1810_sched_proxy_yield_the_donor_task.patch changes current->sched_class
 	# which breaks BMQ's patch context for do_sched_yield() and yield_to()
 	use bmq && genpatch_exclude+=" 1810"
+	use bmq-lfbmq && genpatch_exclude+=" 1810"
 
 	# Exclude genpatches that conflict with the hardened patchset.
 	use hardened && genpatch_exclude+=" 1510 4567"
@@ -196,6 +198,12 @@ src_prepare() {
 		cp "${files_dir}/config-bmq" .config || die
 	fi
 
+	if use bmq-lfbmq; then
+		# PRJC BMQ with the LFBMQ (lock-free bitmap queue) runqueue variant
+		eapply "${files_dir}/sched/0001-prjc-cachy-lfbmq.patch"
+		cp "${files_dir}/config-bmq" .config || die
+	fi
+
 	if use eevdf; then
 		cp "${files_dir}/config-eevdf" .config || die
 	fi
@@ -212,8 +220,33 @@ src_prepare() {
 	fi
 
 	if use deckify; then
+		# Upstream linux-cachyos-deckify applies the handheld + acpi-call
+		# patchsets on top of the pre-patched tarball (see its PKGBUILD source array),
+		# and always builds with the BORE scheduler (_cpusched=cachyos).
+		eapply "${files_dir}/misc/0001-acpi-call.patch"
+		eapply "${files_dir}/misc/0001-handheld.patch"
+		if ! use bore && ! use rt-bore && ! use hardened; then
+			eapply "${files_dir}/sched/0001-bore-cachy.patch"
+		fi
 		cp "${files_dir}/config-deckify" .config || die
-		scripts/config -d RCU_LAZY_DEFAULT_OFF -e AMD_PRIVATE_COLOR || die
+		# Upstream handheld config knobs from linux-cachyos-deckify prepare()
+		scripts/config \
+			-d RCU_LAZY_DEFAULT_OFF \
+			-e AMD_PRIVATE_COLOR \
+			-m SENSORS_STEAMDECK \
+			-m MFD_STEAMDECK \
+			-m SND_SOC_AW87XXX \
+			-m HID_ASUS_ALLY \
+			-m HID_LENOVO_GO \
+			-m HID_LENOVO_GO_S \
+			-m HID_MSI_CLAW \
+			-m ZOTAC_ZONE_HID \
+			-m LEDS_STEAMDECK \
+			-m LEDS_VALVE \
+			-e ACPI_CALL \
+			-m ZOTAC_ZONE_PLATFORM \
+			-m EXTCON_STEAMDECK \
+			-m HID_MSI || die
 	fi
 
 	if use hardened; then
@@ -232,11 +265,11 @@ src_prepare() {
 
 	### Selecting the CPU scheduler
 	# CachyOS Scheduler (BORE)
-	if use bore || use hardened; then
+	if use bore || use hardened || use deckify; then
 		scripts/config -e SCHED_BORE || die
 	fi
 
-	if use bmq; then
+	if use bmq || use bmq-lfbmq; then
 		scripts/config -e SCHED_ALT -e SCHED_BMQ || die
 	fi
 

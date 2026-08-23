@@ -322,11 +322,17 @@ src_prepare() {
 
 	### Enable BBR3
 	if use bbr3; then
+		# Upstream linux-cachyos `_tcp_bbr3` still enables vanilla BBR.
+		# Enable real BBR3 as default, keep vanilla BBR as a module so both
+		# are not built into vmlinux (duplicate tcp_bbr_check_kfunc_ids
+		# BTF set, Szowisz/CachyOS-kernels#53).
 		scripts/config -m TCP_CONG_CUBIC \
 			-d DEFAULT_CUBIC \
-			-e TCP_CONG_BBR \
-			-e DEFAULT_BBR \
-			--set-str DEFAULT_TCP_CONG bbr \
+			-m TCP_CONG_BBR \
+			-d DEFAULT_BBR \
+			-e TCP_CONG_BBR3 \
+			-e DEFAULT_BBR3 \
+			--set-str DEFAULT_TCP_CONG bbr3 \
 			-m NET_SCH_FQ_CODEL \
 			-e NET_SCH_FQ \
 			-d CONFIG_DEFAULT_FQ_CODEL \
@@ -404,7 +410,16 @@ pkg_postinst() {
 		ewarn "sys-fs/zfs provides better compatibility and easier updates."
 		ewarn "ZFS support build way: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573, and you can check linux/kernel-build.sh as example"
 	fi
-	(use autofdo || use propeller) && ewarn "AutoFDO support build way: https://cachyos.org/blog/2411-kernel-autofdo, and you can check https://github.com/xz-dev/kernel-autofdo-container as example"
+	if use autofdo || use propeller; then
+		ewarn "AutoFDO/Propeller are enabled in Kconfig, but they only apply profile-guided"
+		ewarn "optimization when you pass a profile at build time:"
+		ewarn "  AutoFDO:   CLANG_AUTOFDO_PROFILE=/path/to/profile.afdo"
+		ewarn "  Propeller: CLANG_PROPELLER_PROFILE_PREFIX=/path/to/propeller"
+		ewarn "Without a profile, CONFIG_PROPELLER_CLANG still adds"
+		ewarn "-fbasic-block-address-map / --lto-basic-block-address-map (codegen change, no gain)."
+		ewarn "Guide: https://cachyos.org/blog/2411-kernel-autofdo"
+		ewarn "Example: https://github.com/xz-dev/kernel-autofdo-container"
+	fi
 }
 
 pkg_postrm() {

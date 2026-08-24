@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE pkgmetadata SYSTEM "http://www.gentoo.org/dtd/metadata.dtd">
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
 <pkgmetadata>
   <maintainer type="person">
     <email>szowisz.gentoo@gmail.com</email>
@@ -10,77 +10,92 @@
     <name>xz-dev</name>
   </maintainer>
   <use>
-    <!-- CPU Schedulers -->
-    <flag name="bore">CachyOS Scheduler (BORE - Burst-Oriented Response Enhancer), optimized for desktop responsiveness</flag>
-    <flag name="bmq">Project C BMQ (BitMap Queue) scheduler, alternative CPU scheduler with different performance characteristics</flag>
-    <flag name="bmq-lfbmq">PRJC BMQ scheduler with the LFBMQ (lock-free bitmap queue) runqueue variant from kernel-patches</flag>
-    <flag name="rt">EEVDF scheduler with realtime patches for low-latency applications</flag>
-    <flag name="rt-bore">BORE scheduler with realtime patches for low-latency applications</flag>
-    <flag name="eevdf">Default Linux EEVDF (Earliest Eligible Virtual Deadline First) scheduler</flag>
+    <!-- CPU schedulers -->
+    <flag name="bore">CachyOS BORE scheduler, optimized for desktop responsiveness</flag>
+    <flag name="bmq">Project C BMQ scheduler</flag>
+    <flag name="bmq-lfbmq">Project C BMQ scheduler with the lock-free bitmap queue runqueue variant</flag>
+    <flag name="rt">Select PREEMPT_RT and apply the RT i915 patch where supported</flag>
+    <flag name="rt-bore">BORE scheduler with PREEMPT_RT</flag>
+    <flag name="eevdf">Linux EEVDF scheduler without an additional scheduler patch</flag>
 
     <!-- Hardware-specific patches -->
-    <flag name="deckify">Steam-Deck-style handheld variant: applies the upstream handheld + acpi-call patchsets (Steam Deck, ASUS Ally, MSI Claw, ZOTAC Zone support) on top of the BORE scheduler, following linux-cachyos-deckify</flag>
+    <flag name="deckify">Apply the CachyOS handheld configuration and patches with the selected CPU scheduler</flag>
 
     <!-- Security features -->
-    <flag name="hardened">Enable hardened kernel patches for enhanced security</flag>
-    <flag name="kcfi">Enable kCFI (Kernel Control Flow Integrity) for additional security protection</flag>
+    <flag name="hardened">Enable CachyOS hardened kernel patches</flag>
+    <flag name="kcfi">Enable Clang Kernel Control Flow Integrity</flag>
 
     <!-- Optimization features -->
-    <flag name="autofdo">Enable Clang AutoFDO (Automatic Feedback-Directed Optimization) support for profile-guided optimization</flag>
-    <flag name="propeller">Enable Clang Propeller optimization (basic block reordering) for better performance</flag>
-
-    <!-- LTO options -->
-    <flag name="llvm-lto-thin">Enable LLVM thin LTO (Link Time Optimization) - uses multiple threads, faster compilation, less memory usage</flag>
-    <flag name="llvm-lto-full">Enable LLVM full LTO - single threaded, slower compilation, more memory usage, potentially highest performance</flag>
-    <flag name="llvm-lto-thin-dist">Enable LLVM thin LTO with distributed model rather than in-process linking</flag>
+    <flag name="autofdo">Enable Clang AutoFDO support for profile-guided optimization</flag>
+    <flag name="propeller">Enable Clang Propeller support for basic-block reordering</flag>
+    <flag name="llvm-lto-thin">Enable LLVM ThinLTO</flag>
+    <flag name="llvm-lto-full">Enable LLVM full LTO</flag>
+    <flag name="llvm-lto-thin-dist">Enable distributed LLVM ThinLTO</flag>
+    <flag name="llvm-lto-none">Disable LLVM LTO</flag>
 
     <!-- ZFS support -->
-    <flag name="kernel-builtin-zfs">Build ZFS module directly into the kernel (not recommended, use sys-fs/zfs-kmod instead)</flag>
+    <flag name="kernel-builtin-zfs">Install pinned ZFS sources and a build helper in the kernel source tree</flag>
 
     <!-- Timer frequency -->
-    <flag name="hz_ticks_100">Set kernel timer frequency to 100 Hz (server/battery optimized)</flag>
-    <flag name="hz_ticks_250">Set kernel timer frequency to 250 Hz (balanced)</flag>
-    <flag name="hz_ticks_300">Set kernel timer frequency to 300 Hz</flag>
-    <flag name="hz_ticks_500">Set kernel timer frequency to 500 Hz</flag>
-    <flag name="hz_ticks_600">Set kernel timer frequency to 600 Hz</flag>
-    <flag name="hz_ticks_750">Set kernel timer frequency to 750 Hz</flag>
-    <flag name="hz_ticks_1000">Set kernel timer frequency to 1000 Hz (desktop optimized, default)</flag>
+    <flag name="hz-ticks-100">Set the kernel timer frequency to 100 Hz</flag>
+    <flag name="hz-ticks-250">Set the kernel timer frequency to 250 Hz</flag>
+    <flag name="hz-ticks-300">Set the kernel timer frequency to 300 Hz</flag>
+    <flag name="hz-ticks-500">Set the kernel timer frequency to 500 Hz</flag>
+    <flag name="hz-ticks-600">Set the kernel timer frequency to 600 Hz</flag>
+    <flag name="hz-ticks-750">Set the kernel timer frequency to 750 Hz</flag>
+    <flag name="hz-ticks-1000">Set the kernel timer frequency to 1000 Hz</flag>
+    <flag name="hz_ticks_100">Legacy 100 Hz flag used by older ebuilds</flag>
+    <flag name="hz_ticks_250">Legacy 250 Hz flag used by older ebuilds</flag>
+    <flag name="hz_ticks_300">Legacy 300 Hz flag used by older ebuilds</flag>
+    <flag name="hz_ticks_500">Legacy 500 Hz flag used by older ebuilds</flag>
+    <flag name="hz_ticks_600">Legacy 600 Hz flag used by older ebuilds</flag>
+    <flag name="hz_ticks_750">Legacy 750 Hz flag used by older ebuilds</flag>
+    <flag name="hz_ticks_1000">Legacy 1000 Hz flag used by older ebuilds</flag>
 
-    <!-- Governor and power management -->
-    <flag name="per-gov">Set CPU frequency performance governor as default instead of schedutil</flag>
-
-    <!-- Tick rate configuration -->
-    <flag name="tickrate_periodic">Use periodic ticks (traditional approach)</flag>
-    <flag name="tickrate_idle">Use idle tickless mode (NO_HZ_IDLE)</flag>
-    <flag name="tickrate_full">Use full tickless mode (NO_HZ_FULL) - can provide higher performance but lower consistency depending on hardware</flag>
+    <!-- Governor and tick mode -->
+    <flag name="per-gov">Use the performance CPU frequency governor by default</flag>
+    <flag name="tickrate-periodic">Use periodic kernel ticks</flag>
+    <flag name="tickrate-idle">Use idle tickless mode</flag>
+    <flag name="tickrate-full">Use full tickless mode</flag>
+    <flag name="tickrate_periodic">Legacy periodic-tick flag used by older ebuilds</flag>
+    <flag name="tickrate_idle">Legacy idle-tickless flag used by older ebuilds</flag>
+    <flag name="tickrate_full">Legacy full-tickless flag used by older ebuilds</flag>
 
     <!-- Preemption models -->
-    <flag name="preempt_full">Full preemption model for lowest latency (PREEMPT)</flag>
-    <flag name="preempt_lazy">Lazy preemption model (PREEMPT_LAZY)</flag>
+    <flag name="preempt-full">Use the full preemption model</flag>
+    <flag name="preempt-lazy">Use the lazy preemption model</flag>
+    <flag name="preempt_full">Legacy full-preemption flag used by older ebuilds</flag>
+    <flag name="preempt_lazy">Legacy lazy-preemption flag used by older ebuilds</flag>
 
     <!-- Compiler optimization levels -->
-    <flag name="o3">Enable KBUILD_CFLAGS -O3 optimization for maximum performance</flag>
-    <flag name="os">Optimize for size (-Os) instead of performance</flag>
-    <flag name="debug">Enable debug-friendly optimizations and disable various debug features</flag>
+    <flag name="o3">Optimize the kernel with -O3</flag>
+    <flag name="os">Optimize the kernel for size</flag>
+    <flag name="debug">Use the CachyOS debug-oriented configuration profile</flag>
 
-    <!-- Network optimization -->
-    <flag name="bbr3">Enable TCP BBR3 (Bottleneck Bandwidth and RTT) congestion control algorithm as default</flag>
-
-    <!-- Memory management -->
-    <flag name="hugepage_always">Always enable Transparent Huge Pages for better memory performance</flag>
-    <flag name="hugepage_madvise">Enable Transparent Huge Pages only when requested via madvise</flag>
+    <!-- Network and memory -->
+    <flag name="bbr3">Use TCP BBR3 and the FQ packet scheduler by default</flag>
+    <flag name="hugepage-always">Always enable transparent huge pages</flag>
+    <flag name="hugepage-madvise">Enable transparent huge pages only when requested with madvise</flag>
+    <flag name="hugepage_always">Legacy always-THP flag used by older ebuilds</flag>
+    <flag name="hugepage_madvise">Legacy madvise-THP flag used by older ebuilds</flag>
 
     <!-- CPU-specific optimizations -->
-    <flag name="mgeneric">Use generic x86-64 optimizations (default kernel optimizations, portable across machines)</flag>
-    <flag name="mgeneric_v1">Use x86-64-v1 generic optimizations (baseline x86-64)</flag>
-    <flag name="mgeneric_v2">Use x86-64-v2 generic optimizations (requires CMPXCHG16B, LAHF-SAHF, POPCNT, SSE3, SSE4.1, SSE4.2, SSSE3)</flag>
-    <flag name="mgeneric_v3">Use x86-64-v3 generic optimizations (requires AVX, AVX2, BMI1, BMI2, F16C, FMA, LZCNT, MOVBE, XSAVE)</flag>
-    <flag name="mgeneric_v4">Use x86-64-v4 generic optimizations (requires AVX512F, AVX512BW, AVX512CD, AVX512DQ, AVX512VL)</flag>
-    <flag name="mnative">Use compiler native CPU autodetection optimizations (recommended for local builds, not portable)</flag>
-    <flag name="mzen4">Use AMD Zen 4 specific optimizations (znver4) for AMD Ryzen 7000 series and newer</flag>
+    <flag name="mgeneric">Use the generic x86-64 CPU target</flag>
+    <flag name="mgeneric-v1">Use the x86-64-v1 CPU target</flag>
+    <flag name="mgeneric-v2">Use the x86-64-v2 CPU target</flag>
+    <flag name="mgeneric-v3">Use the x86-64-v3 CPU target</flag>
+    <flag name="mgeneric-v4">Use the x86-64-v4 CPU target</flag>
+    <flag name="mgeneric_v1">Legacy x86-64-v1 flag used by older ebuilds</flag>
+    <flag name="mgeneric_v2">Legacy x86-64-v2 flag used by older ebuilds</flag>
+    <flag name="mgeneric_v3">Legacy x86-64-v3 flag used by older ebuilds</flag>
+    <flag name="mgeneric_v4">Legacy x86-64-v4 flag used by older ebuilds</flag>
+    <flag name="mnative">Use compiler CPU autodetection for the build host</flag>
+    <flag name="mzen4">Use the AMD Zen 4 CPU target</flag>
   </use>
   <upstream>
     <remote-id type="github">CachyOS/linux-cachyos</remote-id>
+    <remote-id type="github">CachyOS/linux</remote-id>
+    <remote-id type="github">CachyOS/kernel-patches</remote-id>
     <bugs-to>https://github.com/CachyOS/linux-cachyos/issues</bugs-to>
   </upstream>
 </pkgmetadata>

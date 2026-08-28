@@ -113,12 +113,13 @@ python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py --dry-run
 The script does:
 - Creates ebuild from latest template
 - Fetches upstream config versions for USE flag availability
-- Runs `get_files.py` (clones kernel-patches + linux-cachyos for patches/configs)
-- Updates commit hash and manifest
+- Pins `CACHYOS_PATCHES_COMMIT` and `CACHYOS_CONFIGS_COMMIT`
+- Regenerates the Manifest for commit-pinned GitHub `SRC_URI` patch/config files
 
 **Manually verify after script runs:**
 - `K_GENPATCHES_VER` aligns with official `gentoo-sources` when Gentoo has published the matching version (see Genpatches section below); if Gentoo has not caught up but CachyOS upstream has, follow the CachyOS upstream target and document the temporary Gentoo-reference gap
-- The last-line commit hash matches the `commit` file in `files/<VERSION>/commit`
+- Every upstream patch/config used by the ebuild has a commit-pinned `SRC_URI` and unique distfile name
+- Apply-test each exposed variant; keep a concrete technical exclusion when an upstream patch does not apply to the exact source release
 - For variant-only revbumps, the pinned `CACHYOS_PR` points to an existing `CachyOS/linux` release asset; do not let Gentoo `-rN` imply a nonexistent source pkgrel
 
 ### 2. cachyos-kernel
@@ -128,10 +129,11 @@ The script does:
 cp cachyos-kernel-<OLD_VER>.ebuild cachyos-kernel-<NEW_VER>.ebuild
 
 # Update these values from cachyos-sources:
-#   GENPATCHES_VER  ←  K_GENPATCHES_VER (from sources ebuild)
-#   ZFS_COMMIT      ←  ZFS_COMMIT (from sources ebuild)
-#   last line hash  ←  last line hash (from sources ebuild)
-#   PDEPEND         ←  auto: >=virtual/dist-kernel-${PV}
+#   GENPATCHES_VER          ← K_GENPATCHES_VER (from sources ebuild)
+#   ZFS_COMMIT              ← ZFS_COMMIT (from sources ebuild)
+#   CACHYOS_PATCHES_COMMIT  ← same pin as sources ebuild
+#   CACHYOS_CONFIGS_COMMIT  ← same pin as sources ebuild
+#   PDEPEND                 ← auto: >=virtual/dist-kernel-${PV}
 
 # Generate manifest
 ebuild sys-kernel/cachyos-kernel/cachyos-kernel-<VERSION>.ebuild manifest
@@ -449,8 +451,8 @@ PORTAGE_TMPDIR="$PWD/.ci/portage-tmp" ebuild ... clean prepare
 
 ```
 sys-kernel/cachyos-sources/
-  script/update_ebuild.py    # main update script
-  script/get_files.py        # fetches patches & configs from upstream repos
+  script/update_ebuild.py    # creates ebuilds and pins upstream patch/config commits
+  files/                     # overlay-owned patches/scripts; upstream files come from SRC_URI
 
 sys-kernel/cachyos-kernel/
   files -> ../cachyos-sources/files   # SYMLINK

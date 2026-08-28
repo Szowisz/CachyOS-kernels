@@ -291,14 +291,18 @@ jobs:
         EBUILD_PATH="sys-kernel/cachyos-sources/cachyos-sources-${{ matrix.version }}.ebuild"
         USE_FLAGS="${{ matrix.use_flags }}"
 
-        # bmq-lfbmq is version-dependent. Keep its matrix case, but skip versions
-        # whose ebuild does not expose it instead of creating an invalid -bore build.
-        if [[ "${USE_FLAGS}" == *bmq-lfbmq* ]] &&
-           ! grep -Eq '(^|[[:space:]])\+?bmq-lfbmq([[:space:]]|$)' "${EBUILD_PATH}"; then
-          echo "::notice::Skipping ${USE_FLAGS}: unsupported by cachyos-sources-${{ matrix.version }}"
-          echo "SKIP_USE_CASE=true" >> "$GITHUB_ENV"
-          exit 0
-        fi
+        # Scheduler and variant flags can be version-dependent. Skip a matrix
+        # case when its positive selector is absent instead of creating an
+        # invalid fallback build.
+        read -r -a USE_FLAG_WORDS <<< "${USE_FLAGS}"
+        for OPTIONAL_FLAG in bmq bmq-lfbmq deckify; do
+          if printf '%s\n' "${USE_FLAG_WORDS[@]}" | grep -Fxq "${OPTIONAL_FLAG}" &&
+             ! grep -Eq "(^|[[:space:]])\\+?${OPTIONAL_FLAG}([[:space:]]|$)" "${EBUILD_PATH}"; then
+            echo "::notice::Skipping ${USE_FLAGS}: unsupported by cachyos-sources-${{ matrix.version }}"
+            echo "SKIP_USE_CASE=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+        done
 
         mkdir -p /etc/portage/package.use
         echo "sys-kernel/cachyos-sources ${USE_FLAGS}" > /etc/portage/package.use/cachyos-sources

@@ -27,25 +27,6 @@ USE_FLAG_CONFIG_MAPPING = {
     "deckify": ["linux-cachyos-deckify"],
 }
 
-# Scheduler-related USE flags (appear in the ^^ constraint and IUSE scheduler line)
-SCHEDULER_FLAGS = {"bore", "bmq", "rt", "rt-bore", "eevdf", "hardened"}
-
-# Known compound USE flag patterns in src_prepare that get replaced with 'false'
-# when a flag is removed. Maps flag -> list of (search_regex, replacement_string)
-# These are patterns where the flag appears in compound conditions like "use bore || use hardened"
-COMPOUND_USE_PATTERNS = {
-    "hardened": [
-        # "use bore || false" -> "use bore || use hardened"  (SCHED_BORE enablement)
-        (r'\buse bore \|\| false\b', 'use bore || use hardened'),
-        # Restore the genpatch conflict exclusion left by an unavailable
-        # hardened flag in a previous generated ebuild.
-        (
-            r'\bfalse && UNIPATCH_EXCLUDE\+=" 1510 4567"',
-            'use hardened && UNIPATCH_EXCLUDE+=" 1510 4567"',
-        ),
-    ],
-}
-
 # All upstream config directories to check
 UPSTREAM_CONFIGS = [
     "linux-cachyos",
@@ -241,198 +222,6 @@ def remove_use_flags_from_required_use(content, flags_to_remove):
     return content
 
 
-def get_flags_present_in_iuse(content):
-    """Extract the set of USE flags currently present in the IUSE declaration"""
-    iuse_match = re.search(r'IUSE="([^"]*)"', content, re.DOTALL)
-    if not iuse_match:
-        return set()
-    iuse_text = iuse_match.group(1)
-    # Extract flag names, stripping optional + prefix
-    flags = set()
-    for token in iuse_text.split():
-        flag = token.lstrip('+')
-        if flag:
-            flags.add(flag)
-    return flags
-
-
-def get_missing_available_flags(content, available_flags):
-    """Find flags that are available upstream but missing from the ebuild's IUSE"""
-    present = get_flags_present_in_iuse(content)
-    missing = [f for f in available_flags if f in SCHEDULER_FLAGS and f not in present]
-    return missing
-
-
-def restore_use_flags_to_iuse(content, flags_to_restore):
-    """Add previously removed USE flags back to IUSE declaration"""
-    if not flags_to_restore:
-        return content
-
-    iuse_pattern = r'(IUSE="[^"]*")'
-    match = re.search(iuse_pattern, content, re.DOTALL)
-    if not match:
-        log("Could not find IUSE declaration for restoration", "WARN")
-        return content
-
-    iuse_block = match.group(1)
-    new_iuse_block = iuse_block
-
-    for flag in flags_to_restore:
-        if flag in SCHEDULER_FLAGS:
-            # Scheduler flags go on the scheduler line (line containing "bore bmq" etc.)
-            # Insert before "kcfi" on the deckify line, or after the scheduler line
-            # Pattern: "deckify" possibly followed by "kcfi" or other flags
-            if re.search(r'\bdeckify\b', new_iuse_block):
-                # Insert after "deckify" on the same line
-                new_iuse_block = re.sub(
-                    r'(\bdeckify)\b',
-                    r'\1 ' + flag,
-                    new_iuse_block,
-                    count=1
-                )
-            else:
-                # Fallback: insert after the scheduler line (bore bmq rt rt-bore eevdf)
-                new_iuse_block = re.sub(
-                    r'(\beevdf\b)',
-                    r'\1 ' + flag,
-                    new_iuse_block,
-                    count=1
-                )
-        log(f"Restored USE flag '{flag}' to IUSE")
-
-    return content.replace(iuse_block, new_iuse_block)
-
-
-def restore_use_flags_to_required_use(content, flags_to_restore):
-    """Add previously removed USE flags back to REQUIRED_USE ^^ scheduler constraint"""
-    if not flags_to_restore:
-        return content
-
-    scheduler_pattern = r'(\^\^ \( )([a-z-]+(?: [a-z-]+)*)( \))'
-
-    def restore_scheduler_constraint(match):
-        prefix = match.group(1)
-        flags_str = match.group(2)
-        suffix = match.group(3)
-
-        current_flags = flags_str.split()
-        # Only operate on the scheduler constraint
-        if not any(f in SCHEDULER_FLAGS for f in current_flags):
-            return match.group(0)
-
-        for flag in flags_to_restore:
-            if flag in SCHEDULER_FLAGS and flag not in current_flags:
-                current_flags.append(flag)
-
-        return prefix + ' '.join(current_flags) + suffix
-
-    new_content, count = re.subn(scheduler_pattern, restore_scheduler_constraint, content, count=1)
-    if count > 0:
-        match = re.search(scheduler_pattern, new_content)
-        if match:
-            log(f"Restored scheduler constraint: ^^ ( {match.group(2)} )")
-    return new_content
-
-
-def restore_use_flags_in_src_prepare(content, flags_to_restore):
-    """Restore 'use <flag>' from 'false' for previously removed USE flags in src_prepare.
-
-    Handles two patterns:
-    1. 'if false; then' blocks where subsequent lines reference the flag
-       (e.g., hardened.patch, config-hardened)
-    2. Compound conditions like 'use bore || false' via COMPOUND_USE_PATTERNS
-    """
-    if not flags_to_restore:
-        return content
-
-    for flag in flags_to_restore:
-        # Pattern 1: Standalone 'if false; then' blocks
-        # Look for 'if false; then' followed by lines referencing the flag name
-        # within the next few lines (before 'fi')
-        pattern = (
-            r'(if )(false)(; then\n'
-            r'(?:[^\n]*\n)*?'  # match lines in between
-            r'[^\n]*' + re.escape(flag) + r'[^\n]*\n'  # line referencing the flag
-            r'(?:[^\n]*\n)*?'  # more lines
-            r'[^\n]*\bfi\b)'  # closing fi
-        )
-        match = re.search(pattern, content)
-        if match:
-            content = content[:match.start(2)] + 'use ' + flag + content[match.end(2):]
-            log(f"Restored 'if use {flag}; then' block in src_prepare")
-
-        # Pattern 2: Compound conditions from COMPOUND_USE_PATTERNS
-        if flag in COMPOUND_USE_PATTERNS:
-            for search_re, replacement in COMPOUND_USE_PATTERNS[flag]:
-                if re.search(search_re, content):
-                    content = re.sub(search_re, replacement, content)
-                    log(f"Restored compound pattern for '{flag}': {replacement}")
-
-        # Hardened is a scheduler variant: the upstream package applies the
-        # BORE scheduler patch before its hardened patch and enables BORE in
-        # the final config. Keep those operations in sync when restoring the
-        # flag after a version where it was unavailable.
-        if flag == "hardened":
-            exclusion = 'use hardened && UNIPATCH_EXCLUDE+=" 1510 4567"'
-            if exclusion not in content:
-                bmq_exclusion = (
-                    'use bmq && UNIPATCH_EXCLUDE+='
-                    '" 1810_sched_proxy_yield_the_donor_task.patch"'
-                )
-                if bmq_exclusion in content:
-                    content = content.replace(
-                        bmq_exclusion,
-                        bmq_exclusion + '\n\n\t# Exclude genpatches that conflict with the hardened patchset.\n\t' + exclusion,
-                        1,
-                    )
-                    log("Restored hardened genpatch exclusion")
-
-            hardened_patch = (
-                r'if use hardened; then\n'
-                r'(\s*)eapply "\$\{files_dir\}/misc/0001-hardened\.patch"'
-            )
-            content, count = re.subn(
-                hardened_patch,
-                'if use hardened; then\n'
-                r'\1eapply "${files_dir}/sched/0001-bore-cachy.patch"' '\n'
-                r'\1eapply "${files_dir}/misc/0001-hardened.patch"',
-                content,
-                count=1,
-            )
-            if count:
-                log("Restored BORE patch before hardened patch")
-            elif 'if use hardened; then' not in content:
-                deckify_block = (
-                    '\tif use deckify; then\n'
-                    '\t\tcp "${files_dir}/config-deckify" .config || die\n'
-                    '\t\tscripts/config -d RCU_LAZY_DEFAULT_OFF -e AMD_PRIVATE_COLOR || die\n'
-                    '\tfi\n'
-                )
-                hardened_block = (
-                    '\n\tif use hardened; then\n'
-                    '\t\teapply "${files_dir}/sched/0001-bore-cachy.patch"\n'
-                    '\t\teapply "${files_dir}/misc/0001-hardened.patch"\n'
-                    '\t\tcp "${files_dir}/config-hardened" .config || die\n'
-                    '\tfi\n'
-                )
-                if deckify_block in content:
-                    content = content.replace(
-                        deckify_block,
-                        deckify_block + hardened_block,
-                        1,
-                    )
-                    log("Added missing hardened prepare block")
-
-            content = re.sub(
-                r'if use bore; then\n(\s*)scripts/config -e SCHED_BORE \|\| die',
-                r'if use bore || use hardened; then\n\1scripts/config -e SCHED_BORE || die',
-                content,
-                count=1,
-            )
-
-    return content
-
-
 def get_latest_kernel_version():
     """Fetch the latest stable kernel version from kernel.org"""
     try:
@@ -599,21 +388,46 @@ def get_genpatches_version_from_template(
         return "1"
 
 
-def get_upstream_commit():
-    """Get the latest commit hash from CachyOS/kernel-patches repository"""
+def get_repository_commit(repository):
+    """Get the latest commit hash from a CachyOS GitHub repository."""
     try:
-        url = "https://api.github.com/repos/CachyOS/kernel-patches/commits?per_page=1"
+        url = f"https://api.github.com/repos/CachyOS/{repository}/commits?per_page=1"
         with urlopen(url) as response:
             data = json.loads(response.read().decode())
-
-        if data and len(data) > 0:
+        if data:
             commit_sha = data[0]["sha"]
-            log(f"Latest upstream commit: {commit_sha[:12]}...")
+            log(f"Latest {repository} commit: {commit_sha[:12]}...")
             return commit_sha
-
     except Exception as e:
-        log(f"Error fetching upstream commit: {e}", "WARN")
+        log(f"Error fetching {repository} commit: {e}", "WARN")
         return None
+
+
+def update_upstream_commits(ebuild_path, patches_commit, configs_commit, dry_run=False):
+    """Update commit-pinned SRC_URI variables in an ebuild."""
+    if dry_run:
+        log(f"DRY RUN: Would pin kernel-patches to {patches_commit[:12]}...")
+        log(f"DRY RUN: Would pin linux-cachyos to {configs_commit[:12]}...")
+        return True
+
+    content = Path(ebuild_path).read_text()
+    for variable, commit in {
+        "CACHYOS_PATCHES_COMMIT": patches_commit,
+        "CACHYOS_CONFIGS_COMMIT": configs_commit,
+    }.items():
+        content, count = re.subn(
+            rf'^{variable}="[a-f0-9]{{40}}"$',
+            f'{variable}="{commit}"',
+            content,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if count != 1:
+            log(f"Could not find {variable} in ebuild", "ERROR")
+            return False
+
+    Path(ebuild_path).write_text(content)
+    return True
 
 
 def get_zfs_commit(lts=False):
@@ -690,28 +504,6 @@ def find_latest_ebuild(ebuild_dir, exclude_version=None):
     return latest
 
 
-def extract_previous_commit(ebuild_path):
-    """Extract the previous commit hash from the ebuild file"""
-    try:
-        with open(ebuild_path, "r") as f:
-            content = f.read()
-
-        # Look for commit hash at the end of the file
-        # Pattern: # <40-character hex hash>
-        match = re.search(r"^# ([a-f0-9]{40})$", content, re.MULTILINE)
-        if match:
-            commit = match.group(1)
-            log(f"Found previous commit: {commit[:12]}...")
-            return commit
-        else:
-            log("No previous commit hash found in ebuild", "WARN")
-            return None
-
-    except Exception as e:
-        log(f"Error reading ebuild: {e}", "ERROR")
-        return None
-
-
 def extract_version_from_ebuild_name(ebuild_path):
     """Extract version from ebuild filename"""
     filename = Path(ebuild_path).name
@@ -751,20 +543,14 @@ def copy_and_update_ebuild(
         if source_pkgrel is not None:
             log(f"DRY RUN: Would use CachyOS source pkgrel {source_pkgrel}", "INFO")
 
-        # Show which USE flags would be removed or restored
+        # Show which template USE flags would be removed. Missing variants are
+        # never auto-added: they require explicit patch/config wiring and tests.
         if not skip_version_check and upstream_versions:
-            available_flags, unavailable_flags = get_available_use_flags(new_version, upstream_versions)
+            _, unavailable_flags = get_available_use_flags(new_version, upstream_versions)
             if unavailable_flags:
                 log(f"DRY RUN: Would remove USE flags: {', '.join(unavailable_flags)}", "INFO")
             else:
-                log("DRY RUN: All USE flags available for this version", "INFO")
-
-            # Check for flags that would be restored
-            with open(template_path, "r") as f:
-                template_content = f.read()
-            missing_flags = get_missing_available_flags(template_content, available_flags)
-            if missing_flags:
-                log(f"DRY RUN: Would restore USE flags: {', '.join(missing_flags)}", "INFO")
+                log("DRY RUN: All template USE flags available for this version", "INFO")
 
         return new_ebuild_path
 
@@ -827,9 +613,11 @@ def copy_and_update_ebuild(
     # Update any version-specific comments or variables if needed
     # This could be extended for version-specific patches
 
-    # Check upstream config versions and remove/restore USE flags
+    # Check upstream config versions and remove unavailable template USE flags.
+    # Do not synthesize missing variants: each needs explicit SRC_URI/prepare wiring
+    # plus an apply test against the exact source release.
     if not skip_version_check and upstream_versions:
-        available_flags, unavailable_flags = get_available_use_flags(new_version, upstream_versions)
+        _, unavailable_flags = get_available_use_flags(new_version, upstream_versions)
 
         if unavailable_flags:
             log(f"Removing unavailable USE flags: {', '.join(unavailable_flags)}")
@@ -837,54 +625,12 @@ def copy_and_update_ebuild(
             content = remove_use_flags_from_required_use(content, unavailable_flags)
             content = remove_use_flags_from_src_prepare(content, unavailable_flags)
 
-        # Restore flags that are available upstream but missing from template
-        missing_flags = get_missing_available_flags(content, available_flags)
-        if missing_flags:
-            log(f"Restoring previously removed USE flags: {', '.join(missing_flags)}")
-            content = restore_use_flags_to_iuse(content, missing_flags)
-            content = restore_use_flags_to_required_use(content, missing_flags)
-            content = restore_use_flags_in_src_prepare(content, missing_flags)
-
     # Write updated content back
     with open(new_ebuild_path, "w") as f:
         f.write(content)
 
     log(f"Updated genpatches version to: {genpatches_version}")
     return new_ebuild_path
-
-
-def update_upstream_commit(ebuild_path, commit_hash, dry_run=False):
-    """Update the upstream commit hash at the end of the ebuild"""
-    if not commit_hash or dry_run:
-        if dry_run:
-            log(
-                f"DRY RUN: Would update commit hash to {commit_hash[:12] if commit_hash else 'unknown'}..."
-            )
-        return
-
-    try:
-        with open(ebuild_path, "r") as f:
-            content = f.read()
-
-        # Replace existing commit hash or add new one
-        if re.search(r"^# [a-f0-9]{40}$", content, re.MULTILINE):
-            # Replace existing hash
-            content = re.sub(
-                r"^# [a-f0-9]{40}$", f"# {commit_hash}", content, flags=re.MULTILINE
-            )
-        else:
-            # Add new hash at the end
-            if not content.endswith("\n"):
-                content += "\n"
-            content += f"\n# {commit_hash}\n"
-
-        with open(ebuild_path, "w") as f:
-            f.write(content)
-
-        log(f"Updated upstream commit to: {commit_hash[:12]}...")
-
-    except Exception as e:
-        log(f"Error updating commit hash: {e}", "ERROR")
 
 
 def update_zfs_commit(ebuild_path, zfs_commit_hash, dry_run=False):
@@ -919,65 +665,6 @@ def update_zfs_commit(ebuild_path, zfs_commit_hash, dry_run=False):
 
     except Exception as e:
         log(f"Error updating ZFS commit: {e}", "ERROR")
-
-
-def run_get_files(version, previous_commit, files_path, lts=False, dry_run=False):
-    """Run the get_files.py script and return the new commit hash"""
-    if dry_run:
-        log("DRY RUN: Would run get_files.py", "INFO")
-        return True, None
-
-    script_dir = Path(__file__).parent
-    get_files_script = script_dir / "get_files.py"
-
-    if not get_files_script.exists():
-        log(f"get_files.py not found at {get_files_script}", "ERROR")
-        return False, None
-
-    cmd = [
-        sys.executable,
-        str(get_files_script),
-        "--version",
-        version,
-        "--files-path",
-        files_path,
-    ]
-
-    if previous_commit:
-        cmd.extend(["--previous-commit", previous_commit])
-    else:
-        # Use a reasonable fallback
-        cmd.extend(["--previous-commit", "HEAD~1"])
-
-    if lts:
-        cmd.append("--lts")
-
-    log(f"Running: {' '.join(cmd)}")
-
-    try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        log("get_files.py completed successfully")
-
-        # Extract the kernel-patches commit hash printed by get_files.py.
-        new_commit_hash = None
-        if result.stdout:
-            lines = result.stdout.strip().split("\n")
-            for line in reversed(lines):
-                candidate = line.strip()
-                if re.match(r"^[a-f0-9]{40}$", candidate):
-                    new_commit_hash = candidate
-                    log(f"New commit hash from get_files.py: {new_commit_hash[:12]}...")
-                    break
-            print("STDOUT:", result.stdout)
-
-        return True, new_commit_hash
-    except subprocess.CalledProcessError as e:
-        log(f"get_files.py failed: {e}", "ERROR")
-        if e.stdout:
-            print("STDOUT:", e.stdout)
-        if e.stderr:
-            print("STDERR:", e.stderr)
-        return False, None
 
 
 def check_sudo_available():
@@ -1042,11 +729,6 @@ def main():
         type=str,
         help="Specific kernel version to create (auto-detect if not provided)",
     )
-    parser.add_argument(
-        "--previous-commit",
-        type=str,
-        help="Previous commit hash for diff (auto-detect if not provided)",
-    )
     parser.add_argument("--lts", action="store_true", help="LTS kernel flag")
     parser.add_argument(
         "--no-manifest", action="store_true", help="Skip manifest generation"
@@ -1055,11 +737,6 @@ def main():
         "--dry-run",
         action="store_true",
         help="Show what would be done without making changes",
-    )
-    parser.add_argument(
-        "--files-path",
-        type=str,
-        help="Path to files directory (defaults to the package's files dir)",
     )
     parser.add_argument(
         "--force", action="store_true", help="Force overwrite existing ebuild"
@@ -1084,7 +761,6 @@ def main():
     # Determine ebuild directory
     script_dir = Path(__file__).parent
     ebuild_dir = script_dir.parent
-    files_path = args.files_path if args.files_path else str(ebuild_dir / "files")
 
     log(f"Working in directory: {ebuild_dir}")
 
@@ -1129,15 +805,6 @@ def main():
     if not template_ebuild:
         sys.exit(1)
 
-    # Get previous commit
-    previous_commit = args.previous_commit
-    if not previous_commit:
-        previous_commit = extract_previous_commit(template_ebuild)
-
-    if not previous_commit:
-        log("Could not determine previous commit", "WARN")
-        # Continue anyway, get_files.py might handle this
-
     # Fetch upstream config versions for USE flag availability check
     upstream_versions = None
     if not args.skip_version_check:
@@ -1157,21 +824,15 @@ def main():
     if not new_ebuild_path:
         sys.exit(1)
 
-    # Run get_files.py
-    success, new_commit_hash = run_get_files(
-        target_version, previous_commit, files_path, args.lts, args.dry_run
-    )
-
-    if not success:
-        log("get_files.py failed, but continuing...", "WARN")
-
-    # Use the new commit hash from get_files.py if available, otherwise fallback to upstream
-    if new_commit_hash:
-        update_upstream_commit(new_ebuild_path, new_commit_hash, args.dry_run)
-    else:
-        upstream_commit = get_upstream_commit()
-        if upstream_commit:
-            update_upstream_commit(new_ebuild_path, upstream_commit, args.dry_run)
+    patches_commit = get_repository_commit("kernel-patches")
+    configs_commit = get_repository_commit("linux-cachyos")
+    if not patches_commit or not configs_commit:
+        log("Could not determine pinned upstream commits", "ERROR")
+        sys.exit(1)
+    if not update_upstream_commits(
+        new_ebuild_path, patches_commit, configs_commit, args.dry_run
+    ):
+        sys.exit(1)
 
     # Update manifest
     if not args.no_manifest:

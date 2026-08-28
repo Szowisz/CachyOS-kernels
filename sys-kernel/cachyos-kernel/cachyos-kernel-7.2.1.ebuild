@@ -17,7 +17,7 @@ CACHYOS_PR="1"
 MY_P="cachyos-$(ver_cut 1-3)-${CACHYOS_PR}"
 
 # Gentoo has not published 7.2.1 yet. Keep the 7.2 patchset until it does.
-GENPATCHES_VER=1
+GENPATCHES_VER=2
 
 # ZFS commit for kernel-builtin-zfs support
 ZFS_COMMIT="71a9f9578616a90c3c14bb59629fb4d31bfd68d1"

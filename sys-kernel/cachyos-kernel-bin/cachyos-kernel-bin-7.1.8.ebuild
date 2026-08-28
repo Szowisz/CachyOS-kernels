@@ -72,6 +72,16 @@ SRC_URI+="
 			${MIRROR_V3}/linux-cachyos-deckify-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
+	cachyos-hardened? (
+		lto? (
+			${MIRROR_V3}/linux-cachyos-hardened-lto-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-hardened-lto-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-hardened-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-hardened-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+	)
 	eevdf? (
 		lto? (
 			${MIRROR_V3}/linux-cachyos-eevdf-lto-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
@@ -108,9 +118,9 @@ S="${WORKDIR}"
 
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
-IUSE="+cachyos bore deckify eevdf rt-bore server +lto gcc debug"
+IUSE="+cachyos bore deckify cachyos-hardened eevdf rt-bore server +lto gcc debug"
 REQUIRED_USE="
-	^^ ( cachyos bore deckify eevdf rt-bore server )
+	^^ ( cachyos bore deckify cachyos-hardened eevdf rt-bore server )
 	?? ( lto gcc )
 	cachyos? ( || ( lto gcc ) )
 	gcc? ( cachyos )
@@ -148,6 +158,8 @@ _cachyos_pkg_variant() {
 		variant="bore"
 	elif use deckify; then
 		variant="deckify"
+	elif use cachyos-hardened; then
+		variant="hardened"
 	elif use eevdf; then
 		variant="eevdf"
 	elif use rt-bore; then

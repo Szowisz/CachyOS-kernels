@@ -22,8 +22,8 @@ GENPATCHES_VER=1
 # ZFS commit for kernel-builtin-zfs support
 ZFS_COMMIT="71a9f9578616a90c3c14bb59629fb4d31bfd68d1"
 CACHYOS_SERIES="$(ver_cut 1-2)"
-CACHYOS_PATCH_URI="https://raw.githubusercontent.com/CachyOS/kernel-patches/${CACHYOS_PATCHES_COMMIT}/${CACHYOS_SERIES}"
-CACHYOS_CONFIG_URI="https://raw.githubusercontent.com/CachyOS/linux-cachyos/${CACHYOS_CONFIGS_COMMIT}"
+CACHYOS_PATCH_URI="https://github.com/CachyOS/kernel-patches/raw/${CACHYOS_PATCHES_COMMIT}/${CACHYOS_SERIES}"
+CACHYOS_CONFIG_URI="https://github.com/CachyOS/linux-cachyos/raw/${CACHYOS_CONFIGS_COMMIT}"
 CACHYOS_PATCH_PREFIX="cachyos-kernel-patches-${CACHYOS_PATCHES_COMMIT}-${CACHYOS_SERIES}"
 CACHYOS_CONFIG_PREFIX="linux-cachyos-${CACHYOS_CONFIGS_COMMIT}"
 

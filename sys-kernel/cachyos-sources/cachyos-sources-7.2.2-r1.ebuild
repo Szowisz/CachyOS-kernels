@@ -463,21 +463,9 @@ pkg_setup() {
 }
 
 pkg_postinst() {
-	local security_unsupported=${K_SECURITY_UNSUPPORTED}
 	local K_SECURITY_UNSUPPORTED=
 
 	kernel-2_pkg_postinst
-
-	if [[ -n ${security_unsupported} ]]; then
-		elog "${PN} is UNSUPPORTED by Gentoo Security."
-		elog "This means that it is likely to be vulnerable to recent security issues."
-		elog "Upstream kernel developers recommend always running the latest "
-		elog "release of any current long term supported Linux kernel version."
-		elog "To see a list of these versions, their most current release and "
-		elog "long term support status, please go to https://www.kernel.org ."
-		elog "For specific information on why this kernel is unsupported, please read:"
-		elog "https://wiki.gentoo.org/wiki/Project:Kernel_Security"
-	fi
 
 	elog "For more information about CachyOS kernels, see https://wiki.cachyos.org/features/kernel/."
 	optfeature "userspace KSM helper" sys-process/uksmd

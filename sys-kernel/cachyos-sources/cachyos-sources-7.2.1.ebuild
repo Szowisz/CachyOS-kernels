@@ -383,32 +383,18 @@ pkg_pretend() {
 }
 
 pkg_setup() {
-	elog
-	elog "${PN} is *not* supported by the Gentoo Kernel Project in any way."
-	elog "For support, contact https://github.com/Szowisz/CachyOS-kernels or the CachyOS developers."
-	elog "Do *not* open bugs in Gentoo's bugzilla unless you have issues with"
-	elog "the ebuilds. Thank you."
-	elog
+	ewarn ""
+	ewarn "${PN} is *not* supported by the Gentoo Kernel Project in any way."
+	ewarn "If you need support, please contact the CachyOS project or the overlay maintainer."
+	ewarn "Do *not* open bugs in Gentoo's bugzilla unless you have issues with"
+	ewarn "the ebuilds. Thank you."
+	ewarn ""
 
 	kernel-2_pkg_setup
 }
 
 pkg_postinst() {
-	local security_unsupported=${K_SECURITY_UNSUPPORTED}
-	local K_SECURITY_UNSUPPORTED=
-
 	kernel-2_pkg_postinst
-
-	if [[ -n ${security_unsupported} ]]; then
-		elog "${PN} is UNSUPPORTED by Gentoo Security."
-		elog "This means that it is likely to be vulnerable to recent security issues."
-		elog "Upstream kernel developers recommend always running the latest "
-		elog "release of any current long term supported Linux kernel version."
-		elog "To see a list of these versions, their most current release and "
-		elog "long term support status, please go to https://www.kernel.org ."
-		elog "For specific information on why this kernel is unsupported, please read:"
-		elog "https://wiki.gentoo.org/wiki/Project:Kernel_Security"
-	fi
 
 	elog "For more information about CachyOS kernels, see https://wiki.cachyos.org/features/kernel/."
 	optfeature "userspace KSM helper" sys-process/uksmd
@@ -419,21 +405,21 @@ pkg_postinst() {
 	optfeature "sched_ext schedulers" sys-kernel/scx-loader
 
 	if use kernel-builtin-zfs; then
-		elog "WARNING: You are using kernel-builtin-zfs USE flag."
-		elog "It is STRONGLY RECOMMENDED to use sys-fs/zfs instead of building ZFS into the kernel."
-		elog "sys-fs/zfs provides better compatibility and easier updates."
-		elog "Build reference: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573"
-		elog "See kernel-build.sh in the installed kernel source tree for an example."
+		ewarn "WARNING: You are using kernel-builtin-zfs USE flag."
+		ewarn "It is STRONGLY RECOMMENDED to use sys-fs/zfs instead of building ZFS into the kernel."
+		ewarn "sys-fs/zfs provides better compatibility and easier updates."
+		ewarn "Build reference: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573"
+		ewarn "See kernel-build.sh in the installed kernel source tree for an example."
 	fi
 	if use autofdo || use propeller; then
-		elog "AutoFDO/Propeller are enabled in Kconfig, but they only apply profile-guided"
-		elog "optimization when you pass a profile at build time:"
-		elog "  AutoFDO:   CLANG_AUTOFDO_PROFILE=/path/to/profile.afdo"
-		elog "  Propeller: CLANG_PROPELLER_PROFILE_PREFIX=/path/to/propeller"
-		elog "Without a profile, CONFIG_PROPELLER_CLANG still adds"
-		elog "-fbasic-block-address-map / --lto-basic-block-address-map (codegen change, no gain)."
-		elog "Guide: https://cachyos.org/blog/2411-kernel-autofdo"
-		elog "Example: https://github.com/xz-dev/kernel-autofdo-container"
+		ewarn "AutoFDO/Propeller are enabled in Kconfig, but they only apply profile-guided"
+		ewarn "optimization when you pass a profile at build time:"
+		ewarn "  AutoFDO:   CLANG_AUTOFDO_PROFILE=/path/to/profile.afdo"
+		ewarn "  Propeller: CLANG_PROPELLER_PROFILE_PREFIX=/path/to/propeller"
+		ewarn "Without a profile, CONFIG_PROPELLER_CLANG still adds"
+		ewarn "-fbasic-block-address-map / --lto-basic-block-address-map (codegen change, no gain)."
+		ewarn "Guide: https://cachyos.org/blog/2411-kernel-autofdo"
+		ewarn "Example: https://github.com/xz-dev/kernel-autofdo-container"
 	fi
 }
 

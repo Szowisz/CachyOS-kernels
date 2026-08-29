@@ -16,210 +16,308 @@ def log(message, level="INFO"):
     print(f"[{level}] {message}")
 
 
-# USE flag to upstream config directory mapping
-USE_FLAG_CONFIG_MAPPING = {
-    "bore": ["linux-cachyos", "linux-cachyos-bore"],
-    "bmq": ["linux-cachyos-bmq"],
-    "eevdf": ["linux-cachyos-eevdf"],
-    "rt": ["linux-cachyos-rt-bore"],
-    "rt-bore": ["linux-cachyos-rt-bore"],
-    "hardened": ["linux-cachyos-hardened"],
-    "deckify": ["linux-cachyos-deckify"],
+# Official package paths are combinations of scheduler, preset, and hardware
+# layers. This inventory describes the independent capabilities represented by
+# each path; it is an audit oracle only and never rewrites an ebuild.
+OFFICIAL_PACKAGE_FEATURES = {
+    "linux-cachyos": {"eevdf"},
+    "linux-cachyos-bore": {"bore"},
+    "linux-cachyos-bmq": {"bmq"},
+    "linux-cachyos-deckify": {"bore", "deckify"},
+    "linux-cachyos-eevdf": {"eevdf"},
+    "linux-cachyos-rt-bore": {"rt", "rt-bore"},
+    "linux-cachyos-server": {"eevdf", "server"},
 }
 
-# All upstream config directories to check
-UPSTREAM_CONFIGS = [
-    "linux-cachyos",
-    "linux-cachyos-bmq",
-    "linux-cachyos-bore",
-    "linux-cachyos-deckify",
-    "linux-cachyos-eevdf",
+UPSTREAM_PACKAGES = [
+    *OFFICIAL_PACKAGE_FEATURES,
     "linux-cachyos-hardened",
-    "linux-cachyos-rt-bore",
+    "linux-cachyos-lts",
 ]
+
+# Hidden scheduler families are admitted only after their exact-version patch
+# applicability has been validated. Keep that evidence explicit instead of
+# treating every directory entry as an automatically supported USE flag.
+VALIDATED_HIDDEN_FEATURES = {
+    "7.2.2": {
+        "muqss": {
+            "path": "sched/0001-muqss-cachy.patch",
+            "evidence": "applies to 7.2.2 after genpatches-7.2-3; MuQSS.o compiles",
+        },
+    },
+}
+
+AUDIT_PATTERNS = {
+    "eevdf": (
+        "SCHED_POC_SELECTOR",
+        "^^ ( bore bmq muqss rt rt-bore eevdf )",
+    ),
+    "bore": (
+        "sched/0001-bore-cachy.patch",
+        "-e SCHED_BORE",
+    ),
+    "bmq": (
+        "sched/0001-prjc-cachy.patch",
+        "prjc-muqss-prereq.patch",
+        "-e SCHED_ALT -e SCHED_BMQ",
+    ),
+    "muqss": (
+        "sched/0001-muqss-cachy.patch",
+        "prjc-muqss-prereq.patch",
+        "-e SCHED_MUQSS -e MUQSS_IOTIME",
+    ),
+    "rt": (
+        "misc/0001-rt-i915.patch",
+        "-e PREEMPT_RT",
+    ),
+    "rt-bore": (
+        "rt-bore? (",
+        "-e SCHED_BORE -e PREEMPT_RT",
+    ),
+    "server": (
+        "server? (",
+        "hz-ticks-300 tickrate-full preempt-lazy !per-gov",
+        "llvm-lto-none !autofdo !propeller",
+        "o3 hugepage-always",
+        "if use server; then",
+        "-d CACHY",
+        "-d LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST",
+        "-d PREEMPT -e PREEMPT_LAZY",
+        "CPU_FREQ_DEFAULT_GOV_SCHEDUTIL",
+        "TRANSPARENT_HUGEPAGE_ALWAYS",
+    ),
+    "deckify": (
+        "misc/0001-acpi-call.patch",
+        "misc/0001-handheld.patch",
+        "if use deckify; then",
+        "HID_LENOVO_GO",
+    ),
+}
+
+OFFICIAL_PACKAGE_PATTERNS = {
+    "linux-cachyos": ("_cpusched:=cachyos",),
+    "linux-cachyos-bore": ("_cpusched:=bore", "sched/0001-bore-cachy.patch"),
+    "linux-cachyos-bmq": ("_cpusched:=bmq", "sched/0001-prjc-cachy.patch"),
+    "linux-cachyos-deckify": (
+        "_cpusched:=cachyos",
+        "sched/0001-bore-cachy.patch",
+        "misc/0001-acpi-call.patch",
+        "misc/0001-handheld.patch",
+    ),
+    "linux-cachyos-eevdf": ("_cpusched:=eevdf",),
+    "linux-cachyos-rt-bore": (
+        "_cpusched:=rt-bore",
+    ),
+    "linux-cachyos-server": (
+        "_cachy_config:=no",
+        "_cpusched:=eevdf",
+        "_HZ_ticks:=300",
+        "_tickrate:=full",
+        "_preempt:=lazy",
+        "_hugepage:=always",
+        "_use_llvm_lto:=none",
+    ),
+}
+
+DOCUMENTED_EXCLUSIONS = {
+    "hardened": "hardened remains on 7.1.8",
+    "bmq-lfbmq": "PRJC-LFBMQ has no 7.2 patch family",
+}
 
 
 def parse_srcinfo_pkgver(content):
-    """Parse pkgver from .SRCINFO content"""
-    for line in content.split("\n"):
+    """Parse pkgver from .SRCINFO content."""
+    for line in content.splitlines():
         line = line.strip()
         if line.startswith("pkgver = "):
             return line.split(" = ", 1)[1].strip()
     return None
 
 
-def get_upstream_config_versions():
-    """Fetch version info from upstream CachyOS/linux-cachyos repository"""
+def fetch_upstream_package_data(configs_commit):
+    """Fetch package versions and PKGBUILDs from the commit pinned by generation."""
     versions = {}
+    pkgbuilds = {}
 
-    for config in UPSTREAM_CONFIGS:
-        url = f"https://raw.githubusercontent.com/CachyOS/linux-cachyos/master/{config}/.SRCINFO"
+    for package in UPSTREAM_PACKAGES:
+        base_url = (
+            "https://raw.githubusercontent.com/CachyOS/linux-cachyos/"
+            f"{configs_commit}/{package}"
+        )
         try:
-            with urlopen(url) as response:
-                content = response.read().decode("utf-8")
-                pkgver = parse_srcinfo_pkgver(content)
-                if pkgver:
-                    versions[config] = pkgver
-                    log(f"Upstream {config}: {pkgver}")
-                else:
-                    log(f"Could not parse pkgver from {config}/.SRCINFO", "WARN")
+            with urlopen(f"{base_url}/.SRCINFO") as response:
+                pkgver = parse_srcinfo_pkgver(response.read().decode("utf-8"))
+            with urlopen(f"{base_url}/PKGBUILD") as response:
+                pkgbuild = response.read().decode("utf-8")
+            if pkgver:
+                versions[package] = pkgver
+                pkgbuilds[package] = pkgbuild
+                log(f"Upstream {package}: {pkgver}")
+            else:
+                log(f"Could not parse pkgver from {package}/.SRCINFO", "WARN")
         except URLError as e:
-            log(f"Failed to fetch {config}/.SRCINFO: {e}", "WARN")
+            log(f"Failed to fetch {package}: {e}", "WARN")
         except Exception as e:
-            log(f"Error processing {config}/.SRCINFO: {e}", "WARN")
+            log(f"Error processing {package}: {e}", "WARN")
 
-    return versions
-
-
-def parse_version_tuple(version_str):
-    """Parse version string to tuple for comparison (e.g., '6.18.1' -> (6, 18, 1))"""
-    # Clean version string, remove suffixes like -r1, -rc1
-    clean_version = clean_version_helper(version_str)
-    parts = clean_version.split(".")
-    result = []
-    for part in parts:
-        try:
-            result.append(int(part))
-        except ValueError:
-            result.append(0)
-    # Pad to at least 3 elements
-    while len(result) < 3:
-        result.append(0)
-    return tuple(result)
+    return versions, pkgbuilds
 
 
-def compare_kernel_versions(target_version, config_version):
-    """Compare kernel versions, return True if target_version <= config_version"""
-    if config_version is None:
-        return False
+def audit_official_package_inventory(
+    target_version, upstream_versions, pkgbuilds, lts=False
+):
+    """Validate the explicit package-to-layer map against pinned PKGBUILDs."""
+    clean_target = clean_version_helper(target_version)
+    errors = []
 
-    target_tuple = parse_version_tuple(target_version)
-    config_tuple = parse_version_tuple(config_version)
+    if lts:
+        if upstream_versions.get("linux-cachyos-lts") != clean_target:
+            errors.append(
+                "linux-cachyos-lts does not target the requested LTS version"
+            )
+        elif "_cpusched:=cachyos" not in pkgbuilds.get("linux-cachyos-lts", ""):
+            errors.append("linux-cachyos-lts: upstream scheduler default changed")
+        return errors
 
-    return target_tuple <= config_tuple
+    for package, patterns in OFFICIAL_PACKAGE_PATTERNS.items():
+        if upstream_versions.get(package) != clean_target:
+            continue
+        pkgbuild = pkgbuilds.get(package, "")
+        for pattern in patterns:
+            if pattern not in pkgbuild:
+                errors.append(f"{package}: upstream no longer matches: {pattern}")
 
-
-def get_available_use_flags(target_version, upstream_versions):
-    """Determine which USE flags are available based on upstream versions"""
-    available = []
-    unavailable = []
-
-    for flag, configs in USE_FLAG_CONFIG_MAPPING.items():
-        # Check if any associated config supports the target version
-        is_available = any(
-            compare_kernel_versions(target_version, upstream_versions.get(config))
-            for config in configs
+    if upstream_versions.get("linux-cachyos-hardened") == clean_target:
+        errors.append(
+            "linux-cachyos-hardened now targets this version; audit applicability "
+            "and add it to the explicit layered inventory or document exclusion"
         )
 
-        if is_available:
-            available.append(flag)
-        else:
-            unavailable.append(flag)
-            log(f"USE flag '{flag}' not available for version {target_version}", "INFO")
-
-    return available, unavailable
+    return errors
 
 
-def remove_use_flags_from_iuse(content, flags_to_remove):
-    """Remove specified USE flags from IUSE declaration"""
-    if not flags_to_remove:
-        return content
+def get_kernel_patch_paths(patches_commit):
+    """Fetch paths in the pinned kernel-patches tree."""
+    url = (
+        "https://api.github.com/repos/CachyOS/kernel-patches/git/trees/"
+        f"{patches_commit}?recursive=1"
+    )
+    try:
+        with urlopen(url) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        return {entry["path"] for entry in data.get("tree", []) if "path" in entry}
+    except Exception as e:
+        log(f"Could not inspect kernel-patches tree: {e}", "ERROR")
+        return None
 
-    # Sort flags by length (descending) to remove longer flags first
-    # This prevents "rt-bore" from being partially matched when removing "rt"
-    flags_to_remove = sorted(flags_to_remove, key=len, reverse=True)
 
-    # Build regex pattern to match IUSE block
-    iuse_pattern = r'(IUSE="[^"]*")'
-    match = re.search(iuse_pattern, content, re.DOTALL)
+def audit_hidden_patch_inventory(target_version, patch_paths, lts=False):
+    """Ensure every validated hidden feature still exists at its evidenced path."""
+    clean_target = clean_version_helper(target_version)
+    series = ".".join(clean_target.split(".")[:2])
+    errors = []
 
+    if lts:
+        return errors
+
+    for feature, details in VALIDATED_HIDDEN_FEATURES.get(clean_target, {}).items():
+        path = f"{series}/{details['path']}"
+        if path not in patch_paths:
+            errors.append(f"{feature}: validated hidden patch disappeared: {path}")
+
+    for feature, basename in {
+        "hardened": "0001-hardened.patch",
+        "bmq-lfbmq": "lfbmq",
+    }.items():
+        if any(
+            path.startswith(f"{series}/") and basename in path
+            for path in patch_paths
+        ):
+            errors.append(
+                f"{feature}: candidate patch appeared for {series}; validate exact-version "
+                "applicability, then expose it or update the documented exclusion"
+            )
+
+    return errors
+
+
+def extract_iuse_flags(content):
+    """Return normalized USE flags declared in the first IUSE block."""
+    match = re.search(r'IUSE="([^"]*)"', content, re.DOTALL)
     if not match:
-        log("Could not find IUSE declaration", "WARN")
-        return content
-
-    iuse_block = match.group(1)
-    new_iuse_block = iuse_block
-
-    for flag in flags_to_remove:
-        # Remove flag with optional + prefix (for default enabled)
-        # Use word boundaries to avoid partial matches
-        # Pattern: optional +, the flag name, followed by whitespace or end quote
-        new_iuse_block = re.sub(r'(?<![a-zA-Z0-9_-])\+?' + re.escape(flag) + r'(?=\s|")', '', new_iuse_block)
-
-    # Clean up multiple spaces and empty lines
-    new_iuse_block = re.sub(r'  +', ' ', new_iuse_block)
-    new_iuse_block = re.sub(r'\t +', '\t', new_iuse_block)
-    new_iuse_block = re.sub(r' +\n', '\n', new_iuse_block)
-
-    return content.replace(iuse_block, new_iuse_block)
+        return set()
+    return {flag.lstrip("+") for flag in match.group(1).split()}
 
 
-def remove_use_flags_from_src_prepare(content, flags_to_remove):
-    """Replace 'use <flag>' with 'false' for unavailable USE flags in src_prepare"""
-    if not flags_to_remove:
-        return content
+def get_expected_features(target_version, upstream_versions, lts=False):
+    """Return explicit official and validated hidden features for the target."""
+    clean_target = clean_version_helper(target_version)
+    expected = set()
 
-    for flag in flags_to_remove:
-        # Replace "use <flag>" with "false"
-        content = re.sub(r'\buse ' + re.escape(flag) + r'\b', 'false', content)
+    if lts:
+        if upstream_versions.get("linux-cachyos-lts") == clean_target:
+            expected.add("eevdf")
+        return expected
 
-    return content
+    for package, features in OFFICIAL_PACKAGE_FEATURES.items():
+        if upstream_versions.get(package) == clean_target:
+            expected.update(features)
+
+    expected.update(VALIDATED_HIDDEN_FEATURES.get(clean_target, {}))
+    return expected
 
 
-def remove_use_flags_from_required_use(content, flags_to_remove):
-    """Remove specified USE flags from REQUIRED_USE declaration"""
-    if not flags_to_remove:
-        return content
+def audit_feature_inventory(content, target_version, upstream_versions, lts=False):
+    """Read-only gate for expected feature declarations and implementation wiring."""
+    declared = extract_iuse_flags(content)
+    expected = get_expected_features(target_version, upstream_versions, lts)
+    errors = []
 
-    # Sort flags by length (descending) to process longer flags first
-    flags_to_remove = sorted(flags_to_remove, key=len, reverse=True)
+    for feature in sorted(expected):
+        if feature not in declared:
+            errors.append(f"missing IUSE flag: {feature}")
+            continue
+        if lts:
+            continue
+        for pattern in AUDIT_PATTERNS[feature]:
+            if pattern not in content:
+                errors.append(f"{feature}: missing wiring pattern: {pattern}")
 
-    # Find scheduler constraint line: ^^ ( bore bmq rt rt-bore eevdf )
-    # Use a more flexible pattern that matches any content within ^^ ( ... )
-    scheduler_pattern = r'(\^\^ \( )([a-z-]+(?: [a-z-]+)*)( \))'
+    if "cachyos" in declared:
+        errors.append("cachyos must not be a separate scheduler USE flag")
 
-    def replace_scheduler_constraint(match):
-        prefix = match.group(1)
-        flags_str = match.group(2)
-        suffix = match.group(3)
-
-        # Only process the first ^^ constraint (scheduler selection)
-        scheduler_flags = flags_str.split()
-
-        # Check if this looks like scheduler flags (contains bore, bmq, etc.)
-        scheduler_keywords = {'bore', 'bmq', 'rt', 'rt-bore', 'eevdf'}
-        if not any(f in scheduler_keywords for f in scheduler_flags):
-            return match.group(0)  # Not the scheduler constraint, return unchanged
-
-        # Remove unavailable flags
-        available_flags = [f for f in scheduler_flags if f not in flags_to_remove]
-
-        if available_flags:
-            return prefix + ' '.join(available_flags) + suffix
-        else:
-            # All scheduler flags removed - this shouldn't happen in normal cases
-            log("Warning: All scheduler flags would be removed!", "WARN")
-            return match.group(0)
-
-    # Replace only the first matching scheduler constraint
-    new_content, count = re.subn(scheduler_pattern, replace_scheduler_constraint, content, count=1)
-    if count > 0:
-        # Extract what we replaced to for logging
-        match = re.search(scheduler_pattern, new_content)
-        if match:
-            log(f"Updated scheduler constraint: ^^ ( {match.group(2)} )")
-    content = new_content
-
-    # Remove individual flag constraints (e.g., rt? ( ... ))
-    for flag in flags_to_remove:
-        # Remove lines like: rt? ( ^^ ( preempt_full preempt_lazy preempt_voluntary ) )
-        content = re.sub(
-            r'\n\t' + re.escape(flag) + r'\? \( [^\n]+\)',
-            '',
-            content
+    validated_hidden = set(VALIDATED_HIDDEN_FEATURES.get(
+        clean_version_helper(target_version), {}
+    ))
+    hidden_features = {
+        feature
+        for features in VALIDATED_HIDDEN_FEATURES.values()
+        for feature in features
+    }
+    for feature in sorted((declared & hidden_features) - validated_hidden):
+        errors.append(
+            f"{feature}: declared without exact-version applicability evidence"
         )
 
-    return content
+    if lts:
+        return errors
+
+    for feature, exclusion in DOCUMENTED_EXCLUSIONS.items():
+        if feature not in declared and exclusion not in content:
+            errors.append(f"{feature}: missing documented exclusion: {exclusion}")
+
+    return errors
+
+
+def report_feature_audit(errors, prefix=""):
+    """Log deterministic feature audit results."""
+    label = f"{prefix}: " if prefix else ""
+    if not errors:
+        log(f"{label}layered feature inventory is complete")
+        return True
+    for error in errors:
+        log(f"{label}{error}", "ERROR")
+    return False
 
 
 def get_latest_kernel_version():
@@ -519,10 +617,11 @@ def copy_and_update_ebuild(
     new_ebuild_name = f"cachyos-sources-{new_version}.ebuild"
     new_ebuild_path = Path(ebuild_dir) / new_ebuild_name
 
-    if new_ebuild_path.exists() and not force:
+    target_existed = new_ebuild_path.exists()
+    if target_existed and not force:
         log(f"Ebuild {new_ebuild_name} already exists", "ERROR")
         return None
-    elif new_ebuild_path.exists() and force:
+    elif target_existed and force:
         log(
             f"Ebuild {new_ebuild_name} already exists, but --force specified, overwriting",
             "WARN",
@@ -537,30 +636,31 @@ def copy_and_update_ebuild(
             template_path, template_version, new_version, ebuild_dir, lts
         )
         log(
-            f"DRY RUN: Would copy and update ebuild with genpatches version {genpatches_version}",
+            f"DRY RUN: Would generate an ebuild with genpatches version {genpatches_version}",
             "INFO",
         )
         if source_pkgrel is not None:
             log(f"DRY RUN: Would use CachyOS source pkgrel {source_pkgrel}", "INFO")
 
-        # Show which template USE flags would be removed. Missing variants are
-        # never auto-added: they require explicit patch/config wiring and tests.
         if not skip_version_check and upstream_versions:
-            _, unavailable_flags = get_available_use_flags(new_version, upstream_versions)
-            if unavailable_flags:
-                log(f"DRY RUN: Would remove USE flags: {', '.join(unavailable_flags)}", "INFO")
-            else:
-                log("DRY RUN: All template USE flags available for this version", "INFO")
+            template_content = Path(template_path).read_text()
+            errors = audit_feature_inventory(
+                template_content, new_version, upstream_versions, lts
+            )
+            if errors:
+                report_feature_audit(errors, "DRY RUN")
+                log(
+                    "DRY RUN: Generation would stop before writing an ebuild",
+                    "ERROR",
+                )
+                return False
+            report_feature_audit(errors, "DRY RUN")
 
         return new_ebuild_path
 
-    # Copy template to new location (only if different files)
-    if template_path != new_ebuild_path:
-        shutil.copy2(template_path, new_ebuild_path)
-
-    # Read content for updating
-    with open(new_ebuild_path, "r") as f:
-        content = f.read()
+    # Build the candidate entirely in memory. The omission gate is read-only:
+    # an existing --force target must remain byte-for-byte intact on failure.
+    content = Path(template_path).read_text()
 
     # Extract template version for comparison
     template_version = extract_version_from_ebuild_name(template_path)
@@ -610,61 +710,22 @@ def copy_and_update_ebuild(
         )
         log(f"Updated ZFS_COMMIT to: {zfs_commit[:12]}...")
 
-    # Update any version-specific comments or variables if needed
-    # This could be extended for version-specific patches
-
-    # Check upstream config versions and remove unavailable template USE flags.
-    # Do not synthesize missing variants: each needs explicit SRC_URI/prepare wiring
-    # plus an apply test against the exact source release.
+    # Audit only. Package paths represent layered combinations, and hidden
+    # scheduler families require explicit applicability evidence; never infer
+    # mutations from package names or silently add/delete implementation paths.
     if not skip_version_check and upstream_versions:
-        _, unavailable_flags = get_available_use_flags(new_version, upstream_versions)
+        errors = audit_feature_inventory(
+            content, new_version, upstream_versions, lts
+        )
+        if not report_feature_audit(errors):
+            return None
 
-        if unavailable_flags:
-            log(f"Removing unavailable USE flags: {', '.join(unavailable_flags)}")
-            content = remove_use_flags_from_iuse(content, unavailable_flags)
-            content = remove_use_flags_from_required_use(content, unavailable_flags)
-            content = remove_use_flags_from_src_prepare(content, unavailable_flags)
-
-    # Write updated content back
+    # Write only after every transformation and omission audit succeeds.
     with open(new_ebuild_path, "w") as f:
         f.write(content)
 
     log(f"Updated genpatches version to: {genpatches_version}")
     return new_ebuild_path
-
-
-def update_zfs_commit(ebuild_path, zfs_commit_hash, dry_run=False):
-    """Update the ZFS_COMMIT variable in the ebuild"""
-    if not zfs_commit_hash:
-        log("No ZFS commit hash provided, skipping ZFS commit update", "WARN")
-        return
-
-    if dry_run:
-        log(f"DRY RUN: Would update ZFS_COMMIT to {zfs_commit_hash[:12]}...")
-        return
-
-    try:
-        with open(ebuild_path, "r") as f:
-            content = f.read()
-
-        # Replace existing ZFS_COMMIT line
-        if re.search(r'^ZFS_COMMIT="[a-f0-9]{40}"$', content, re.MULTILINE):
-            content = re.sub(
-                r'^ZFS_COMMIT="[a-f0-9]{40}"$',
-                f'ZFS_COMMIT="{zfs_commit_hash}"',
-                content,
-                flags=re.MULTILINE,
-            )
-            log(f"Updated ZFS_COMMIT to: {zfs_commit_hash[:12]}...")
-        else:
-            log("ZFS_COMMIT line not found in ebuild", "WARN")
-            return
-
-        with open(ebuild_path, "w") as f:
-            f.write(content)
-
-    except Exception as e:
-        log(f"Error updating ZFS commit: {e}", "ERROR")
 
 
 def check_sudo_available():
@@ -744,7 +805,7 @@ def main():
     parser.add_argument(
         "--skip-version-check",
         action="store_true",
-        help="Skip upstream config version check, keep all USE flags"
+        help="Skip the layered upstream feature audit"
     )
     parser.add_argument(
         "--source-pkgrel",
@@ -805,17 +866,37 @@ def main():
     if not template_ebuild:
         sys.exit(1)
 
-    # Fetch upstream config versions for USE flag availability check
+    patches_commit = get_repository_commit("kernel-patches")
+    configs_commit = get_repository_commit("linux-cachyos")
+    if not patches_commit or not configs_commit:
+        log("Could not determine pinned upstream commits", "ERROR")
+        sys.exit(1)
+
     upstream_versions = None
     if not args.skip_version_check:
-        log("Checking upstream config versions...")
-        upstream_versions = get_upstream_config_versions()
-        if not upstream_versions:
-            log("Could not fetch upstream versions, skipping USE flag check", "WARN")
-    else:
-        log("Skipping upstream version check (--skip-version-check)")
+        log("Auditing layered upstream feature inventory...")
+        upstream_versions, pkgbuilds = fetch_upstream_package_data(configs_commit)
+        if len(upstream_versions) != len(UPSTREAM_PACKAGES):
+            missing = sorted(set(UPSTREAM_PACKAGES) - set(upstream_versions))
+            log("Could not fetch upstream packages: " + ", ".join(missing), "ERROR")
+            sys.exit(1)
 
-    # Copy and update ebuild
+        patch_paths = get_kernel_patch_paths(patches_commit)
+        if patch_paths is None:
+            sys.exit(1)
+
+        upstream_errors = audit_official_package_inventory(
+            target_version, upstream_versions, pkgbuilds, args.lts
+        )
+        upstream_errors.extend(
+            audit_hidden_patch_inventory(target_version, patch_paths, args.lts)
+        )
+        if not report_feature_audit(upstream_errors, "UPSTREAM"):
+            sys.exit(1)
+    else:
+        log("Skipping layered upstream feature audit (--skip-version-check)")
+
+    # Copy and update ebuild only after the read-only omission gate passes.
     new_ebuild_path = copy_and_update_ebuild(
         template_ebuild, target_version, ebuild_dir, args.dry_run, args.force, args.lts,
         args.skip_version_check, upstream_versions, args.source_pkgrel
@@ -824,11 +905,6 @@ def main():
     if not new_ebuild_path:
         sys.exit(1)
 
-    patches_commit = get_repository_commit("kernel-patches")
-    configs_commit = get_repository_commit("linux-cachyos")
-    if not patches_commit or not configs_commit:
-        log("Could not determine pinned upstream commits", "ERROR")
-        sys.exit(1)
     if not update_upstream_commits(
         new_ebuild_path, patches_commit, configs_commit, args.dry_run
     ):

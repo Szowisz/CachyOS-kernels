@@ -16,10 +16,12 @@
     <flag name="bmq-lfbmq">PRJC BMQ scheduler with the LFBMQ (lock-free bitmap queue) runqueue variant from kernel-patches</flag>
     <flag name="rt">EEVDF scheduler with realtime patches for low-latency applications</flag>
     <flag name="rt-bore">BORE scheduler with realtime patches for low-latency applications</flag>
-    <flag name="eevdf">Default Linux EEVDF (Earliest Eligible Virtual Deadline First) scheduler</flag>
+    <flag name="eevdf">Linux EEVDF scheduler with the CachyOS POC idle CPU selector</flag>
+    <flag name="muqss">MuQSS scheduler patchset carried in CachyOS kernel-patches</flag>
+    <flag name="server">Apply the upstream server preset: EEVDF, 300 Hz, lazy preemption, no LTO, and CachyOS config tweaks disabled</flag>
 
     <!-- Hardware-specific patches -->
-    <flag name="deckify">Steam-Deck-style handheld variant: applies the upstream handheld + acpi-call patchsets (Steam Deck, ASUS Ally, MSI Claw, ZOTAC Zone support) on top of the BORE scheduler, following linux-cachyos-deckify</flag>
+    <flag name="deckify">Apply the upstream handheld and ACPI patchsets and enable Steam Deck, ASUS Ally, Lenovo Go, MSI Claw, and ZOTAC Zone support with the selected scheduler</flag>
 
     <!-- Toolchain -->
     <flag name="clang">Build the kernel using Clang/LLVM toolchain instead of GCC (required for LTO and KCFI)</flag>
@@ -36,6 +38,7 @@
     <flag name="llvm-lto-thin">Enable LLVM thin LTO (Link Time Optimization) - uses multiple threads, faster compilation, less memory usage</flag>
     <flag name="llvm-lto-full">Enable LLVM full LTO - single threaded, slower compilation, more memory usage, potentially highest performance</flag>
     <flag name="llvm-lto-thin-dist">Enable LLVM thin LTO with distributed model rather than in-process linking</flag>
+    <flag name="llvm-lto-none">Disable LLVM link-time optimization</flag>
 
     <!-- ZFS support -->
     <flag name="kernel-builtin-zfs">Build ZFS module directly into the kernel (not recommended, use sys-fs/zfs-kmod instead)</flag>

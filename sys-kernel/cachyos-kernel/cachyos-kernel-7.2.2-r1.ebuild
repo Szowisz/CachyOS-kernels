@@ -16,7 +16,7 @@ CACHYOS_PR="1"
 # CachyOS pre-patched tarball
 MY_P="cachyos-$(ver_cut 1-3)-${CACHYOS_PR}"
 
-# Gentoo has not published 7.2.1 yet. Keep the 7.2 patchset until it does.
+# Gentoo genpatches for the 7.2 series.
 GENPATCHES_VER=3
 
 # ZFS commit for kernel-builtin-zfs support
@@ -36,18 +36,38 @@ SRC_URI="
 	https://github.com/CachyOS/linux/releases/download/${MY_P}/${MY_P}.tar.gz
 	https://dev.gentoo.org/~mpagano/dist/genpatches/genpatches-$(ver_cut 1-2)-${GENPATCHES_VER}.base.tar.xz
 	https://dev.gentoo.org/~mpagano/dist/genpatches/genpatches-$(ver_cut 1-2)-${GENPATCHES_VER}.extras.tar.xz
-	${CACHYOS_PATCH_URI}/sched/0001-bore-cachy.patch
-		-> ${CACHYOS_PATCH_PREFIX}-bore.patch
-	${CACHYOS_PATCH_URI}/misc/0001-rt-i915.patch
-		-> ${CACHYOS_PATCH_PREFIX}-rt-i915.patch
+	${CACHYOS_CONFIG_URI}/linux-cachyos/config
+		-> ${CACHYOS_CONFIG_PREFIX}-config
+	bore? (
+		${CACHYOS_PATCH_URI}/sched/0001-bore-cachy.patch
+			-> ${CACHYOS_PATCH_PREFIX}-bore.patch
+	)
+	bmq? (
+		${CACHYOS_PATCH_URI}/sched/0001-prjc-cachy.patch
+			-> ${CACHYOS_PATCH_PREFIX}-prjc.patch
+	)
+	muqss? (
+		${CACHYOS_PATCH_URI}/sched/0001-muqss-cachy.patch
+			-> ${CACHYOS_PATCH_PREFIX}-muqss.patch
+	)
+	deckify? (
+		${CACHYOS_PATCH_URI}/misc/0001-acpi-call.patch
+			-> ${CACHYOS_PATCH_PREFIX}-acpi-call.patch
+		${CACHYOS_PATCH_URI}/misc/0001-handheld.patch
+			-> ${CACHYOS_PATCH_PREFIX}-handheld.patch
+	)
+	rt? (
+		${CACHYOS_PATCH_URI}/misc/0001-rt-i915.patch
+			-> ${CACHYOS_PATCH_PREFIX}-rt-i915.patch
+	)
+	rt-bore? (
+		${CACHYOS_PATCH_URI}/sched/0001-bore-cachy.patch
+			-> ${CACHYOS_PATCH_PREFIX}-bore.patch
+		${CACHYOS_PATCH_URI}/misc/0001-rt-i915.patch
+			-> ${CACHYOS_PATCH_PREFIX}-rt-i915.patch
+	)
 	${CACHYOS_PATCH_URI}/misc/dkms-clang.patch
 		-> ${CACHYOS_PATCH_PREFIX}-dkms-clang.patch
-	${CACHYOS_CONFIG_URI}/linux-cachyos/config
-		-> ${CACHYOS_CONFIG_PREFIX}-config-bore
-	${CACHYOS_CONFIG_URI}/linux-cachyos-eevdf/config
-		-> ${CACHYOS_CONFIG_PREFIX}-config-eevdf
-	${CACHYOS_CONFIG_URI}/linux-cachyos-rt-bore/config
-		-> ${CACHYOS_CONFIG_PREFIX}-config-rt-bore
 	kernel-builtin-zfs? (
 		https://github.com/cachyos/zfs/archive/${ZFS_COMMIT}.tar.gz
 			-> zfs-${ZFS_COMMIT}.tar.gz
@@ -58,8 +78,8 @@ S="${WORKDIR}/${MY_P}"
 LICENSE="GPL-3"
 KEYWORDS="~amd64"
 IUSE="
-	+bore rt rt-bore eevdf
-	kcfi
+	+bore bmq muqss rt rt-bore eevdf
+	server deckify kcfi
 	+clang +autofdo +propeller
 	+llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none
 	kernel-builtin-zfs
@@ -70,13 +90,19 @@ IUSE="
 	mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4
 	+mnative mzen4
 "
-# Patchsets discovered upstream but not exposed for this release:
-# - BMQ/PRJC and MuQSS both fail at kernel/sched/fair.c hunk 27.
-# - Deckify handheld fails at drivers/hid/hid-asus.c hunk 6.
-# Recheck these exact pinned files on the next update.
+# Scheduler patches carried in kernel-patches but unavailable for 7.2:
+# - hardened remains on 7.1.8
+# - PRJC-LFBMQ has no 7.2 patch family
+# - bare non-Cachy BORE is not used by packaged CachyOS variants
 REQUIRED_USE="
-	^^ ( bore rt rt-bore eevdf )
-	propeller? ( !llvm-lto-full )
+	^^ ( bore bmq muqss rt rt-bore eevdf )
+	server? (
+		eevdf
+		hz_ticks_300 tickrate_full preempt_lazy !per-gov
+		llvm-lto-none !autofdo !propeller
+		o3 hugepage_always
+	)
+	propeller? ( clang !llvm-lto-full !llvm-lto-none )
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )
 	^^ ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none )
 	llvm-lto-thin? ( clang )
@@ -198,25 +224,34 @@ src_prepare() {
 	# Fix AutoFDO/Propeller support for LTO_CLANG_THIN_DIST
 	eapply "${FILESDIR}/6.19.0/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
 
-	# Apply scheduler-specific patches and copy config
-	if use bore; then
+	# The 7.2.2 stable update changed a block that PRJC and MuQSS remove.
+	# Restore the patchsets' expected preimage before applying either series.
+	if use bmq || use muqss; then
+		eapply "${FILESDIR}/7.2.2-prjc-muqss-prereq.patch"
+	fi
+
+	# Apply scheduler-specific patches.
+	if use bore || use rt-bore; then
 		eapply "${patches_prefix}-bore.patch"
-		cp "${configs_prefix}-config-bore" .config || die
+	elif use bmq; then
+		eapply "${patches_prefix}-prjc.patch"
+	elif use muqss; then
+		eapply "${patches_prefix}-muqss.patch"
 	fi
 
-	if use eevdf; then
-		cp "${configs_prefix}-config-eevdf" .config || die
-	fi
-
-	if use rt; then
+	if use rt || use rt-bore; then
 		eapply "${patches_prefix}-rt-i915.patch"
-		cp "${configs_prefix}-config-rt-bore" .config || die
 	fi
 
-	if use rt-bore; then
-		eapply "${patches_prefix}-rt-i915.patch"
-		eapply "${patches_prefix}-bore.patch"
-		cp "${configs_prefix}-config-rt-bore" .config || die
+	cp "${configs_prefix}-config" .config || die
+
+	if use deckify; then
+		eapply "${patches_prefix}-acpi-call.patch"
+		eapply "${patches_prefix}-handheld.patch"
+	fi
+
+	if use clang; then
+		eapply "${patches_prefix}-dkms-clang.patch"
 	fi
 
 	# Apply user patches (from /etc/portage/patches/)
@@ -224,21 +259,44 @@ src_prepare() {
 
 	# --- Kernel config modifications ---
 
-	### Selecting CachyOS config
-	scripts/config -e CACHY || die
+	if use server; then
+		scripts/config -d CACHY || die
+	else
+		scripts/config -e CACHY || die
+	fi
 
-	### Selecting the CPU scheduler
-	# CachyOS Scheduler (BORE)
 	if use bore; then
 		scripts/config -e SCHED_BORE || die
-	fi
-
-	if use rt; then
+	elif use bmq; then
+		scripts/config -e SCHED_ALT -e SCHED_BMQ || die
+	elif use muqss; then
+		scripts/config -e SCHED_MUQSS -e MUQSS_IOTIME || die
+	elif use rt; then
 		scripts/config -e PREEMPT_RT || die
+	elif use rt-bore; then
+		scripts/config -e SCHED_BORE -e PREEMPT_RT || die
+	elif use eevdf; then
+		scripts/config -e SCHED_POC_SELECTOR || die
 	fi
 
-	if use rt-bore; then
-		scripts/config -e SCHED_BORE -e PREEMPT_RT || die
+	if use deckify; then
+		scripts/config \
+			-d RCU_LAZY_DEFAULT_OFF \
+			-e AMD_PRIVATE_COLOR \
+			-m SENSORS_STEAMDECK \
+			-m MFD_STEAMDECK \
+			-m SND_SOC_AW87XXX \
+			-m HID_ASUS_ALLY \
+			-m HID_LENOVO_GO \
+			-m HID_LENOVO_GO_S \
+			-m HID_MSI_CLAW \
+			-m ZOTAC_ZONE_HID \
+			-m LEDS_STEAMDECK \
+			-m LEDS_VALVE \
+			-e ACPI_CALL \
+			-m ZOTAC_ZONE_PLATFORM \
+			-m EXTCON_STEAMDECK \
+			-m HID_MSI || die
 	fi
 
 	### Enable KCFI
@@ -251,25 +309,26 @@ src_prepare() {
 
 	### Select LLVM level
 	if use llvm-lto-thin; then
-		scripts/config -e LTO_CLANG_THIN || die
+		scripts/config -d LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN_DIST \
+			-e LTO_CLANG_THIN || die
 	elif use llvm-lto-thin-dist; then
-		scripts/config -e LTO_CLANG_THIN_DIST || die
+		scripts/config -d LTO_NONE -d LTO_CLANG_FULL -d LTO_CLANG_THIN \
+			-e LTO_CLANG_THIN_DIST || die
 	elif use llvm-lto-full; then
-		scripts/config -e LTO_CLANG_FULL || die
+		scripts/config -d LTO_NONE -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST \
+			-e LTO_CLANG_FULL || die
 	elif use llvm-lto-none; then
-		scripts/config -e LTO_NONE || die
+		scripts/config -d LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST \
+			-e LTO_NONE || die
 	fi
 
-	if ! use llvm-lto-thin && ! use llvm-lto-full && ! use llvm-lto-thin-dist; then
+	if use llvm-lto-none; then
 		scripts/config --set-str DRM_PANIC_SCREEN qr_code -e DRM_PANIC_SCREEN_QR_CODE \
 			--set-str DRM_PANIC_SCREEN_QR_CODE_URL "https://panic.archlinux.org/panic_report#" \
-			--set-val CONFIG_DRM_PANIC_SCREEN_QR_VERSION 40 || die
+			--set-val DRM_PANIC_SCREEN_QR_VERSION 40 || die
 	fi
 
-	## LLVM patch
-	if use kcfi || use llvm-lto-thin || use llvm-lto-full || use llvm-lto-thin-dist; then
-		eapply "${patches_prefix}-dkms-clang.patch"
-	fi
+	## LLVM patch is applied with the other source patches above.
 
 	### Select tick rate
 	if use hz_ticks_100; then
@@ -321,19 +380,15 @@ src_prepare() {
 		fi
 	fi
 
-	### Enable O3
+	### Select compiler optimization
 	if use o3; then
 		scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE -e CC_OPTIMIZE_FOR_PERFORMANCE_O3 || die
-	fi
-
-	if use os; then
-		scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE -e CONFIG_CC_OPTIMIZE_FOR_SIZE || die
-	fi
-
-	if use debug; then
+	elif use os; then
+		scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE -e CC_OPTIMIZE_FOR_SIZE || die
+	elif use debug; then
 		scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE \
 			-d CC_OPTIMIZE_FOR_PERFORMANCE_O3 \
-			-e CONFIG_CC_OPTIMIZE_FOR_SIZE \
+			-e CC_OPTIMIZE_FOR_SIZE \
 			-d SLUB_DEBUG \
 			-d PM_DEBUG \
 			-d PM_ADVANCED_DEBUG \
@@ -359,8 +414,8 @@ src_prepare() {
 			--set-str DEFAULT_TCP_CONG bbr3 \
 			-m NET_SCH_FQ_CODEL \
 			-e NET_SCH_FQ \
-			-d CONFIG_DEFAULT_FQ_CODEL \
-			-e CONFIG_DEFAULT_FQ || die
+			-d DEFAULT_FQ_CODEL \
+			-e DEFAULT_FQ || die
 	fi
 
 	### Select THP

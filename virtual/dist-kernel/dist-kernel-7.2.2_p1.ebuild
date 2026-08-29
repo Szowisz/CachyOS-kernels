@@ -8,5 +8,5 @@ SLOT="0/${PVR}"
 KEYWORDS="~amd64"
 
 RDEPEND="
-	=sys-kernel/cachyos-kernel-${PV%_p*}-r0
+	=sys-kernel/cachyos-kernel-${PV%_p*}-r1
 "

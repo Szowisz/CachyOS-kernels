@@ -385,8 +385,8 @@ pkg_pretend() {
 pkg_setup() {
 	ewarn ""
 	ewarn "${PN} is *not* supported by the Gentoo Kernel Project in any way."
-	ewarn "Report kernel problems to the CachyOS project."
-	ewarn "Report ebuild problems to https://github.com/Szowisz/CachyOS-kernels."
+	ewarn "Report ebuild and kernel problems to https://github.com/Szowisz/CachyOS-kernels."
+	ewarn "Report kernel problems to the CachyOS project, if you sure it's due to upstream."
 	ewarn "Do *not* open bugs in Gentoo's bugzilla. Thank you."
 	ewarn ""
 

@@ -490,9 +490,9 @@ pkg_postinst() {
 
 	ewarn ""
 	ewarn "${PN} is *not* supported by the Gentoo Kernel Project in any way."
-	ewarn "If you need support, please contact the CachyOS project or the overlay maintainer."
-	ewarn "Do *not* open bugs in Gentoo's bugzilla unless you have issues with"
-	ewarn "the ebuilds. Thank you."
+	ewarn "Report kernel problems to the CachyOS project."
+	ewarn "Report ebuild problems to https://github.com/Szowisz/CachyOS-kernels."
+	ewarn "Do *not* open bugs in Gentoo's bugzilla. Thank you."
 	ewarn ""
 
 	if use mnative; then

@@ -247,9 +247,10 @@ pkg_postinst() {
 
 	ewarn ""
 	ewarn "${PN} is a pre-built CachyOS kernel from CachyOS mirrors."
-	ewarn "It is *not* supported by the Gentoo Kernel Project or CachyOS."
-	ewarn "If you need support, contact the overlay maintainer."
-	ewarn "Do *not* open bugs in Gentoo's bugzilla."
+	ewarn "${PN} is *not* supported by the Gentoo Kernel Project in any way."
+	ewarn "Report kernel problems to the CachyOS project."
+	ewarn "Report ebuild problems to https://github.com/Szowisz/CachyOS-kernels."
+	ewarn "Do *not* open bugs in Gentoo's bugzilla. Thank you."
 	ewarn ""
 	ewarn "This kernel is built for x86-64-v3 (requires AVX2)."
 	ewarn "If your CPU does not support x86-64-v3, use sys-kernel/cachyos-kernel instead."

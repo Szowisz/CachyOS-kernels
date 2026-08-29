@@ -24,6 +24,7 @@ UNIPATCH_EXCLUDE="10 2700"
 # CachyOS tarball already includes the point release, while we skip Gentoo's
 # 10xx point-release genpatches above.
 K_NO_VERSION_CHECK="1"
+K_SECURITY_UNSUPPORTED="1"
 
 ZFS_COMMIT="c681af76c5a6a15caada25eb13090e41218c7831"
 
@@ -408,6 +409,17 @@ src_prepare() {
 
 	### Set LOCALVERSION
 	#scripts/config --set-str LOCALVERSION "${PVR}" || die
+}
+
+pkg_setup() {
+	ewarn ""
+	ewarn "${PN} is *not* supported by the Gentoo Kernel Project in any way."
+	ewarn "Report kernel problems to the CachyOS project."
+	ewarn "Report ebuild problems to https://github.com/Szowisz/CachyOS-kernels."
+	ewarn "Do *not* open bugs in Gentoo's bugzilla. Thank you."
+	ewarn ""
+
+	kernel-2_pkg_setup
 }
 
 pkg_postinst() {

@@ -19,7 +19,7 @@ At minimum, audit:
 - dependencies, source URIs, release/pkgrel mappings, and binary asset names
 - installed files, package splits, build options, and mutually exclusive combinations
 
-Do not copy an old ebuild, change only its version, and assume it is current. For every upstream capability, identify the corresponding ebuild USE flag/logic, or document a concrete compatibility reason for excluding it. When upstream removes or renames functionality, remove or rename the stale downstream flag, conditional branch, patch reference, and distfile entry as appropriate. The audit must cover `cachyos-sources`, `cachyos-kernel`, and `cachyos-kernel-bin` independently because their upstream feature sets can differ.
+Do not copy an old ebuild, change only its version, and assume it is current. For every upstream capability, identify the corresponding ebuild USE flag/logic, or document a concrete compatibility reason for excluding it. When upstream removes or renames functionality, remove or rename the stale downstream flag, conditional branch, patch reference, and distfile entry as appropriate. Whenever a package adds, removes, or renames a local USE flag, update its `metadata.xml` flag description in the same change. The audit must cover `cachyos-sources`, `cachyos-kernel`, and `cachyos-kernel-bin` independently because their upstream feature sets can differ.
 
 ### 2. Exhaustively mine both canonical CachyOS kernel repositories
 

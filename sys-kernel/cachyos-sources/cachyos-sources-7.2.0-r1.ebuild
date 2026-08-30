@@ -7,9 +7,6 @@ ETYPE="sources"
 EXTRAVERSION="-cachyos"
 K_NOSETEXTRAVERSION="1"
 
-# Use pre-patched CachyOS tarball from GitHub releases
-K_PREPATCHED="1"
-
 # linux-cachyos commit 59d24459dc refreshed the 7.2.0 BMQ config without a
 # new source release, so this Gentoo revbump still uses cachyos-7.2.0-1.
 CACHYOS_PR="1"
@@ -152,8 +149,6 @@ src_unpack() {
 
 src_prepare() {
 	local files_dir="${FILESDIR}/${PVR}"
-	local cachyos_revision="${PR#r}"
-	local cachyos_localversion="-cachyos"
 	local march_flag march=""
 	local -a march_flags=(
 		mgeneric mgeneric-v1 mgeneric-v2 mgeneric-v3 mgeneric-v4 mnative mzen4
@@ -205,12 +200,8 @@ src_prepare() {
 	# CachyOS ships a prebuilt BPF object in its source tarball.
 	rm -f tools/testing/selftests/tc-testing/action-ebpf || die
 
-	# Set kernel version suffix using localversion file (same as upstream PKGBUILD).
-	# Keep non-revision ebuilds at -cachyos; append the Gentoo revision number for -rN.
-	if [[ ${cachyos_revision} != 0 ]]; then
-		cachyos_localversion+="${cachyos_revision}"
-	fi
-	echo "${cachyos_localversion}" > localversion.20-pkgname || die
+	# Keep source directory and kernel release on kernel-2.eclass's revision suffix.
+	echo "${KV_FULL#${PV}}" > localversion.20-pkgname || die
 
 	scripts/config -e CACHY || die
 

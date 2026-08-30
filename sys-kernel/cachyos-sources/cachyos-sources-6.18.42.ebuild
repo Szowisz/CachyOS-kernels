@@ -5,9 +5,6 @@ EAPI="8"
 ETYPE="sources"
 EXTRAVERSION="-cachyos"
 K_NOSETEXTRAVERSION="1"
-# Use pre-patched CachyOS tarball from GitHub releases
-K_PREPATCHED="1"
-
 # CachyOS release number mapping: Gentoo -rN -> CachyOS -N+1
 # -r0 (no revision) -> -1, -r1 -> -2, etc.
 CACHYOS_PR="$((${PR#r} + 1))"
@@ -168,14 +165,8 @@ src_prepare() {
 	#find . -name "localversion*" -delete || die
 	#scripts/config -u LOCALVERSION || die
 
-	# Set kernel version suffix using localversion file (same as upstream PKGBUILD).
-	# Keep non-revision ebuilds at -cachyos; append the Gentoo revision number for -rN.
-	local cachyos_revision="${PR#r}"
-	local cachyos_localversion="-cachyos"
-	if [[ ${cachyos_revision} != 0 ]]; then
-		cachyos_localversion+="${cachyos_revision}"
-	fi
-	echo "${cachyos_localversion}" > localversion.20-pkgname || die
+	# Keep source directory and kernel release on kernel-2.eclass's revision suffix.
+	echo "${KV_FULL#${PV}}" > localversion.20-pkgname || die
 
 	### Selecting CachyOS config
 	scripts/config -e CACHY || die

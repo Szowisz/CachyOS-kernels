@@ -502,13 +502,14 @@ def get_repository_commit(repository):
 
 
 def update_upstream_commits(ebuild_path, patches_commit, configs_commit, dry_run=False):
-    """Update commit-pinned SRC_URI variables in an ebuild."""
+    """Update or add commit-pinned SRC_URI variables in an ebuild."""
     if dry_run:
         log(f"DRY RUN: Would pin kernel-patches to {patches_commit[:12]}...")
         log(f"DRY RUN: Would pin linux-cachyos to {configs_commit[:12]}...")
         return True
 
     content = Path(ebuild_path).read_text()
+    missing = []
     for variable, commit in {
         "CACHYOS_PATCHES_COMMIT": patches_commit,
         "CACHYOS_CONFIGS_COMMIT": configs_commit,
@@ -520,9 +521,20 @@ def update_upstream_commits(ebuild_path, patches_commit, configs_commit, dry_run
             count=1,
             flags=re.MULTILINE,
         )
-        if count != 1:
-            log(f"Could not find {variable} in ebuild", "ERROR")
+        if count == 0:
+            missing.append(f'{variable}="{commit}"')
+
+    if missing:
+        marker = 'K_NOSETEXTRAVERSION="1"\n'
+        if marker not in content:
+            log("Could not find insertion point for upstream commit pins", "ERROR")
             return False
+        content = content.replace(
+            marker,
+            marker + "\n# Pin patch and config inputs so Manifest checks cover exact upstream bytes.\n"
+            + "\n".join(missing) + "\n",
+            1,
+        )
 
     Path(ebuild_path).write_text(content)
     return True

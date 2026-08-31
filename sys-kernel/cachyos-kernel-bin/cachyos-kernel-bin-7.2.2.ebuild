@@ -7,8 +7,8 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit kernel-install toolchain-funcs
 
-# CachyOS package release numbers. Every 7.2.0 mainline binary package on
-# the mirror is at pkgrel 1 and was built from cachyos-7.2.0-1.
+# CachyOS package release numbers. Every 7.2.2 mainline binary package on
+# the mirror is at pkgrel 1 and was built from cachyos-7.2.2-1.
 CACHYOS_SOURCE_PR="1"
 CACHYOS_BIN_PR="1"
 
@@ -61,16 +61,6 @@ SRC_URI+="
 			${MIRROR_V3}/linux-cachyos-bore-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
-	bmq? (
-		lto? (
-			${MIRROR_V3}/linux-cachyos-bmq-lto-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-bmq-lto-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
-		!lto? (
-			${MIRROR_V3}/linux-cachyos-bmq-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-bmq-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
-	)
 	eevdf? (
 		lto? (
 			${MIRROR_V3}/linux-cachyos-eevdf-lto-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
@@ -101,15 +91,25 @@ SRC_URI+="
 			${MIRROR_V3}/linux-cachyos-server-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
+	deckify? (
+		lto? (
+			${MIRROR_V3}/linux-cachyos-deckify-lto-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-deckify-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-deckify-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+	)
 "
 
 S="${WORKDIR}"
 
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
-IUSE="+cachyos bore bmq eevdf rt-bore server +lto gcc debug"
+IUSE="+cachyos bore eevdf rt-bore server deckify +lto gcc debug"
 REQUIRED_USE="
-	^^ ( cachyos bore bmq eevdf rt-bore server )
+	^^ ( cachyos bore eevdf rt-bore server deckify )
 	?? ( lto gcc )
 	cachyos? ( || ( lto gcc ) )
 	gcc? ( cachyos )
@@ -145,14 +145,14 @@ _cachyos_pkg_variant() {
 		use gcc && variant="gcc"
 	elif use bore; then
 		variant="bore"
-	elif use bmq; then
-		variant="bmq"
 	elif use eevdf; then
 		variant="eevdf"
 	elif use rt-bore; then
 		variant="rt-bore"
 	elif use server; then
 		variant="server"
+	elif use deckify; then
+		variant="deckify"
 	fi
 
 	if [[ -n ${variant} && ${variant} != gcc ]] && use lto; then

@@ -10,7 +10,8 @@ K_NOSETEXTRAVERSION="1"
 # Pin patch and config inputs so Manifest checks cover exact upstream bytes.
 CACHYOS_PATCHES_COMMIT="a40b85abdcb9f4ba653e2e1ea89d3d1f0cf563ba"
 CACHYOS_CONFIGS_COMMIT="b165d04e2c7ccfa5f5448957ccb9d61754f20e6e"
-# Source tag is cachyos-6.18.48-2; Gentoo -r1 maps to that pkgrel.
+# Source tag is cachyos-6.18.48-2; Gentoo -r2 is the second corrective
+# revision over that same upstream pkgrel.
 CACHYOS_PR="2"
 
 # Genpatches support - apply base and extras patches on top of CachyOS tarball
@@ -63,6 +64,10 @@ SRC_URI="
 		${CACHYOS_PATCH_URI}/misc/0001-rt-i915.patch
 			-> ${CACHYOS_PATCH_PREFIX}-rt-i915.patch
 	)
+	rt-bore? (
+		${CACHYOS_PATCH_URI}/misc/0001-rt-i915.patch
+			-> ${CACHYOS_PATCH_PREFIX}-rt-i915.patch
+	)
 	${CACHYOS_PATCH_URI}/misc/dkms-clang.patch
 		-> ${CACHYOS_PATCH_PREFIX}-dkms-clang.patch
 	kernel-builtin-zfs? (
@@ -74,7 +79,7 @@ SRC_URI="
 LICENSE+=" kernel-builtin-zfs? ( BSD-2 CDDL GPL-3 MIT )"
 KEYWORDS="~amd64"
 IUSE="
-	rt +eevdf
+	bore bmq cachyos-hardened rt rt-bore +eevdf
 	kcfi
 	autofdo propeller
 	llvm-lto-thin llvm-lto-full llvm-lto-thin-dist +llvm-lto-none
@@ -88,21 +93,15 @@ IUSE="
 "
 
 # OpenZFS does not support Clang CFI: https://github.com/openzfs/zfs/issues/15911
-# 6.18.48-2 exact-version apply-test exclusions (prepare failed):
-# - bore / rt-bore / hardened: 0001-bore-cachy.patch fails at kernel/sched/fair.c hunk 23
-#   (check_preempt_wakeup_fair / PREEMPT_SHORT_BORE vs 6.18.48 scheduler changes)
-# - bmq / bmq-lfbmq: 0001-prjc-cachy{,-lfbmq}.patch fail at kernel/sched/syscalls.c hunk 4
-#   even with genpatch 1810 excluded
-# - deckify: 0001-handheld.patch fails at drivers/input/joystick/xpad.c hunks 1-2
-# Other 6.18 kernel-patches families not exposed here:
-# - MuQSS has no 6.18 patch
-# - AUFS merge is not in any official PKGBUILD source array
-# - clang-polly, nap-governor, reflex-governor, and standalone poc-selector
-#   are unused by linux-cachyos-lts and unvalidated on cachyos-6.18.48-2
-# - NVIDIA OOT and r8125 stay as separate packages
-# - vanilla non-Cachy BORE/PRJC and sched-dev copies are unused duplicates
+# The linux-cachyos-lts PKGBUILD exposes BORE, BMQ, hardened, EEVDF,
+# PREEMPT_RT, and RT-BORE. Its moving 6.18 kernel-patches inputs were stale for
+# cachyos-6.18.48-2, so this corrective revbump carries exact-version rebases
+# under files/6.18.48-r2 instead of dropping advertised upstream variants.
+# The default upstream "cachyos" selector is documented as EEVDF and downloads
+# no scheduler patch; it is represented by the default eevdf USE selection.
+# Deckify, MuQSS, and BMQ-LFBMQ are absent from the current LTS PKGBUILD.
 REQUIRED_USE="
-	^^ ( rt eevdf )
+	^^ ( bore bmq cachyos-hardened rt rt-bore eevdf )
 	propeller? ( !llvm-lto-full !llvm-lto-none )
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )
 	kernel-builtin-zfs? ( !kcfi )
@@ -173,6 +172,7 @@ src_unpack() {
 src_prepare() {
 	local patches_prefix="${DISTDIR}/${CACHYOS_PATCH_PREFIX}"
 	local configs_prefix="${DISTDIR}/${CACHYOS_CONFIG_PREFIX}"
+	local files_dir="${FILESDIR}/${PVR}"
 	local march_flag march=""
 	local -a march_flags=(
 		mgeneric mgeneric-v1 mgeneric-v2 mgeneric-v3 mgeneric-v4 mnative mzen4
@@ -188,7 +188,20 @@ src_prepare() {
 	# https://github.com/Szowisz/CachyOS-kernels/issues/35
 	eapply "${FILESDIR}/6.19.0/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
 
+	if use bore || use rt-bore || use cachyos-hardened; then
+		eapply --fuzz=0 -- "${files_dir}/sched/0001-bore-cachy.patch"
+	elif use bmq; then
+		eapply --fuzz=0 -- "${files_dir}/sched/0001-prjc-cachy.patch"
+	fi
+
+	if use cachyos-hardened; then
+		eapply --fuzz=0 -- "${files_dir}/misc/0001-hardened.patch"
+		eapply --fuzz=0 -- "${files_dir}/misc/0002-hardened-protected-fifos-regular-2.patch"
+	fi
+
 	if use rt; then
+		eapply "${patches_prefix}-rt-i915.patch"
+	elif use rt-bore; then
 		eapply "${patches_prefix}-rt-i915.patch"
 	fi
 
@@ -208,8 +221,14 @@ src_prepare() {
 
 	scripts/config -e CACHY || die
 
-	if use rt; then
+	if use bore || use cachyos-hardened; then
+		scripts/config -e SCHED_BORE || die
+	elif use bmq; then
+		scripts/config -e SCHED_ALT -e SCHED_BMQ || die
+	elif use rt; then
 		scripts/config -e PREEMPT_RT || die
+	elif use rt-bore; then
+		scripts/config -e SCHED_BORE -e PREEMPT_RT || die
 	fi
 
 	### Enable KCFI
@@ -274,7 +293,7 @@ src_prepare() {
 			-e CONTEXT_TRACKING || die
 	fi
 
-	if ! use rt; then
+	if ! use rt && ! use rt-bore; then
 		scripts/config -e PREEMPT_DYNAMIC || die
 		if use preempt-full; then
 			scripts/config -e PREEMPT -d PREEMPT_LAZY || die

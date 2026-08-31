@@ -27,7 +27,7 @@
     <flag name="clang">Build the kernel using Clang/LLVM toolchain instead of GCC (required for LTO and KCFI)</flag>
 
     <!-- Security features -->
-    <flag name="hardened">Enable hardened kernel patches for enhanced security</flag>
+    <flag name="cachyos-hardened">Enable the CachyOS hardened kernel variant and patchset</flag>
     <flag name="kcfi">Enable kCFI (Kernel Control Flow Integrity) for additional security protection (requires clang)</flag>
 
     <!-- Optimization features -->

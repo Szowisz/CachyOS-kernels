@@ -1,0 +1,19 @@
+From: CachyOS-kernels overlay
+Subject: [PATCH] 6.18.48-r2: restore hardened protected_fifos/regular=2 after genpatch 1510
+
+Gentoo 1510 keeps global link restrictions at 1 and makes fifos/regular
+non-static. Hardened must finish at 2 without excluding 1510.
+
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -1097,8 +1097,8 @@
+ 
+ static int sysctl_protected_symlinks __read_mostly = 1;
+ static int sysctl_protected_hardlinks __read_mostly = 1;
+-int sysctl_protected_fifos __read_mostly = 1;
+-int sysctl_protected_regular __read_mostly = 1;
++int sysctl_protected_fifos __read_mostly = 2;
++int sysctl_protected_regular __read_mostly = 2;
+ 
+ #ifdef CONFIG_SYSCTL
+ static const struct ctl_table namei_sysctls[] = {

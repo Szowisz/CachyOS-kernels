@@ -24,7 +24,7 @@
     <flag name="deckify">Apply the CachyOS handheld configuration and patches with the selected CPU scheduler</flag>
 
     <!-- Security features -->
-    <flag name="hardened">Enable CachyOS hardened kernel patches</flag>
+    <flag name="cachyos-hardened">Enable the CachyOS hardened kernel variant and patchset</flag>
     <flag name="kcfi">Enable Clang Kernel Control Flow Integrity</flag>
 
     <!-- Optimization features -->

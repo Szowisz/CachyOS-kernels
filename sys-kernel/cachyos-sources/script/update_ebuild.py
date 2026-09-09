@@ -51,6 +51,12 @@ VALIDATED_HIDDEN_FEATURES = {
             "evidence": "applies to 7.2.3 after genpatches-7.2-4; clean prepare with muqss passes",
         },
     },
+    "7.2.4": {
+        "muqss": {
+            "path": "sched/0001-muqss-cachy.patch",
+            "evidence": "applies to 7.2.4 after genpatches-7.2-5; clean prepare with muqss passes",
+        },
+    },
 }
 
 AUDIT_PATTERNS = {

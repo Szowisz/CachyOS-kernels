@@ -7,8 +7,8 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit kernel-install toolchain-funcs
 
-# CachyOS package release numbers. Every 7.2.2 mainline binary package on
-# the mirror is at pkgrel 1 and was built from cachyos-7.2.2-1.
+# CachyOS package release numbers. Every 7.2.3 mainline binary package on
+# the mirror is at pkgrel 1 and was built from cachyos-7.2.3-1.
 CACHYOS_SOURCE_PR="1"
 CACHYOS_BIN_PR="1"
 

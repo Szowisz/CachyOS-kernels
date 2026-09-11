@@ -20,37 +20,59 @@ on:
 jobs:
   validate-dist-kernel-links:
     runs-on: ubuntu-latest
+    container:
+      image: docker.io/gentoo/stage3:latest
+      options: --privileged
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Validate kernel PDEPEND providers
+    - name: Validate dist-kernel dependency resolution with emerge --pretend
       shell: bash
       run: |
         set -euo pipefail
-        failures=0
-        python3 - <<'PY'
-        import glob, pathlib, re, sys
-        failures = 0
-        for path in glob.glob('sys-kernel/cachyos-kernel/cachyos-kernel-*.ebuild'):
-            text = pathlib.Path(path).read_text()
-            version = re.search(r'cachyos-kernel-(.+)\.ebuild$', path).group(1)
-            pv = re.sub(r'-r\d+$', '', version)
-            pr = re.search(r'-r(\d+)$', version)
-            expected = re.search(r'>=virtual/dist-kernel-([^\s\"]+)', text)
-            if not expected:
-                print(f'Missing PDEPEND: {path}')
-                failures = 1
-                continue
-            provider_version = expected.group(1).replace('${PV}', pv)
-            provider_version = provider_version.replace('${PR#r}', pr.group(1) if pr else '0')
-            provider = pathlib.Path(f'virtual/dist-kernel/dist-kernel-{provider_version}.ebuild')
-            if not provider.exists():
-                print(f'Missing provider: {path} requires {expected.group(1)}, expected {provider}')
-                failures = 1
-        sys.exit(failures)
-        PY
-        exit "$failures"
+
+        # Sync Gentoo repository snapshot
+        for i in 1 2 3; do
+          emerge-webrsync -q && break || sleep 10
+        done
+
+        # Configure local overlay
+        mkdir -p /var/db/repos/cachyos-overlay /etc/portage/repos.conf /etc/portage/package.use
+        cp -a ./. /var/db/repos/cachyos-overlay/
+        cat > /etc/portage/repos.conf/cachyos.conf <<EOF
+        [CachyOS-kernels]
+        location = /var/db/repos/cachyos-overlay
+        auto-sync = no
+        priority = 50
+        EOF
+
+        echo 'ACCEPT_KEYWORDS="~amd64"' >> /etc/portage/make.conf
+        cat > /etc/portage/package.use/kernel <<EOF
+        >=dev-util/perf-7.2 libpfm
+        >=sys-kernel/installkernel-70 dracut
+        EOF
+
+        echo "=== Validating sys-kernel/cachyos-kernel ebuilds ==="
+        for ebuild in /var/db/repos/cachyos-overlay/sys-kernel/cachyos-kernel/cachyos-kernel-*.ebuild; do
+          pkg=$(basename "$ebuild" .ebuild)
+          echo "Testing dependency resolution for =sys-kernel/${pkg}"
+          emerge --pretend --verbose "=sys-kernel/${pkg}"
+        done
+
+        echo "=== Validating virtual/dist-kernel ebuilds ==="
+        for ebuild in /var/db/repos/cachyos-overlay/virtual/dist-kernel/dist-kernel-*.ebuild; do
+          pkg=$(basename "$ebuild" .ebuild)
+          echo "Testing dependency resolution for =virtual/${pkg}"
+          emerge --pretend --verbose "=virtual/${pkg}"
+        done
+
+        echo "=== Validating sys-kernel/cachyos-kernel-bin ebuilds ==="
+        for ebuild in /var/db/repos/cachyos-overlay/sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-*.ebuild; do
+          pkg=$(basename "$ebuild" .ebuild)
+          echo "Testing dependency resolution for =sys-kernel/${pkg}"
+          emerge --pretend --verbose "=sys-kernel/${pkg}"
+        done
 
   detect-versions:
     runs-on: ubuntu-latest
@@ -77,25 +99,25 @@ jobs:
         fi
         
         # Find new or modified ebuilds
-        NEW_EBUILDS=$(git diff --name-status "$BASE_SHA" HEAD | \
-          grep -E "^[AM].*sys-kernel/cachyos-sources/cachyos-sources-.*\.ebuild$" | \
+        NEW_EBUILDS=$(git diff --no-renames --name-only --diff-filter=AM "$BASE_SHA" HEAD | \
+          grep -E "^sys-kernel/cachyos-sources/cachyos-sources-.*\.ebuild$" | \
           grep -v "9999" | \
-          sed 's/.*cachyos-sources-\(.*\)\.ebuild$/\1/' | \
+          sed -E 's|^sys-kernel/cachyos-sources/cachyos-sources-(.+)\.ebuild$|\1|' | \
           sort -V || true)
         
         # Also check if the workflow itself was modified
-        WORKFLOW_CHANGED=$(git diff --name-status "$BASE_SHA" HEAD | \
-          grep -E "^[AM].*\.github/workflows/ebuild-test\.yml$" || true)
+        WORKFLOW_CHANGED=$(git diff --no-renames --name-only --diff-filter=AM "$BASE_SHA" HEAD | \
+          grep -E "^\.github/workflows/ebuild-test\.yml$" || true)
         
-        if [ -z "$NEW_EBUILDS" ] && [ -z "$WORKFLOW_CHANGED" ]; then
+        if [ -z "$NEW_EBUILDS" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ -z "$WORKFLOW_CHANGED" ]; then
           echo "::notice::No new or modified ebuilds detected, skipping tests"
           echo "versions=[]" >> $GITHUB_OUTPUT
         else
-          if [ -z "$NEW_EBUILDS" ] && [ -n "$WORKFLOW_CHANGED" ]; then
-            echo "Workflow changed, testing latest version"
+          if [ -z "$NEW_EBUILDS" ]; then
+            echo "Workflow changed or manual dispatch, testing latest version"
             LATEST=$(find sys-kernel/cachyos-sources -name "cachyos-sources-*.ebuild" | \
               grep -v "9999" | \
-              sed 's/.*cachyos-sources-\(.*\)\.ebuild$/\1/' | \
+              sed -E 's|.*cachyos-sources-(.+)\.ebuild$|\1|' | \
               sort -V | tail -1)
             VERSIONS_JSON="[\"$LATEST\"]"
           else

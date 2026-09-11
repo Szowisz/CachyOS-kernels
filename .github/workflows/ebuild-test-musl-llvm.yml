@@ -33,24 +33,24 @@ jobs:
           BASE_SHA="HEAD~1"
         fi
 
-        NEW_EBUILDS=$(git diff --name-status "$BASE_SHA" HEAD | \
-          grep -E "^[AM].*sys-kernel/cachyos-sources/cachyos-sources-.*\.ebuild$" | \
+        NEW_EBUILDS=$(git diff --no-renames --name-only --diff-filter=AM "$BASE_SHA" HEAD | \
+          grep -E "^sys-kernel/cachyos-sources/cachyos-sources-.*\.ebuild$" | \
           grep -v "9999" | \
-          sed 's/.*cachyos-sources-\(.*\)\.ebuild$/\1/' | \
+          sed -E 's|^sys-kernel/cachyos-sources/cachyos-sources-(.+)\.ebuild$|\1|' | \
           sort -V || true)
 
-        WORKFLOW_CHANGED=$(git diff --name-status "$BASE_SHA" HEAD | \
-          grep -E "^[AM].*\.github/workflows/ebuild-test-musl-llvm\.yml$" || true)
+        WORKFLOW_CHANGED=$(git diff --no-renames --name-only --diff-filter=AM "$BASE_SHA" HEAD | \
+          grep -E "^\.github/workflows/ebuild-test-musl-llvm\.yml$" || true)
 
-        if [ -z "$NEW_EBUILDS" ] && [ -z "$WORKFLOW_CHANGED" ]; then
+        if [ -z "$NEW_EBUILDS" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ -z "$WORKFLOW_CHANGED" ]; then
           echo "::notice::No new or modified ebuilds detected, skipping tests"
           echo "versions=[]" >> $GITHUB_OUTPUT
         else
-          if [ -z "$NEW_EBUILDS" ] && [ -n "$WORKFLOW_CHANGED" ]; then
-            echo "Workflow changed, testing latest version"
+          if [ -z "$NEW_EBUILDS" ]; then
+            echo "Workflow changed or manual dispatch, testing latest version"
             LATEST=$(find sys-kernel/cachyos-sources -name "cachyos-sources-*.ebuild" | \
               grep -v "9999" | \
-              sed 's/.*cachyos-sources-\(.*\)\.ebuild$/\1/' | \
+              sed -E 's|.*cachyos-sources-(.+)\.ebuild$|\1|' | \
               sort -V | tail -1)
             VERSIONS_JSON="[\"$LATEST\"]"
           else

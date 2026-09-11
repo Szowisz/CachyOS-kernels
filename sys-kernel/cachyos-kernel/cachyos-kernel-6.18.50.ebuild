@@ -132,7 +132,7 @@ BDEPEND="
 	dev-util/pahole
 "
 PDEPEND="
-	>=virtual/dist-kernel-${PV}
+	>=virtual/dist-kernel-${PV}_p${PR#r}
 "
 
 QA_FLAGS_IGNORED="

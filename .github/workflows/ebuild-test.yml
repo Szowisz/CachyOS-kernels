@@ -5,15 +5,53 @@ on:
     branches: [ main, master ]
     paths:
       - 'sys-kernel/cachyos-sources/**'
+      - 'sys-kernel/cachyos-kernel/**'
+      - 'virtual/dist-kernel/**'
       - '.github/workflows/ebuild-test.yml'
   pull_request:
     branches: [ main, master ]
     paths:
       - 'sys-kernel/cachyos-sources/**'
+      - 'sys-kernel/cachyos-kernel/**'
+      - 'virtual/dist-kernel/**'
       - '.github/workflows/ebuild-test.yml'
   workflow_dispatch:
 
 jobs:
+  validate-dist-kernel-links:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Validate kernel PDEPEND providers
+      shell: bash
+      run: |
+        set -euo pipefail
+        failures=0
+        python3 - <<'PY'
+        import glob, pathlib, re, sys
+        failures = 0
+        for path in glob.glob('sys-kernel/cachyos-kernel/cachyos-kernel-*.ebuild'):
+            text = pathlib.Path(path).read_text()
+            version = re.search(r'cachyos-kernel-(.+)\.ebuild$', path).group(1)
+            pv = re.sub(r'-r\d+$', '', version)
+            pr = re.search(r'-r(\d+)$', version)
+            expected = re.search(r'>=virtual/dist-kernel-([^\s\"]+)', text)
+            if not expected:
+                print(f'Missing PDEPEND: {path}')
+                failures = 1
+                continue
+            provider_version = expected.group(1).replace('${PV}', pv)
+            provider_version = provider_version.replace('${PR#r}', pr.group(1) if pr else '0')
+            provider = pathlib.Path(f'virtual/dist-kernel/dist-kernel-{provider_version}.ebuild')
+            if not provider.exists():
+                print(f'Missing provider: {path} requires {expected.group(1)}, expected {provider}')
+                failures = 1
+        sys.exit(failures)
+        PY
+        exit "$failures"
+
   detect-versions:
     runs-on: ubuntu-latest
     outputs:

@@ -6,6 +6,6 @@
 		<name>xz-dev</name>
 	</maintainer>
 	<use>
-		<flag name="hardened">Require CachyOS kernel sources with hardened patches</flag>
+		<flag name="cachyos-hardened">Require CachyOS kernel sources with the CachyOS hardened patchset</flag>
 	</use>
 </pkgmetadata>

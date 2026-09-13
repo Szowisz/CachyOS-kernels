@@ -7,15 +7,16 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit kernel-install toolchain-funcs
 
-# CachyOS source and LTS binary packages for 6.18.48 are both at pkgrel 1.
-CACHYOS_PR="1"
+# CachyOS source package is at pkgrel 1; the LTS binary pkgrel follows the
+# Gentoo revision (6.18.50-r2 -> pkgrel 3).
+CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
 
 # CachyOS pre-patched source tarball (needed for modules_prepare)
-SRC_PR="1"
-MY_P="cachyos-$(ver_cut 1-3)-${SRC_PR}"
+CACHYOS_SOURCE_PR="1"
+MY_P="cachyos-$(ver_cut 1-3)-${CACHYOS_SOURCE_PR}"
 
 # Binary package version string: {pkgver}-{pkgrel}
-BINPKG_VER="${PV}-${CACHYOS_PR}"
+BINPKG_VER="${PV}-${CACHYOS_BIN_PR}"
 
 # Mirror base URLs
 MIRROR_V3="https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3"
@@ -32,7 +33,7 @@ SRC_URI="
 "
 
 # Binary packages per variant (x86_64_v3 only for this version)
-# 6.18.48 LTS only: linux-cachyos-lts (no scheduler variants, no lto)
+# 6.18.50 LTS only: linux-cachyos-lts (no scheduler variants, no lto)
 SRC_URI+="
 	lts? (
 		${MIRROR_V3}/linux-cachyos-lts-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
@@ -56,6 +57,9 @@ BDEPEND="
 	dev-util/pahole
 	virtual/libelf
 	app-alternatives/yacc
+	llvm-core/llvm:22
+	llvm-core/clang:22
+	llvm-core/lld:22
 "
 PDEPEND="
 	>=virtual/dist-kernel-${PV}
@@ -77,7 +81,7 @@ _cachyos_headers_distfile() {
 
 _cachyos_setup_kv() {
 	local suffix=$(_cachyos_variant_suffix)
-	KV_LOCALVERSION="-${CACHYOS_PR}-${suffix}"
+	KV_LOCALVERSION="-${CACHYOS_BIN_PR}-${suffix}"
 	KV_FULL="${PV}${KV_LOCALVERSION}"
 }
 
@@ -100,7 +104,7 @@ src_prepare() {
 
 	cd "${WORKDIR}/${MY_P}" || die
 
-	echo "-${CACHYOS_PR}" > localversion.10-pkgrel || die
+	echo "-${CACHYOS_BIN_PR}" > localversion.10-pkgrel || die
 	echo "-$(_cachyos_variant_suffix)" > localversion.20-pkgname || die
 
 	default
@@ -131,10 +135,6 @@ src_configure() {
 	if type -P "${HOSTLD}.bfd" &>/dev/null; then
 		HOSTLD+=.bfd
 	fi
-	local LD="$(tc-getLD)"
-	if type -P "${LD}.bfd" &>/dev/null; then
-		LD+=.bfd
-	fi
 
 	tc-export_build_env
 	local makeargs=(
@@ -150,18 +150,19 @@ src_configure() {
 		O="${WORKDIR}/modprep"
 	)
 
-	# LTS kernel is not LTO, use GCC toolchain
+	# The mirrored LTS headers were built with Clang 22 and ThinLTO.
+	local llvm_bindir="${BROOT}/usr/lib/llvm/22/bin"
 	makeargs+=(
-		CROSS_COMPILE=${CHOST}-
-		AS="$(tc-getAS)"
-		CC="$(tc-getCC)"
-		LD="${LD}"
-		AR="$(tc-getAR)"
-		NM="$(tc-getNM)"
-		STRIP="$(tc-getSTRIP)"
-		OBJCOPY="$(tc-getOBJCOPY)"
-		OBJDUMP="$(tc-getOBJDUMP)"
-		READELF="$(tc-getREADELF)"
+		LLVM=1
+		LLVM_IAS=1
+		CC="${llvm_bindir}/clang"
+		LD="${llvm_bindir}/ld.lld"
+		AR="${llvm_bindir}/llvm-ar"
+		NM="${llvm_bindir}/llvm-nm"
+		STRIP="${llvm_bindir}/llvm-strip"
+		OBJCOPY="${llvm_bindir}/llvm-objcopy"
+		OBJDUMP="${llvm_bindir}/llvm-objdump"
+		READELF="${llvm_bindir}/llvm-readelf"
 	)
 
 	mkdir "${WORKDIR}/modprep" || die

@@ -16,7 +16,6 @@
     <flag name="eevdf">Default Linux EEVDF (Earliest Eligible Virtual Deadline First) scheduler</flag>
     <flag name="rt-bore">BORE scheduler with realtime patches for low-latency applications</flag>
     <flag name="server">Server-optimized kernel configuration</flag>
-    <flag name="deckify">Handheld/gaming device kernel variant</flag>
     <flag name="lts">Long-term support kernel variant</flag>
     <flag name="cachyos-hardened">Hardened kernel variant</flag>
 

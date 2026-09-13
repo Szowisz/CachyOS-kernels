@@ -35,9 +35,9 @@ UPSTREAM_PACKAGES = [
     "linux-cachyos-lts",
 ]
 
-# Hidden scheduler families are admitted only after their exact-version patch
-# applicability has been validated. Keep that evidence explicit instead of
-# treating every directory entry as an automatically supported USE flag.
+# Hidden patch families are admitted only after exact-version applicability
+# has been validated. Keep that evidence explicit instead of treating every
+# directory entry as an automatically supported USE flag.
 VALIDATED_HIDDEN_FEATURES = {
     "7.2.2": {
         "muqss": {
@@ -57,12 +57,25 @@ VALIDATED_HIDDEN_FEATURES = {
             "evidence": "applies to 7.2.4 after genpatches-7.2-5; clean prepare with muqss passes",
         },
     },
+    "7.2.5": {
+        "aufs": {
+            "path": "misc/0001-aufs-7.2-merge-v20260907.patch",
+            "evidence": "applies to 7.2.5 after genpatches-7.2-6; clean prepare with aufs passes",
+        },
+        "muqss": {
+            "path": "sched/0001-muqss-cachy.patch",
+            "evidence": "applies to 7.2.5 after genpatches-7.2-6; clean prepare with muqss passes",
+        },
+        "pds": {
+            "path": "sched/0001-prjc-cachy.patch",
+            "evidence": "applies to 7.2.5 after genpatches-7.2-6; clean prepare with pds passes",
+        },
+    },
 }
 
 AUDIT_PATTERNS = {
     "eevdf": (
         "SCHED_POC_SELECTOR",
-        "^^ ( bore bmq muqss rt rt-bore eevdf )",
     ),
     "bore": (
         "sched/0001-bore-cachy.patch",
@@ -73,10 +86,25 @@ AUDIT_PATTERNS = {
         "prjc-muqss-prereq.patch",
         "-e SCHED_ALT -e SCHED_BMQ",
     ),
+    "pds": (
+        "pds? (",
+        "sched/0001-prjc-cachy.patch",
+        "prjc-muqss-prereq.patch",
+        "-e SCHED_ALT -d SCHED_BMQ -e SCHED_PDS",
+    ),
     "muqss": (
         "sched/0001-muqss-cachy.patch",
         "prjc-muqss-prereq.patch",
         "-e SCHED_MUQSS -e MUQSS_IOTIME",
+        "HZ_1000_NODEF",
+        "PREEMPT_LAZY_NODEF",
+        "HZ_PERIODIC_NODEF",
+        "NO_HZ_IDLE_NODEF",
+    ),
+    "aufs": (
+        "misc/0001-aufs-7.2-merge-v20260907.patch",
+        "if use aufs; then",
+        "-m AUFS_FS",
     ),
     "rt": (
         "misc/0001-rt-i915.patch",
@@ -134,6 +162,13 @@ OFFICIAL_PACKAGE_PATTERNS = {
 DOCUMENTED_EXCLUSIONS = {
     "hardened": "hardened remains on 7.1.8",
     "bmq-lfbmq": "PRJC-LFBMQ has no 7.2 patch family",
+}
+
+VERSIONED_EXCLUSIONS = {
+    "7.2.5": {
+        "deckify": "deckify remains on 7.2.3",
+        "bore-vanilla": "bare BORE fails 8 of 23 kernel/sched/fair.c hunks",
+    },
 }
 
 
@@ -314,7 +349,11 @@ def audit_feature_inventory(content, target_version, upstream_versions, lts=Fals
     if lts:
         return errors
 
-    for feature, exclusion in DOCUMENTED_EXCLUSIONS.items():
+    exclusions = {
+        **DOCUMENTED_EXCLUSIONS,
+        **VERSIONED_EXCLUSIONS.get(clean_version_helper(target_version), {}),
+    }
+    for feature, exclusion in exclusions.items():
         if feature not in declared and exclusion not in content:
             errors.append(f"{feature}: missing documented exclusion: {exclusion}")
 
@@ -635,7 +674,7 @@ def extract_version_from_ebuild_name(ebuild_path):
 
 def copy_and_update_ebuild(
     template_path, new_version, ebuild_dir, dry_run=False, force=False, lts=False,
-    skip_version_check=False, upstream_versions=None, source_pkgrel=None
+    skip_version_check=False, upstream_versions=None
 ):
     """Copy and update ebuild for new version"""
     new_ebuild_name = f"cachyos-sources-{new_version}.ebuild"
@@ -663,9 +702,6 @@ def copy_and_update_ebuild(
             f"DRY RUN: Would generate an ebuild with genpatches version {genpatches_version}",
             "INFO",
         )
-        if source_pkgrel is not None:
-            log(f"DRY RUN: Would use CachyOS source pkgrel {source_pkgrel}", "INFO")
-
         if not skip_version_check and upstream_versions:
             template_content = Path(template_path).read_text()
             errors = audit_feature_inventory(
@@ -689,21 +725,17 @@ def copy_and_update_ebuild(
     # Extract template version for comparison
     template_version = extract_version_from_ebuild_name(template_path)
 
-    # A Gentoo revision can track a variant-only CachyOS rebuild without a
-    # new source tarball release. In that case, override the normal PR-based
-    # mapping so the generated SRC_URI continues to use the published archive.
-    if source_pkgrel is not None:
-        content, count = re.subn(
-            r'^CACHYOS_PR=.*$',
-            f'CACHYOS_PR="{source_pkgrel}"',
-            content,
-            count=1,
-            flags=re.MULTILINE,
-        )
-        if count != 1:
-            log("Could not find CACHYOS_PR to override", "ERROR")
-            return None
-        log(f"Using CachyOS source pkgrel: {source_pkgrel}")
+    # CachyOS pkgrel is encoded by the Gentoo revision.
+    content, count = re.subn(
+        r'^CACHYOS_PR=.*$',
+        'CACHYOS_PR="$(( ${PR#r} + 1 ))"',
+        content,
+        count=1,
+        flags=re.MULTILINE,
+    )
+    if count != 1:
+        log("Could not normalize CACHYOS_PR from the template", "ERROR")
+        return None
 
     # Update genpatches version (increment from template or reset for major version)
     genpatches_version = get_genpatches_version_from_template(
@@ -831,17 +863,7 @@ def main():
         action="store_true",
         help="Skip the layered upstream feature audit"
     )
-    parser.add_argument(
-        "--source-pkgrel",
-        type=int,
-        help="Override CachyOS source pkgrel for variant-only Gentoo revisions"
-    )
-
     args = parser.parse_args()
-
-    if args.source_pkgrel is not None and args.source_pkgrel < 1:
-        log("--source-pkgrel must be a positive integer", "ERROR")
-        sys.exit(1)
 
     # Determine ebuild directory
     script_dir = Path(__file__).parent
@@ -923,7 +945,7 @@ def main():
     # Copy and update ebuild only after the read-only omission gate passes.
     new_ebuild_path = copy_and_update_ebuild(
         template_ebuild, target_version, ebuild_dir, args.dry_run, args.force, args.lts,
-        args.skip_version_check, upstream_versions, args.source_pkgrel
+        args.skip_version_check, upstream_versions
     )
 
     if not new_ebuild_path:

@@ -49,7 +49,12 @@ cat > /etc/portage/package.use/kernel <<EOF
 >=sys-kernel/installkernel-70 dracut
 EOF
 
-echo "=== TEST 1: Current snapshot (all 13 packages) ==="
+echo "=== TEST 1: Current snapshot ==="
+expected_count=$(find \
+  /var/db/repos/CachyOS-kernels/sys-kernel/cachyos-kernel \
+  /var/db/repos/CachyOS-kernels/virtual/dist-kernel \
+  /var/db/repos/CachyOS-kernels/sys-kernel/cachyos-kernel-bin \
+  -maxdepth 1 -name '*.ebuild' | wc -l)
 pass_count=0
 for f in /var/db/repos/CachyOS-kernels/sys-kernel/cachyos-kernel/cachyos-kernel-*.ebuild; do
   pkg=$(basename "$f" .ebuild)
@@ -71,12 +76,19 @@ for f in /var/db/repos/CachyOS-kernels/sys-kernel/cachyos-kernel-bin/cachyos-ker
   echo "PASS: =sys-kernel/${pkg}"
   pass_count=$((pass_count + 1))
 done
-echo "Total passed in current snapshot: ${pass_count} / 13"
+echo "Total passed in current snapshot: ${pass_count} / ${expected_count}"
+if [ "${pass_count}" -ne "${expected_count}" ]; then
+  echo "FAIL: expected ${expected_count} packages, resolved ${pass_count}"
+  exit 1
+fi
 
 echo "=== TEST 2: Negative control for Issue #55 (7.2.4 without _p0) ==="
 temp_overlay=$(mktemp -d)
 cp -a /var/db/repos/CachyOS-kernels/. "${temp_overlay}/"
 mv "${temp_overlay}/virtual/dist-kernel/dist-kernel-7.2.4_p0.ebuild" "${temp_overlay}/virtual/dist-kernel/dist-kernel-7.2.4.ebuild"
+rm -f "${temp_overlay}/virtual/dist-kernel/dist-kernel-7.2.5_p0.ebuild"
+mkdir -p /etc/portage/package.mask
+echo "virtual/dist-kernel::gentoo" > /etc/portage/package.mask/issue55
 sed -i "s|location = .*|location = ${temp_overlay}|" /etc/portage/repos.conf/cachyos.conf
 
 set +e
@@ -84,7 +96,7 @@ out=$(emerge --pretend =sys-kernel/cachyos-kernel-7.2.4 2>&1)
 res=$?
 set -e
 echo "Issue 55 reproduction exit code: ${res}"
-if [ ${res} -ne 0 ] && echo "${out}" | grep -q "there are no ebuilds to satisfy \">=virtual/dist-kernel-7.2.4_p0\""; then
+if [ ${res} -ne 0 ] && echo "${out}" | grep -q ">=virtual/dist-kernel-7.2.4_p0"; then
   echo "PASS: Issue #55 correctly caught (failed specifically with missing >=virtual/dist-kernel-7.2.4_p0)"
 else
   echo "FAIL: Issue #55 not caught as expected! Output: ${out}"

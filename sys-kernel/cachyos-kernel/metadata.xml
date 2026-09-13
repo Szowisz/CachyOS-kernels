@@ -13,6 +13,7 @@
     <!-- CPU Schedulers -->
     <flag name="bore">CachyOS Scheduler (BORE - Burst-Oriented Response Enhancer), optimized for desktop responsiveness</flag>
     <flag name="bmq">Project C BMQ (BitMap Queue) scheduler, alternative CPU scheduler with different performance characteristics</flag>
+    <flag name="pds">Project C Priority and Deadline based Skip list scheduler</flag>
     <flag name="bmq-lfbmq">PRJC BMQ scheduler with the LFBMQ (lock-free bitmap queue) runqueue variant from kernel-patches</flag>
     <flag name="rt">EEVDF scheduler with realtime patches for low-latency applications</flag>
     <flag name="rt-bore">BORE scheduler with realtime patches for low-latency applications</flag>
@@ -22,6 +23,7 @@
 
     <!-- Hardware-specific patches -->
     <flag name="deckify">Apply the upstream handheld and ACPI patchsets and enable Steam Deck, ASUS Ally, Lenovo Go, MSI Claw, and ZOTAC Zone support with the selected scheduler</flag>
+    <flag name="aufs">Enable the AUFS union filesystem as a module</flag>
 
     <!-- Toolchain -->
     <flag name="clang">Build the kernel using Clang/LLVM toolchain instead of GCC (required for LTO and KCFI)</flag>

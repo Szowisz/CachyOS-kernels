@@ -100,11 +100,9 @@ python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py --version 7.1.4-r1
 # For LTS versions, specify --lts and --version:
 python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py --lts --version 6.18.26
 
-# For a variant-only Gentoo revbump with no new CachyOS source release,
-# pin the source pkgrel that actually exists (for example, cachyos-7.1.8-1):
-python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py \
-  --version 7.1.8-r1 --source-pkgrel 1
-
+# CachyOS pkgrel is encoded by the Gentoo revision:
+# no -r suffix maps to pkgrel 1, -r1 maps to pkgrel 2, and so on.
+# Create a new upstream-pkgrel revision instead of overriding CACHYOS_PR.
 # The no-argument mode consults kernel.org and is NOT authoritative for this overlay.
 # Use it only for diagnostics, never as the update trigger:
 python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py --dry-run
@@ -120,7 +118,7 @@ The script does:
 - `K_GENPATCHES_VER` aligns with official `gentoo-sources` when Gentoo has published the matching version (see Genpatches section below); if Gentoo has not caught up but CachyOS upstream has, follow the CachyOS upstream target and document the temporary Gentoo-reference gap
 - Every upstream patch/config used by the ebuild has a commit-pinned `SRC_URI` and unique distfile name
 - Apply-test each exposed variant; keep a concrete technical exclusion when an upstream patch does not apply to the exact source release
-- For variant-only revbumps, the pinned `CACHYOS_PR` points to an existing `CachyOS/linux` release asset; do not let Gentoo `-rN` imply a nonexistent source pkgrel
+- Verify that the Gentoo revision maps to the published CachyOS pkgrel (`-rN` → pkgrel `N+1`)
 
 ### 2. cachyos-kernel
 

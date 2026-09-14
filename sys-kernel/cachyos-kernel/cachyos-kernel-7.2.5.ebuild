@@ -246,6 +246,10 @@ src_prepare() {
 	# https://github.com/Szowisz/CachyOS-kernels/issues/35
 	eapply "${FILESDIR}/6.19.0/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
 
+	# Clang 23 FORTIFY needs both the transfer bound and fixed slot size.
+	# https://github.com/torvalds/linux/commit/da1ea35fea67ad841f4ada28dd61b41be65e5437
+	eapply "${FILESDIR}/7.2.5-gud-tv-mode-fortify.patch"
+
 	# The 7.2.3 stable update changed a block that PRJC and MuQSS remove.
 	# Restore the patchsets' expected preimage before applying either series.
 	if use bmq || use pds || use muqss; then

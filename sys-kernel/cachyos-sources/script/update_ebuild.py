@@ -71,6 +71,20 @@ VALIDATED_HIDDEN_FEATURES = {
             "evidence": "applies to 7.2.5 after genpatches-7.2-6; clean prepare with pds passes",
         },
     },
+    "7.2.6": {
+        "aufs": {
+            "path": "misc/0001-aufs-7.2-merge-v20260907.patch",
+            "evidence": "applies to 7.2.6 after genpatches-7.2-7; clean prepare with aufs passes",
+        },
+        "muqss": {
+            "path": "sched/0001-muqss-cachy.patch",
+            "evidence": "applies to 7.2.6 with the SCHED_CLASS_EXT prerequisite; clean prepare with muqss passes",
+        },
+        "pds": {
+            "path": "sched/0001-prjc-cachy.patch",
+            "evidence": "applies to 7.2.6 with the SCHED_CLASS_EXT prerequisite; clean prepare with pds passes",
+        },
+    },
 }
 
 AUDIT_PATTERNS = {
@@ -161,6 +175,13 @@ VERSIONED_EXCLUSIONS = {
     "7.2.5": {
         "deckify": "deckify remains on 7.2.3",
         "bore-vanilla": "bare BORE fails 8 of 23 kernel/sched/fair.c hunks",
+    },
+    "7.2.6": {
+        "deckify": "deckify remains upstream, but its handheld patch does not apply to 7.2.6",
+        "bore-vanilla": (
+            "bare BORE fails 10 of 23 kernel/sched/fair.c hunks on "
+            "cachyos-7.2.6-1"
+        ),
     },
 }
 
@@ -420,6 +441,30 @@ def clean_version_helper(version):
     # Extract only the numeric version part (e.g. "6.17.0" from "6.17.0-r3")
     match = re.match(r'^(\d+\.\d+\.\d+(?:\.\d+)?)', version)
     return match.group(1) if match else version
+
+
+def update_versioned_exclusion_text(content, template_version, target_version):
+    """Carry explicit technical exclusions from the template to the target."""
+    template_exclusions = VERSIONED_EXCLUSIONS.get(
+        clean_version_helper(template_version), {}
+    )
+    target_exclusions = VERSIONED_EXCLUSIONS.get(
+        clean_version_helper(target_version), {}
+    )
+
+    for feature, old_text in template_exclusions.items():
+        new_text = target_exclusions.get(feature)
+        if new_text:
+            content = content.replace(old_text, new_text, 1)
+        else:
+            content = content.replace(f"# - {old_text}\n", "", 1)
+
+    marker = 'REQUIRED_USE="\n'
+    for new_text in target_exclusions.values():
+        if new_text not in content and marker in content:
+            content = content.replace(marker, f"# - {new_text}\n{marker}", 1)
+
+    return content
 
 
 def get_genpatches_version_from_template(
@@ -696,7 +741,9 @@ def copy_and_update_ebuild(
             "INFO",
         )
         if not skip_version_check and upstream_versions:
-            template_content = Path(template_path).read_text()
+            template_content = update_versioned_exclusion_text(
+                Path(template_path).read_text(), template_version, new_version
+            )
             errors = audit_feature_inventory(
                 template_content, new_version, upstream_versions, lts
             )
@@ -717,6 +764,9 @@ def copy_and_update_ebuild(
 
     # Extract template version for comparison
     template_version = extract_version_from_ebuild_name(template_path)
+    content = update_versioned_exclusion_text(
+        content, template_version, new_version
+    )
 
     # CachyOS pkgrel is encoded by the Gentoo revision.
     content, count = re.subn(

@@ -100,12 +100,6 @@ IUSE="
 # - bare BORE fails 8 of 23 kernel/sched/fair.c hunks on the 7.2.5 release tree
 REQUIRED_USE="
 	^^ ( bore bmq pds muqss rt rt-bore eevdf )
-	server? (
-		eevdf
-		hz_ticks_300 tickrate_full preempt_lazy !per-gov
-		llvm-lto-none !autofdo !propeller
-		o3 hugepage_always
-	)
 	propeller? ( clang !llvm-lto-full !llvm-lto-none )
 	clang? ( ${LLVM_REQUIRED_USE} )
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )

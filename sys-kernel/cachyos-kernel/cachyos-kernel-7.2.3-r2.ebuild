@@ -96,12 +96,6 @@ IUSE="
 # - bare non-Cachy BORE is not used by packaged CachyOS variants
 REQUIRED_USE="
 	^^ ( bore bmq muqss rt rt-bore eevdf )
-	server? (
-		eevdf
-		hz_ticks_300 tickrate_full preempt_lazy !per-gov
-		llvm-lto-none !autofdo !propeller
-		o3 hugepage_always
-	)
 	propeller? ( clang !llvm-lto-full !llvm-lto-none )
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )
 	^^ ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none )

@@ -19,7 +19,7 @@
     <flag name="rt-bore">BORE scheduler with PREEMPT_RT</flag>
     <flag name="eevdf">Linux EEVDF scheduler with the CachyOS POC idle CPU selector</flag>
     <flag name="muqss">MuQSS scheduler patchset carried in CachyOS kernel-patches</flag>
-    <flag name="server">Apply the upstream server preset: EEVDF, 300 Hz, lazy preemption, no LTO, and CachyOS config tweaks disabled</flag>
+    <flag name="server">Disable CONFIG_CACHY kernel tweaks; scheduler and tuning options remain independently selectable</flag>
 
     <!-- Hardware-specific patches -->
     <flag name="deckify">Apply the CachyOS handheld configuration and patches with the selected CPU scheduler</flag>

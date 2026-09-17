@@ -115,16 +115,9 @@ AUDIT_PATTERNS = {
         "-e SCHED_BORE -e PREEMPT_RT",
     ),
     "server": (
-        "server? (",
-        "hz-ticks-300 tickrate-full preempt-lazy !per-gov",
-        "llvm-lto-none !autofdo !propeller",
-        "o3 hugepage-always",
         "if use server; then",
         "-d CACHY",
-        "-d LTO_CLANG_FULL -d LTO_CLANG_THIN -d LTO_CLANG_THIN_DIST",
-        "-d PREEMPT -e PREEMPT_LAZY",
-        "CPU_FREQ_DEFAULT_GOV_SCHEDUTIL",
-        "TRANSPARENT_HUGEPAGE_ALWAYS",
+        "-e CACHY",
     ),
     "deckify": (
         "misc/0001-acpi-call.patch",

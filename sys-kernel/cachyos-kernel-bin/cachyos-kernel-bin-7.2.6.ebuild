@@ -7,7 +7,7 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit kernel-install toolchain-funcs
 
-# CachyOS package release numbers. The 7.2.5 source and binary packages are
+# CachyOS package release numbers. The 7.2.6 source and binary packages are
 # both pkgrel 1 on the mirror.
 CACHYOS_SOURCE_PR="1"
 CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
@@ -38,8 +38,8 @@ SRC_URI="
 	!cachyos? ( https://github.com/CachyOS/linux/releases/download/${VARIANT_MY_P}/${VARIANT_MY_P}.tar.gz )
 "
 
-# All 7.2.5 scheduler variants on the mirror are non-LTO; only the default
-# cachyos package has its usual LLVM/LTO package plus a separate GCC build.
+# 7.2.6 ships lto sub-variants for every scheduler and a gcc build for the
+# default cachyos package on the mirror.
 SRC_URI+="
 	cachyos? (
 		lto? (
@@ -52,20 +52,44 @@ SRC_URI+="
 		)
 	)
 	bore? (
-		${MIRROR_V3}/linux-cachyos-bore-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		${MIRROR_V3}/linux-cachyos-bore-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		lto? (
+			${MIRROR_V3}/linux-cachyos-bore-lto-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bore-lto-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-bore-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bore-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
 	)
 	eevdf? (
-		${MIRROR_V3}/linux-cachyos-eevdf-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		${MIRROR_V3}/linux-cachyos-eevdf-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		lto? (
+			${MIRROR_V3}/linux-cachyos-eevdf-lto-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-eevdf-lto-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-eevdf-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-eevdf-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
 	)
 	rt-bore? (
-		${MIRROR_V3}/linux-cachyos-rt-bore-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		${MIRROR_V3}/linux-cachyos-rt-bore-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		lto? (
+			${MIRROR_V3}/linux-cachyos-rt-bore-lto-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-rt-bore-lto-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-rt-bore-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-rt-bore-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
 	)
 	server? (
-		${MIRROR_V3}/linux-cachyos-server-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		${MIRROR_V3}/linux-cachyos-server-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		lto? (
+			${MIRROR_V3}/linux-cachyos-server-lto-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-server-lto-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-server-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-server-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
 	)
 "
 
@@ -78,10 +102,6 @@ REQUIRED_USE="
 	^^ ( cachyos bore eevdf rt-bore server )
 	?? ( lto gcc )
 	cachyos? ( || ( lto gcc ) )
-	bore? ( !lto )
-	eevdf? ( !lto )
-	rt-bore? ( !lto )
-	server? ( !lto )
 	gcc? ( cachyos )
 "
 

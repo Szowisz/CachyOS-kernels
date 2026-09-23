@@ -1,61 +1,42 @@
 # Copyright 2023-2026 Gentoo Authors
-# Distributed under the terms of the GNU General Public License v2
+# Distributed under the terms of the GNU General Public License v3
 
-EAPI="8"
+EAPI=8
 
-ETYPE="sources"
-EXTRAVERSION="-cachyos"
-K_NOSETEXTRAVERSION="1"
+# LLVM support for Clang/LTO builds
+LLVM_COMPAT=( {17..22} )
+LLVM_OPTIONAL=1
+
+inherit kernel-build toolchain-funcs llvm-r2 optfeature
 
 # Pin patch and config inputs so Manifest checks cover exact upstream bytes.
-CACHYOS_PATCHES_COMMIT="a40b85abdcb9f4ba653e2e1ea89d3d1f0cf563ba"
-CACHYOS_CONFIGS_COMMIT="bd8a07da314743eede668d999d37253c1a77c186"
-CACHYOS_PR="1"
+CACHYOS_PATCHES_COMMIT="99064837d235f63a1fcd12625258f82bcf94c059"
+CACHYOS_CONFIGS_COMMIT="bd534465e6b8a6fe4483b0ee2c28cbaf00a9b285"
+CACHYOS_PR="$(( ${PR#r} + 1 ))"
 
-# Genpatches support - apply base and extras patches on top of CachyOS tarball
-K_WANT_GENPATCHES="base extras"
-K_GENPATCHES_VER="3"
+# CachyOS pre-patched tarball
+MY_P="cachyos-$(ver_cut 1-3)-${CACHYOS_PR}"
 
-# Exclude kernel version upgrade patches (10xx_linux-*.patch)
-# CachyOS tarball already includes the latest point release
-# The CachyOS pre-patched tarball already contains genpatch 2700.
-UNIPATCH_EXCLUDE="10 2700"
+# Gentoo genpatches for the 7.2 series.
+GENPATCHES_VER=8
 
-# CachyOS tarball already includes the point release, while we skip Gentoo's
-# 10xx point-release genpatches above.
-K_NO_VERSION_CHECK="1"
-K_SECURITY_UNSUPPORTED="1"
-
+# ZFS commit for kernel-builtin-zfs support
 ZFS_COMMIT="71a9f9578616a90c3c14bb59629fb4d31bfd68d1"
-CKV="$(ver_cut 1-3)"
 CACHYOS_SERIES="$(ver_cut 1-2)"
 CACHYOS_PATCH_URI="https://github.com/CachyOS/kernel-patches/raw/${CACHYOS_PATCHES_COMMIT}/${CACHYOS_SERIES}"
 CACHYOS_CONFIG_URI="https://github.com/CachyOS/linux-cachyos/raw/${CACHYOS_CONFIGS_COMMIT}"
 CACHYOS_PATCH_PREFIX="cachyos-kernel-patches-${CACHYOS_PATCHES_COMMIT}-${CACHYOS_SERIES}"
 CACHYOS_CONFIG_PREFIX="linux-cachyos-${CACHYOS_CONFIGS_COMMIT}"
 
-inherit check-reqs kernel-2 optfeature
-
-# make sure kernel-2 know right version without guess
-detect_version
-
-# Override KERNEL_URI to use CachyOS pre-patched tarball
-KERNEL_URI="https://github.com/CachyOS/linux/releases/download/cachyos-${CKV}-${CACHYOS_PR}/cachyos-${CKV}-${CACHYOS_PR}.tar.gz"
-
-# S is set by detect_version to linux-${KV_FULL}, we'll rename the directory in src_unpack
-# Disable kernel-2.eclass's automatic kernel.org incremental patches
-UNIPATCH_LIST_DEFAULT=""
-
-DESCRIPTION="Archlinux kernel based on different schedulers and performance improvements"
+DESCRIPTION="Linux kernel built with CachyOS patches (BORE, LTO, AutoFDO, BBR3 and more)"
 HOMEPAGE="
-	https://cachyos.org
 	https://github.com/CachyOS/linux-cachyos
-	https://github.com/CachyOS/linux
-	https://github.com/CachyOS/kernel-patches
+	https://github.com/Szowisz/CachyOS-kernels
 "
 SRC_URI="
-	${KERNEL_URI}
-	${GENPATCHES_URI}
+	https://github.com/CachyOS/linux/releases/download/${MY_P}/${MY_P}.tar.gz
+	https://dev.gentoo.org/~mpagano/dist/genpatches/genpatches-$(ver_cut 1-2)-${GENPATCHES_VER}.base.tar.xz
+	https://dev.gentoo.org/~mpagano/dist/genpatches/genpatches-$(ver_cut 1-2)-${GENPATCHES_VER}.extras.tar.xz
 	${CACHYOS_CONFIG_URI}/linux-cachyos/config
 		-> ${CACHYOS_CONFIG_PREFIX}-config
 	bore? (
@@ -66,15 +47,13 @@ SRC_URI="
 		${CACHYOS_PATCH_URI}/sched/0001-prjc-cachy.patch
 			-> ${CACHYOS_PATCH_PREFIX}-prjc.patch
 	)
+	pds? (
+		${CACHYOS_PATCH_URI}/sched/0001-prjc-cachy.patch
+			-> ${CACHYOS_PATCH_PREFIX}-prjc.patch
+	)
 	muqss? (
 		${CACHYOS_PATCH_URI}/sched/0001-muqss-cachy.patch
 			-> ${CACHYOS_PATCH_PREFIX}-muqss.patch
-	)
-	deckify? (
-		${CACHYOS_PATCH_URI}/misc/0001-acpi-call.patch
-			-> ${CACHYOS_PATCH_PREFIX}-acpi-call.patch
-		${CACHYOS_PATCH_URI}/misc/0001-handheld.patch
-			-> ${CACHYOS_PATCH_PREFIX}-handheld.patch
 	)
 	rt? (
 		${CACHYOS_PATCH_URI}/misc/0001-rt-i915.patch
@@ -86,111 +65,180 @@ SRC_URI="
 		${CACHYOS_PATCH_URI}/misc/0001-rt-i915.patch
 			-> ${CACHYOS_PATCH_PREFIX}-rt-i915.patch
 	)
+	deckify? (
+		${CACHYOS_PATCH_URI}/sched/0001-bore-cachy.patch
+			-> ${CACHYOS_PATCH_PREFIX}-bore.patch
+		${CACHYOS_PATCH_URI}/misc/0001-acpi-call.patch
+			-> ${CACHYOS_PATCH_PREFIX}-acpi-call.patch
+		${CACHYOS_PATCH_URI}/misc/0001-handheld.patch
+			-> ${CACHYOS_PATCH_PREFIX}-handheld.patch
+		${CACHYOS_CONFIG_URI}/linux-cachyos-deckify/config
+			-> ${CACHYOS_CONFIG_PREFIX}-deckify-config
+	)
 	${CACHYOS_PATCH_URI}/misc/dkms-clang.patch
 		-> ${CACHYOS_PATCH_PREFIX}-dkms-clang.patch
+	aufs? (
+		${CACHYOS_PATCH_URI}/misc/0001-aufs-7.2-merge-v20260907.patch
+			-> ${CACHYOS_PATCH_PREFIX}-aufs.patch
+	)
 	kernel-builtin-zfs? (
 		https://github.com/cachyos/zfs/archive/${ZFS_COMMIT}.tar.gz
 			-> zfs-${ZFS_COMMIT}.tar.gz
 	)
 "
+S="${WORKDIR}/${MY_P}"
 
-LICENSE+=" kernel-builtin-zfs? ( BSD-2 CDDL GPL-3 MIT )"
+LICENSE="GPL-3"
 KEYWORDS="~amd64"
 IUSE="
-	+bore bmq muqss rt rt-bore eevdf
-	server deckify kcfi
-	+autofdo +propeller
+	+bore bmq pds muqss rt rt-bore eevdf
+	server deckify aufs kcfi
+	+clang +autofdo +propeller
 	+llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none
 	kernel-builtin-zfs
-	hz-ticks-100 hz-ticks-250 hz-ticks-300 hz-ticks-500 hz-ticks-600 hz-ticks-750 +hz-ticks-1000
-	+per-gov tickrate-periodic tickrate-idle +tickrate-full +preempt-full preempt-lazy
+	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 +hz_ticks_1000
+	+per-gov tickrate_periodic tickrate_idle +tickrate_full +preempt_full preempt_lazy
 	+o3 os debug +bbr3
-	+hugepage-always hugepage-madvise
-	mgeneric mgeneric-v1 mgeneric-v2 mgeneric-v3 mgeneric-v4
+	+hugepage_always hugepage_madvise
+	mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4
 	+mnative mzen4
 "
-
-# OpenZFS does not support Clang CFI: https://github.com/openzfs/zfs/issues/15911
 # Scheduler patches carried in kernel-patches but unavailable for 7.2:
-# - hardened remains on 7.1.8
+# - hardened: 7.2/misc/0001-hardened.patch applies to the pristine cachyos-7.2.7-1 tree at fuzz=0, but 116 hunks conflict with genpatches-7.2-8; the upstream hardened build does not apply genpatches, so it needs a downstream rebase before it can be exposed
 # - PRJC-LFBMQ has no 7.2 patch family
-# - bare non-Cachy BORE is not used by packaged CachyOS variants
+# - bare BORE fails 9 hunks on cachyos-7.2.7-1; only the bore-cachy variant is wired
 REQUIRED_USE="
-	^^ ( bore bmq muqss rt rt-bore eevdf )
-	propeller? ( !llvm-lto-full !llvm-lto-none )
+	^^ ( bore bmq pds muqss rt rt-bore eevdf )
+	deckify? ( bore )
+	propeller? ( clang !llvm-lto-full !llvm-lto-none )
+	clang? ( ${LLVM_REQUIRED_USE} )
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )
 	kernel-builtin-zfs? ( !kcfi )
 	^^ ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none )
-	^^ ( hz-ticks-100 hz-ticks-250 hz-ticks-300 hz-ticks-500 hz-ticks-600 hz-ticks-750 hz-ticks-1000 )
-	^^ ( tickrate-periodic tickrate-idle tickrate-full )
-	^^ ( preempt-full preempt-lazy )
+	llvm-lto-thin? ( clang )
+	llvm-lto-full? ( clang )
+	llvm-lto-thin-dist? ( clang )
+	kcfi? ( clang )
+	^^ ( hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 hz_ticks_1000 )
+	^^ ( tickrate_periodic tickrate_idle tickrate_full )
+	^^ ( preempt_full preempt_lazy )
 	?? ( o3 os debug )
-	^^ ( hugepage-always hugepage-madvise )
-	?? ( mgeneric mgeneric-v1 mgeneric-v2 mgeneric-v3 mgeneric-v4 mnative mzen4 )
+	^^ ( hugepage_always hugepage_madvise )
+	?? ( mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative mzen4 )
 "
 
-RDEPEND+="
-	dev-util/pahole
+RDEPEND="
+	!sys-kernel/cachyos-sources:${SLOT}
 	autofdo? ( dev-util/perf[libpfm] )
-	!llvm-lto-none? (
-		llvm-core/clang
-		llvm-core/lld
+"
+BDEPEND="
+	clang? (
+		$(llvm_gen_dep '
+			llvm-core/llvm:${LLVM_SLOT}
+			llvm-core/clang:${LLVM_SLOT}
+			llvm-core/lld:${LLVM_SLOT}
+		')
 	)
-	llvm-lto-none? (
-		kernel-builtin-zfs? (
-			llvm-core/clang
-			llvm-core/lld
-		)
-		!kernel-builtin-zfs? (
-			propeller? (
-				llvm-core/clang
-				llvm-core/lld
-			)
-			!propeller? (
-				kcfi? ( llvm-core/clang )
-			)
-		)
-	)
+	dev-util/pahole
+"
+PDEPEND="
+	>=virtual/dist-kernel-${PV}_p${PR#r}
+"
+
+QA_FLAGS_IGNORED="
+	usr/src/linux-.*/scripts/gcc-plugins/.*.so
+	usr/src/linux-.*/vmlinux
+	usr/src/linux-.*/arch/powerpc/kernel/vdso.*/vdso.*.so.dbg
 "
 
 _set_hztick_rate() {
-	local hertz=$1
-
-	if [[ ${hertz} == 300 ]]; then
+	local _HZ_ticks=$1
+	if use muqss; then
+		scripts/config \
+			-d HZ_100_NODEF -d HZ_250_NODEF -d HZ_300_NODEF \
+			-d HZ_500_NODEF -d HZ_600_NODEF -d HZ_750_NODEF \
+			-d HZ_1000_NODEF -e "HZ_${_HZ_ticks}_NODEF" \
+			--set-val HZ "${_HZ_ticks}" || die
+	elif [[ $_HZ_ticks == 300 ]]; then
 		scripts/config -e HZ_300 --set-val HZ 300 || die
 	else
-		scripts/config -d HZ_300 -e "HZ_${hertz}" --set-val HZ "${hertz}" || die
+		scripts/config -d HZ_300 -e "HZ_${_HZ_ticks}" --set-val HZ "${_HZ_ticks}" || die
 	fi
 }
 
-# Override kernel-2.eclass universal_unpack to handle CachyOS pre-patched tarball
-universal_unpack() {
-	cd "${WORKDIR}" || die
-	unpack "cachyos-${CKV}-${CACHYOS_PR}.tar.gz"
-	mv "cachyos-${CKV}-${CACHYOS_PR}" "${S}" || die
-	cd "${S}" || die
+pkg_setup() {
+	if use clang; then
+		llvm-r2_pkg_setup
+		local llvm_bindir
+		llvm_bindir="$(get_llvm_prefix -b)/bin"
+
+		export LLVM=1
+		export LLVM_IAS=1
+		export CC="${llvm_bindir}/clang"
+		export CXX="${llvm_bindir}/clang++"
+		export LD="${llvm_bindir}/ld.lld"
+		export AR="${llvm_bindir}/llvm-ar"
+		export NM="${llvm_bindir}/llvm-nm"
+		export OBJCOPY="${llvm_bindir}/llvm-objcopy"
+		export OBJDUMP="${llvm_bindir}/llvm-objdump"
+		export READELF="${llvm_bindir}/llvm-readelf"
+		export STRIP="${llvm_bindir}/llvm-strip"
+	else
+		tc-export CC CXX
+	fi
+
+	kernel-build_pkg_setup
 }
 
 src_unpack() {
-	# Use kernel-2.eclass src_unpack (will call our overridden universal_unpack)
-	kernel-2_src_unpack
+	default
 
+	# Unpack genpatches
+	# (kernel-build does not use kernel-2's UNIPATCH mechanism)
+
+	# Unpack ZFS if requested
 	if use kernel-builtin-zfs; then
-		### Push ZFS to linux
 		unpack "zfs-${ZFS_COMMIT}.tar.gz"
-		mv "zfs-${ZFS_COMMIT}" zfs || die
-		cp "${FILESDIR}/kernel-build.sh" . || die
-		chmod +x kernel-build.sh || die
+		mv "zfs-${ZFS_COMMIT}" "${S}/zfs" || die
+		cp "${FILESDIR}/kernel-build.sh" "${S}/" || die
 	fi
 }
 
 src_prepare() {
 	local patches_prefix="${DISTDIR}/${CACHYOS_PATCH_PREFIX}"
 	local configs_prefix="${DISTDIR}/${CACHYOS_CONFIG_PREFIX}"
-	local march_flag march=""
-	local -a march_flags=(
-		mgeneric mgeneric-v1 mgeneric-v2 mgeneric-v3 mgeneric-v4 mnative mzen4
-	)
+
+	# --- Apply genpatches (base + extras) ---
+	# Genpatches extract into ${WORKDIR}/ as numbered .patch files
+	# Exclude kernel version upgrade patches (10xx_linux-*.patch) since
+	# the CachyOS tarball already includes the latest point release
+	local genpatch genpatch_name genpatch_num
+	local genpatch_exclude=""
+
+	# The CachyOS pre-patched tarball already contains genpatch 2700.
+	genpatch_exclude="2700"
+
+	for genpatch in "${WORKDIR}"/*.patch; do
+		[[ -f "${genpatch}" ]] || continue
+		genpatch_name=$(basename "${genpatch}")
+		genpatch_num=${genpatch_name%%_*}
+		local skip=false
+
+		# Skip kernel upgrade patches (10xx series)
+		[[ ${genpatch_num} == 10* ]] && skip=true
+
+		# Skip excluded genpatches
+		local exclude
+		for exclude in ${genpatch_exclude}; do
+			[[ ${genpatch_name} == ${exclude}* ]] && skip=true
+		done
+
+		if ! ${skip}; then
+			eapply "${genpatch}"
+		fi
+	done
+
+	# --- Apply CachyOS-specific patches ---
 
 	# Fix AutoFDO/Propeller support for LTO_CLANG_THIN_DIST
 	# The distributed ThinLTO patch by Rong Xu (xur@google.com) did not update
@@ -204,13 +252,15 @@ src_prepare() {
 
 	# The 7.2.2 stable update changed a block that PRJC and MuQSS remove.
 	# Restore the patchsets' expected preimage before applying either series.
-	if use bmq || use muqss; then
+	if use bmq || use pds || use muqss; then
 		eapply "${FILESDIR}/7.2.2-prjc-muqss-prereq.patch"
+		eapply "${FILESDIR}/7.2.6-sched-alt-disable-sched-ext.patch"
 	fi
 
-	if use bore || use rt-bore; then
+	# Apply scheduler-specific patches.
+	if use bore || use rt-bore || use deckify; then
 		eapply "${patches_prefix}-bore.patch"
-	elif use bmq; then
+	elif use bmq || use pds; then
 		eapply "${patches_prefix}-prjc.patch"
 	elif use muqss; then
 		eapply "${patches_prefix}-muqss.patch"
@@ -220,24 +270,29 @@ src_prepare() {
 		eapply "${patches_prefix}-rt-i915.patch"
 	fi
 
-	cp "${configs_prefix}-config" .config || die
-
 	if use deckify; then
 		eapply "${patches_prefix}-acpi-call.patch"
 		eapply "${patches_prefix}-handheld.patch"
 	fi
 
-	if use kcfi || use propeller || ! use llvm-lto-none; then
+	if use aufs; then
+		eapply "${patches_prefix}-aufs.patch"
+	fi
+
+	if use deckify; then
+		cp "${configs_prefix}-deckify-config" .config || die
+	else
+		cp "${configs_prefix}-config" .config || die
+	fi
+
+	if use clang; then
 		eapply "${patches_prefix}-dkms-clang.patch"
 	fi
 
+	# Apply user patches (from /etc/portage/patches/)
 	eapply_user
 
-	# CachyOS ships a prebuilt BPF object in its source tarball.
-	rm -f tools/testing/selftests/tc-testing/action-ebpf || die
-
-	# Keep source directory and kernel release on kernel-2.eclass's revision suffix.
-	echo "${KV_FULL#${PV}}" > localversion.20-pkgname || die
+	# --- Kernel config modifications ---
 
 	if use server; then
 		scripts/config -d CACHY || die
@@ -249,6 +304,8 @@ src_prepare() {
 		scripts/config -e SCHED_BORE || die
 	elif use bmq; then
 		scripts/config -e SCHED_ALT -e SCHED_BMQ || die
+	elif use pds; then
+		scripts/config -e SCHED_ALT -d SCHED_BMQ -e SCHED_PDS || die
 	elif use muqss; then
 		scripts/config -e SCHED_MUQSS -e MUQSS_IOTIME || die
 	elif use rt; then
@@ -259,7 +316,12 @@ src_prepare() {
 		scripts/config -e SCHED_POC_SELECTOR || die
 	fi
 
+	if use aufs; then
+		scripts/config -m AUFS_FS || die
+	fi
+
 	if use deckify; then
+		# Upstream handheld config knobs from linux-cachyos-deckify prepare()
 		scripts/config \
 			-d RCU_LAZY_DEFAULT_OFF \
 			-e AMD_PRIVATE_COLOR \
@@ -308,55 +370,87 @@ src_prepare() {
 			--set-val DRM_PANIC_SCREEN_QR_VERSION 40 || die
 	fi
 
-	if use hz-ticks-100; then
+	## LLVM patch is applied with the other source patches above.
+
+	### Select tick rate
+	if use hz_ticks_100; then
 		_set_hztick_rate 100
-	elif use hz-ticks-250; then
+	elif use hz_ticks_250; then
 		_set_hztick_rate 250
-	elif use hz-ticks-300; then
+	elif use hz_ticks_300; then
 		_set_hztick_rate 300
-	elif use hz-ticks-500; then
+	elif use hz_ticks_500; then
 		_set_hztick_rate 500
-	elif use hz-ticks-600; then
+	elif use hz_ticks_600; then
 		_set_hztick_rate 600
-	elif use hz-ticks-750; then
+	elif use hz_ticks_750; then
 		_set_hztick_rate 750
-	elif use hz-ticks-1000; then
+	elif use hz_ticks_1000; then
 		_set_hztick_rate 1000
 	else
-		die "Invalid HZ_TICKS USE flag"
+		die "Invalid HZ_TICKS use flag. Please select a valid option."
 	fi
 
+	### Select performance governor
 	if use per-gov; then
 		scripts/config -d CPU_FREQ_DEFAULT_GOV_SCHEDUTIL -e CPU_FREQ_DEFAULT_GOV_PERFORMANCE || die
 	fi
 
-	if use tickrate-periodic; then
+	### Select tick type
+	if use muqss; then
+		if use tickrate_periodic; then
+			scripts/config \
+				-e HZ_PERIODIC_NODEF -d NO_HZ_IDLE_NODEF -d NO_HZ_FULL_NODEF \
+				-d NO_HZ_IDLE -d NO_HZ_FULL -d NO_HZ -d NO_HZ_COMMON \
+				-e HZ_PERIODIC || die
+		elif use tickrate_idle; then
+			scripts/config \
+				-d HZ_PERIODIC_NODEF -e NO_HZ_IDLE_NODEF -d NO_HZ_FULL_NODEF \
+				-d HZ_PERIODIC -d NO_HZ_FULL -e NO_HZ_IDLE -e NO_HZ -e NO_HZ_COMMON || die
+		elif use tickrate_full; then
+			scripts/config \
+				-d HZ_PERIODIC_NODEF -d NO_HZ_IDLE_NODEF -e NO_HZ_FULL_NODEF \
+				-d HZ_PERIODIC -d NO_HZ_IDLE -d CONTEXT_TRACKING_FORCE \
+				-e NO_HZ_FULL -e NO_HZ -e NO_HZ_COMMON -e CONTEXT_TRACKING || die
+		fi
+	elif use tickrate_periodic; then
 		scripts/config -d NO_HZ_IDLE -d NO_HZ_FULL -d NO_HZ -d NO_HZ_COMMON -e HZ_PERIODIC || die
-	elif use tickrate-idle; then
+	elif use tickrate_idle; then
 		scripts/config -d HZ_PERIODIC -d NO_HZ_FULL -e NO_HZ_IDLE -e NO_HZ -e NO_HZ_COMMON || die
-	elif use tickrate-full; then
+	elif use tickrate_full; then
 		scripts/config \
 			-d HZ_PERIODIC -d NO_HZ_IDLE -d CONTEXT_TRACKING_FORCE \
 			-e NO_HZ_FULL_NODEF -e NO_HZ_FULL -e NO_HZ -e NO_HZ_COMMON \
 			-e CONTEXT_TRACKING || die
 	fi
 
+	### Select preempt type
 	if ! use rt && ! use rt-bore; then
 		scripts/config -e PREEMPT_DYNAMIC || die
-		if use preempt-full; then
+		if use muqss; then
+			if use preempt_full; then
+				scripts/config \
+					-d PREEMPT_NONE_NODEF -d PREEMPT_VOLUNTARY_NODEF \
+					-e PREEMPT_NODEF -d PREEMPT_LAZY_NODEF || die
+			elif use preempt_lazy; then
+				scripts/config \
+					-d PREEMPT_NONE_NODEF -d PREEMPT_VOLUNTARY_NODEF \
+					-d PREEMPT_NODEF -e PREEMPT_LAZY_NODEF || die
+			fi
+		elif use preempt_full; then
 			scripts/config -e PREEMPT -d PREEMPT_LAZY || die
-		elif use preempt-lazy; then
+		elif use preempt_lazy; then
 			scripts/config -d PREEMPT -e PREEMPT_LAZY || die
 		fi
 	fi
 
+	### Select compiler optimization
 	if use o3; then
 		scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE -e CC_OPTIMIZE_FOR_PERFORMANCE_O3 || die
 	elif use os; then
 		scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE -e CC_OPTIMIZE_FOR_SIZE || die
 	elif use debug; then
-		scripts/config \
-			-d CC_OPTIMIZE_FOR_PERFORMANCE \
+		scripts/config -d CC_OPTIMIZE_FOR_PERFORMANCE \
 			-d CC_OPTIMIZE_FOR_PERFORMANCE_O3 \
 			-e CC_OPTIMIZE_FOR_SIZE \
 			-d SLUB_DEBUG \
@@ -369,6 +463,7 @@ src_prepare() {
 			-d DEBUG_PREEMPT || die
 	fi
 
+	### Enable BBR3
 	if use bbr3; then
 		# Upstream linux-cachyos `_tcp_bbr3` still enables vanilla BBR.
 		# Enable real BBR3 as default, keep vanilla BBR as a module so both
@@ -387,56 +482,76 @@ src_prepare() {
 			-e DEFAULT_FQ || die
 	fi
 
-	if use hugepage-always; then
+	### Select THP
+	if use hugepage_always; then
 		scripts/config -d TRANSPARENT_HUGEPAGE_MADVISE -e TRANSPARENT_HUGEPAGE_ALWAYS || die
-	elif use hugepage-madvise; then
+	fi
+
+	if use hugepage_madvise; then
 		scripts/config -d TRANSPARENT_HUGEPAGE_ALWAYS -e TRANSPARENT_HUGEPAGE_MADVISE || die
 	fi
 
-	for march_flag in "${march_flags[@]}"; do
-		if use "${march_flag}"; then
-			march=${march_flag#?}
-			march=${march^^}
-			march=${march//-/_}
-			case ${march} in
-				GENERIC_V[1-4])
-					scripts/config -e GENERIC_CPU -d MZEN4 -d X86_NATIVE_CPU \
-						--set-val X86_64_VERSION "${march//GENERIC_V/}" || die
-					;;
-				ZEN4)
-					scripts/config -d GENERIC_CPU -e MZEN4 -d X86_NATIVE_CPU || die
-					;;
-				NATIVE)
-					scripts/config -d GENERIC_CPU -d MZEN4 -e X86_NATIVE_CPU || die
-					;;
+	### Select CPU optimization
+	march_list=(mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative mzen4)
+	march_found=false
+	for MMARCH in "${march_list[@]}"; do
+		if use "${MMARCH}"; then
+			MARCH_TRIMMED=${MMARCH:1}
+			MARCH=$(echo "$MARCH_TRIMMED" | tr '[:lower:]' '[:upper:]')
+			case "$MARCH" in
+			GENERIC_V[1-4])
+				scripts/config -e GENERIC_CPU -d MZEN4 -d X86_NATIVE_CPU \
+					--set-val X86_64_VERSION "${MARCH//GENERIC_V/}" || die
+				;;
+			ZEN4)
+				scripts/config -d GENERIC_CPU -e MZEN4 -d X86_NATIVE_CPU || die
+				;;
+			NATIVE)
+				scripts/config -d GENERIC_CPU -d MZEN4 -e X86_NATIVE_CPU || die
+				;;
 			esac
+			march_found=true
 			break
 		fi
 	done
-
-	if [[ -z ${march} ]]; then
+	if [ "$march_found" = false ]; then
 		scripts/config -d GENERIC_CPU -d MZEN4 -e X86_NATIVE_CPU || die
 	fi
 
+	### Enable Clang AutoFDO
 	if use autofdo; then
 		scripts/config -e AUTOFDO_CLANG || die
 	fi
+	### Propeller Optimization
 	if use propeller; then
 		scripts/config -e PROPELLER_CLANG || die
 	fi
 
-	scripts/config --set-str DEFAULT_HOSTNAME gentoo || die
+	### Change hostname
+	scripts/config --set-str DEFAULT_HOSTNAME "gentoo" || die
 
 	# Gentoo/OpenRC: restore upstream default console loglevel (CachyOS defaults to 4 for silent systemd boot) #41
 	scripts/config --set-val CONSOLE_LOGLEVEL_DEFAULT 7 || die
+
+	### Set LOCALVERSION for dist-kernel identification
+	local myversion="-cachyos-dist"
+	echo "CONFIG_LOCALVERSION=\"${myversion}\"" > "${T}"/version.config || die
+
+	# Ensure modprobe path is correct
+	echo 'CONFIG_MODPROBE_PATH="/sbin/modprobe"' > "${T}"/modprobe.config || die
+
+	# --- Finalize config via kernel-build merge ---
+	local merge_configs=(
+		"${T}"/version.config
+		"${T}"/modprobe.config
+	)
+
+	kernel-build_merge_configs "${merge_configs[@]}"
 }
 
-pkg_pretend() {
-	CHECKREQS_DISK_BUILD="4G"
-	check-reqs_pkg_pretend
-}
+pkg_postinst() {
+	kernel-build_pkg_postinst
 
-pkg_setup() {
 	ewarn ""
 	ewarn "${PN} is *not* supported by the Gentoo Kernel Project in any way."
 	ewarn "Report ebuild and kernel problems to https://github.com/Szowisz/CachyOS-kernels."
@@ -444,15 +559,14 @@ pkg_setup() {
 	ewarn "Do *not* open bugs in Gentoo's bugzilla. Thank you."
 	ewarn ""
 
-	kernel-2_pkg_setup
-}
+	if use mnative; then
+		ewarn "USE=mnative builds the kernel with -march=native, which optimizes for your"
+		ewarn "specific CPU. Binary packages built this way are NOT portable to other machines."
+		ewarn "Use USE=mgeneric_v3 or similar for portable builds."
+	fi
 
-pkg_postinst() {
-	kernel-2_pkg_postinst
-
-	elog "For more information about CachyOS kernels, see https://wiki.cachyos.org/features/kernel/."
 	optfeature "userspace KSM helper" sys-process/uksmd
-	optfeature "NVIDIA open-source module" "x11-drivers/nvidia-drivers[kernel-open]"
+	optfeature "NVIDIA opensource module" "x11-drivers/nvidia-drivers[kernel-open]"
 	optfeature "NVIDIA module" x11-drivers/nvidia-drivers
 	optfeature "Realtek RTL8125 2.5GbE driver" net-misc/r8125
 	optfeature "ZFS support" sys-fs/zfs
@@ -462,8 +576,6 @@ pkg_postinst() {
 		ewarn "WARNING: You are using kernel-builtin-zfs USE flag."
 		ewarn "It is STRONGLY RECOMMENDED to use sys-fs/zfs instead of building ZFS into the kernel."
 		ewarn "sys-fs/zfs provides better compatibility and easier updates."
-		ewarn "Build reference: https://github.com/CachyOS/linux-cachyos/blob/f843b48b52fb52c00f76b7d29f70ba1eb2b4cc06/linux-cachyos-server/PKGBUILD#L573"
-		ewarn "See kernel-build.sh in the installed kernel source tree for an example."
 	fi
 	if use autofdo || use propeller; then
 		ewarn "AutoFDO/Propeller are enabled in Kconfig, but they only apply profile-guided"
@@ -475,8 +587,4 @@ pkg_postinst() {
 		ewarn "Guide: https://cachyos.org/blog/2411-kernel-autofdo"
 		ewarn "Example: https://github.com/xz-dev/kernel-autofdo-container"
 	fi
-}
-
-pkg_postrm() {
-	kernel-2_pkg_postrm
 }

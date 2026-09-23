@@ -85,6 +85,28 @@ VALIDATED_HIDDEN_FEATURES = {
             "evidence": "applies to 7.2.6 with the SCHED_CLASS_EXT prerequisite; clean prepare with pds passes",
         },
     },
+    "7.2.7": {
+        "aufs": {
+            "path": "misc/0001-aufs-7.2-merge-v20260907.patch",
+            "evidence": "applies to cachyos-7.2.7-1 at fuzz=0 in a clean dry-run",
+        },
+        "muqss": {
+            "path": "sched/0001-muqss-cachy.patch",
+            "evidence": "applies to 7.2.7 after prjc-muqss-prereq + SCHED_CLASS_EXT prereqs; fuzz=2 dry-run clean",
+        },
+        "pds": {
+            "path": "sched/0001-prjc-cachy.patch",
+            "evidence": "applies to 7.2.7 after prjc-muqss-prereq + SCHED_CLASS_EXT prereqs; fuzz=2 dry-run clean",
+        },
+        "bmq": {
+            "path": "sched/0001-prjc-cachy.patch",
+            "evidence": "applies to 7.2.7 after prjc-muqss-prereq + SCHED_CLASS_EXT prereqs; fuzz=2 dry-run clean",
+        },
+        "deckify": {
+            "path": "misc/0001-handheld.patch",
+            "evidence": "acpi-call + handheld + bore-cachy apply to cachyos-7.2.7-1 at fuzz=0 (handheld refreshed in kernel-patches edb006d5)",
+        },
+    },
 }
 
 AUDIT_PATTERNS = {
@@ -139,6 +161,12 @@ AUDIT_PATTERNS = {
         "if use deckify; then",
         "HID_LENOVO_GO",
     ),
+    "cachyos-hardened": (
+        "cachyos-hardened? (",
+        "misc/0001-hardened.patch",
+        "-hardened.patch",
+        "if use cachyos-hardened; then",
+    ),
 }
 
 OFFICIAL_PACKAGE_PATTERNS = {
@@ -167,7 +195,6 @@ OFFICIAL_PACKAGE_PATTERNS = {
 }
 
 DOCUMENTED_EXCLUSIONS = {
-    "hardened": "hardened remains on 7.1.8",
     "bmq-lfbmq": "PRJC-LFBMQ has no 7.2 patch family",
 }
 
@@ -181,6 +208,19 @@ VERSIONED_EXCLUSIONS = {
         "bore-vanilla": (
             "bare BORE fails 10 of 23 kernel/sched/fair.c hunks on "
             "cachyos-7.2.6-1"
+        ),
+        "hardened": "hardened remains on 7.1.8",
+    },
+    "7.2.7": {
+        "hardened": (
+            "7.2/misc/0001-hardened.patch applies to the pristine cachyos-7.2.7-1 "
+            "tree at fuzz=0, but 116 hunks conflict with genpatches-7.2-8; "
+            "the upstream hardened build does not apply genpatches, so it needs "
+            "a downstream rebase before it can be exposed"
+        ),
+        "bore-vanilla": (
+            "bare BORE fails 9 hunks on cachyos-7.2.7-1; only the "
+            "bore-cachy variant is wired"
         ),
     },
 }
@@ -287,9 +327,11 @@ def audit_hidden_patch_inventory(target_version, patch_paths, lts=False):
             errors.append(f"{feature}: validated hidden patch disappeared: {path}")
 
     for feature, basename in {
-        "hardened": "0001-hardened.patch",
+        "cachyos-hardened": "0001-hardened.patch",
         "bmq-lfbmq": "lfbmq",
     }.items():
+        if feature in VALIDATED_HIDDEN_FEATURES.get(clean_target, {}):
+            continue
         if any(
             path.startswith(f"{series}/") and basename in path
             for path in patch_paths

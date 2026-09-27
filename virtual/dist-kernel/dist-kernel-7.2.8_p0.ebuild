@@ -9,7 +9,7 @@ KEYWORDS="~amd64"
 
 RDEPEND="
 	|| (
-		~sys-kernel/cachyos-kernel-6.18.50
-		=sys-kernel/cachyos-kernel-bin-6.18.50-r2
+		~sys-kernel/cachyos-kernel-7.2.8
+		=sys-kernel/cachyos-kernel-bin-7.2.8
 	)
 "

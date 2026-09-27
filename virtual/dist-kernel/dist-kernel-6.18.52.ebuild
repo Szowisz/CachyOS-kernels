@@ -8,5 +8,8 @@ SLOT="0/${PVR}"
 KEYWORDS="~amd64"
 
 RDEPEND="
-	~sys-kernel/cachyos-kernel-6.18.52
+	|| (
+		~sys-kernel/cachyos-kernel-6.18.52
+		=sys-kernel/cachyos-kernel-bin-6.18.52
+	)
 "

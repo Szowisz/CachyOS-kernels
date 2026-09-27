@@ -7,7 +7,7 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit kernel-install toolchain-funcs
 
-# CachyOS package release numbers. The 7.2.6 source and binary packages are
+# CachyOS package release numbers. The 7.2.8 source and binary packages are
 # both pkgrel 1 on the mirror.
 CACHYOS_SOURCE_PR="1"
 CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
@@ -38,7 +38,7 @@ SRC_URI="
 	!cachyos? ( https://github.com/CachyOS/linux/releases/download/${VARIANT_MY_P}/${VARIANT_MY_P}.tar.gz )
 "
 
-# 7.2.6 ships lto sub-variants for every scheduler and a gcc build for the
+# 7.2.8 ships lto sub-variants for every scheduler and a gcc build for the
 # default cachyos package on the mirror.
 SRC_URI+="
 	cachyos? (

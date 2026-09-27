@@ -8,9 +8,9 @@ KERNEL_IUSE_GENERIC_UKI=1
 inherit kernel-install toolchain-funcs
 
 # CachyOS source package is at pkgrel 1; the hardened binary pkgrel follows
-# the Gentoo revision (7.1.8-r3 -> pkgrel 4).
+# the Gentoo revision (7.1.8-r3 selects mirror pkgrel 4).
 CACHYOS_SOURCE_PR="1"
-CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
+CACHYOS_BIN_PR="4"
 
 VARIANT_MY_P="cachyos-${PV}-${CACHYOS_SOURCE_PR}"
 VARIANT_BINPKG_VER="${PV}-${CACHYOS_BIN_PR}"

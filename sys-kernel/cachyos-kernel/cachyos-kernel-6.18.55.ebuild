@@ -176,8 +176,6 @@ src_unpack() {
 src_prepare() {
 	local patches_prefix="${DISTDIR}/${CACHYOS_PATCH_PREFIX}"
 	local configs_prefix="${DISTDIR}/${CACHYOS_CONFIG_PREFIX}"
-	local hardened_patch="${T}/${CACHYOS_PATCH_PREFIX}-hardened.patch"
-	local rej_list
 
 	# --- Apply genpatches (base + extras) ---
 	# Genpatches extract into ${WORKDIR}/ as numbered .patch files
@@ -218,20 +216,9 @@ src_prepare() {
 	# selection is a pure Kconfig flip below.
 
 	if use cachyos-hardened; then
-		# Upstream 6.18 hardened patch targets a slightly older fs/stat.c
-		# context (pre inode_get_ctime_sec). Adapt that single line, apply,
-		# and assert only the genpatch-collision rejects remain.
-		[[ $(grep -Fxc $' \tstat->ctime.tv_sec = inode->i_ctime_sec;' \
-			"${patches_prefix}-hardened.patch") -eq 1 ]] || \
-			die "unexpected hardened fs/stat.c patch context"
-		sed $'s/^ \tstat->ctime.tv_sec = inode->i_ctime_sec;$/ \tstat->ctime.tv_sec = inode_get_ctime_sec(inode);/' \
-			"${patches_prefix}-hardened.patch" > "${hardened_patch}" || die
-		patch -p1 --forward --no-backup-if-mismatch < "${hardened_patch}" || true
-		rej_list=$(find . -name '*.rej' -printf '%P\n' | sort)
-		[[ ${rej_list} == $'fs/namei.c.rej\nsecurity/selinux/selinuxfs.c.rej' ]] || \
-			die "unexpected hardened rejects: ${rej_list}"
-		find . -name '*.rej' -delete
-		eapply "${FILESDIR}/6.18.55/misc/0001-hardened-namei-sysctls.patch"
+		cp "${patches_prefix}-hardened.patch" "${T}/hardened.patch" || die
+		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-6.18.55-hardened-rebase.patch"
+		eapply --fuzz=0 -- "${T}/hardened.patch"
 	fi
 
 	if use rt; then

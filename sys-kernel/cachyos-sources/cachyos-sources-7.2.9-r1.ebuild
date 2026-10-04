@@ -136,18 +136,15 @@ IUSE="
 	+mnative mzen4
 "
 
-# Scheduler patches carried in kernel-patches but unavailable for 7.2.9:
+# Scheduler patch compatibility for 7.2.9:
 # - PRJC-LFBMQ has no 7.2 patch family
 # - bare BORE fails 9 hunks on cachyos-7.2 trees; only the bore-cachy variant is wired
 # - hardened: needs files/7.2.9/misc/0001-hardened-namei-sysctls.patch for the
 #   fs/namei.c sysctl defaults that genpatches-7.2-10 already partially set;
 #   upstream hardened build does not apply genpatches, so that fixup carries
 #   the remaining genpatch-colliding hunk.
-# - muqss: its fair.c deletion hunk (tg_cpus..static_call_update block)
-#   rejects because genpatch-1005 rewrote 'return nr' into
-#   'return max(nr, 1)' inside the block the patch removes; assert the
-#   reject and apply files/7.2.9/sched/0001-fair-shares-cleanup.patch
-#   (generated from the post-muqss tree).
+# - PRJC needs the cpuset preimage rollback and a context rebase; MuQSS
+#   already matches the cpuset fix and must not receive that rollback.
 REQUIRED_USE="
 	^^ ( bore bmq pds muqss rt rt-bore eevdf cachyos-hardened )
 	cachyos-hardened? ( llvm-lto-none )
@@ -243,49 +240,18 @@ src_prepare() {
 	# https://github.com/Szowisz/CachyOS-kernels/issues/35
 	eapply "${FILESDIR}/6.19.0/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
 
-	# The 7.2.2 stable update changed a block that PRJC and MuQSS remove.
-	# The upstream !SCHED_ALT dependency for SCHED_CLASS_EXT landed in the 7.2.9
-	# tarball itself, so the 7.2.6 prereq is no longer needed here.
 	local rej_list
-	if use bmq || use pds || use muqss; then
-		eapply "${FILESDIR}/7.2.2-prjc-muqss-prereq.patch"
-	fi
-
-	# The 7.2.9+genpatches-10 tree changed contexts for several hunks. Apply the
-	# affected upstream patches with patch(1) so the known rejects land as .rej
-	# files, assert exactly the expected rejects appeared, then fix them with
-	# downstream patches from files/7.2.9/.
 	if use bore || use rt-bore || use deckify || use cachyos-hardened; then
 		# bore-cachy: sched.h hunk needs fuzz to place bore_ctx after task_ipi_mask
 		patch -p1 --forward --no-backup-if-mismatch < \
 			"${patches_prefix}-bore.patch" || die
 	elif use bmq || use pds; then
-		# prjc-cachy: fair.c shares block repaired by the prereq; Kconfig.preempt
-		# SCHED_CLASS_EXT hunk rejects against genpatch-1005's GENERIC_ALLOCATOR
-		# line; assert that reject then re-apply the !SCHED_ALT dep.
-		patch -p1 --forward --no-backup-if-mismatch < \
-			"${patches_prefix}-prjc.patch" || true
-		rej_list=$(find . -name '*.rej' -printf '%P\n' | sort)
-		[[ ${rej_list} == $'kernel/Kconfig.preempt.rej' ]] || \
-			die "unexpected prjc rejects: ${rej_list}"
-		find . -name '*.rej' -delete
-		eapply "${FILESDIR}/7.2.9/sched/0002-prjc-scx-alt-depends.patch"
+		eapply "${FILESDIR}/7.2.2-prjc-muqss-prereq.patch"
+		cp "${patches_prefix}-prjc.patch" "${T}/prjc.patch" || die
+		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-7.2.9-prjc-rebase.patch"
+		eapply --fuzz=0 -- "${T}/prjc.patch"
 	elif use muqss; then
-		# muqss-cachy: the cgroup-shares deletion hunk rejects because
-		# genpatch-1005 rewrote 'return nr' into 'return max(nr, 1)' inside
-		# the block the patch removes. Assert the single reject, drop it,
-		# and apply the same cleanup the hunk intended.
-		patch -p1 --forward --no-backup-if-mismatch < \
-			"${patches_prefix}-muqss.patch" || true
-		rej_list=$(find . -name '*.rej' -printf '%P\n' | sort)
-		[[ ${rej_list} == $'kernel/sched/fair.c.rej' ]] || \
-			die "unexpected muqss rejects: ${rej_list}"
-		find . -name '*.rej' -delete
-		eapply "${FILESDIR}/7.2.9/sched/0001-fair-shares-cleanup.patch"
-		# Verify no dangling references to the deleted helpers remain.
-		! grep -q 'static int tg_cpus\|DEFINE_STATIC_CALL(calc_group_shares' \
-			kernel/sched/fair.c || \
-			die "muqss fair.c cleanup missing"
+		eapply --fuzz=0 -- "${patches_prefix}-muqss.patch"
 	fi
 
 	if use cachyos-hardened; then

@@ -100,12 +100,8 @@ IUSE="
 # carries the bore-cachy and prjc-cachy scheduler patchsets upstream, so this
 # ebuild only flips the matching Kconfig symbols instead of re-applying the
 # sched patches.
-# The hardened upstream patch needs the downstream
-# files/6.18.55/misc/0001-hardened-namei-sysctls.patch fixup for the
-# fs/namei.c sysctl defaults that genpatches-6.18-63 already partially set;
-# its selinuxfs.c hunk is skipped because the equivalent checkreqprot rewrite
-# already landed upstream. The fs/stat.c i_ctime_sec accessor drift is handled
-# by the same sed conversion used since 6.18.52.
+# Rebase the pinned hardened patch onto these sources and genpatches using
+# files/cachyos-sources-6.18.55-hardened-rebase.patch.
 # The default upstream "cachyos" selector is documented as EEVDF and downloads
 # no scheduler patch; it is represented by the default eevdf USE selection.
 # Deckify, MuQSS, and BMQ-LFBMQ are absent from the current LTS PKGBUILD.
@@ -182,8 +178,6 @@ src_unpack() {
 src_prepare() {
 	local patches_prefix="${DISTDIR}/${CACHYOS_PATCH_PREFIX}"
 	local configs_prefix="${DISTDIR}/${CACHYOS_CONFIG_PREFIX}"
-	local hardened_patch="${T}/${CACHYOS_PATCH_PREFIX}-hardened.patch"
-	local rej_list
 	local march_flag march=""
 	local -a march_flags=(
 		mgeneric mgeneric-v1 mgeneric-v2 mgeneric-v3 mgeneric-v4 mnative mzen4
@@ -203,21 +197,9 @@ src_prepare() {
 	# pre-patched tarball; only their Kconfig switches below are needed.
 
 	if use cachyos-hardened; then
-		# Two known rejects on the 6.18.55+genpatches-63 tree:
-		# - fs/namei.c sysctl defaults (genpatch 1510 pre-set symlinks/hardlinks=1)
-		# - security/selinux/selinuxfs.c (checkreqprot rewrite landed upstream)
-		[[ $(grep -Fxc $' \tstat->ctime.tv_sec = inode->i_ctime_sec;' \
-			"${patches_prefix}-hardened.patch") -eq 1 ]] ||
-			die "unexpected hardened fs/stat.c patch context"
-		sed $'s/^ \tstat->ctime.tv_sec = inode->i_ctime_sec;$/ \tstat->ctime.tv_sec = inode_get_ctime_sec(inode);/' \
-			"${patches_prefix}-hardened.patch" > "${hardened_patch}" || die
-		patch -p1 --forward --no-backup-if-mismatch < \
-			"${hardened_patch}" || true
-		rej_list=$(find . -name '*.rej' -printf '%P\n' | sort)
-		[[ ${rej_list} == $'fs/namei.c.rej\nsecurity/selinux/selinuxfs.c.rej' ]] || \
-			die "unexpected hardened rejects: ${rej_list}"
-		find . -name '*.rej' -delete
-		eapply "${FILESDIR}/6.18.55/misc/0001-hardened-namei-sysctls.patch"
+		cp "${patches_prefix}-hardened.patch" "${T}/hardened.patch" || die
+		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-6.18.55-hardened-rebase.patch"
+		eapply --fuzz=0 -- "${T}/hardened.patch"
 	fi
 
 	if use rt || use rt-bore; then

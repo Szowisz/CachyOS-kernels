@@ -281,41 +281,18 @@ src_prepare() {
 	# https://github.com/Szowisz/CachyOS-kernels/issues/35
 	eapply "${FILESDIR}/6.19.0/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
 
-	if use bmq || use pds || use muqss; then
-		eapply "${FILESDIR}/7.2.2-prjc-muqss-prereq.patch"
-	fi
-
 	# Apply scheduler-specific patches.
 	local rej_list
 	if use bore || use rt-bore || use deckify || use cachyos-hardened; then
 		patch -p1 --forward --no-backup-if-mismatch < \
 			"${patches_prefix}-bore.patch" || die
 	elif use bmq || use pds; then
-		# prjc-cachy: fair.c shares block repaired by the prereq; Kconfig.preempt
-		# SCHED_CLASS_EXT hunk rejects against genpatch-1005's GENERIC_ALLOCATOR
-		# line; assert that reject then re-apply the !SCHED_ALT dep.
-		patch -p1 --forward --no-backup-if-mismatch < \
-			"${patches_prefix}-prjc.patch" || true
-		rej_list=$(find . -name '*.rej' -printf '%P\n' | sort)
-		[[ ${rej_list} == $'kernel/Kconfig.preempt.rej' ]] || \
-			die "unexpected prjc rejects: ${rej_list}"
-		find . -name '*.rej' -delete
-		eapply "${FILESDIR}/7.2.9/sched/0002-prjc-scx-alt-depends.patch"
+		eapply "${FILESDIR}/7.2.2-prjc-muqss-prereq.patch"
+		cp "${patches_prefix}-prjc.patch" "${T}/prjc.patch" || die
+		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-7.2.9-prjc-rebase.patch"
+		eapply --fuzz=0 -- "${T}/prjc.patch"
 	elif use muqss; then
-		# muqss-cachy: the cgroup-shares deletion hunk rejects because
-		# genpatch-1005 rewrote 'return nr' into 'return max(nr, 1)' inside
-		# the block the patch removes. Assert the single reject, drop it,
-		# and apply the same cleanup the hunk intended.
-		patch -p1 --forward --no-backup-if-mismatch < \
-			"${patches_prefix}-muqss.patch" || true
-		rej_list=$(find . -name '*.rej' -printf '%P\n' | sort)
-		[[ ${rej_list} == $'kernel/sched/fair.c.rej' ]] || \
-			die "unexpected muqss rejects: ${rej_list}"
-		find . -name '*.rej' -delete
-		eapply "${FILESDIR}/7.2.9/sched/0001-fair-shares-cleanup.patch"
-		! grep -q 'static int tg_cpus\|DEFINE_STATIC_CALL(calc_group_shares' \
-			kernel/sched/fair.c || \
-			die "muqss fair.c cleanup missing"
+		eapply --fuzz=0 -- "${patches_prefix}-muqss.patch"
 	fi
 
 	if use cachyos-hardened; then

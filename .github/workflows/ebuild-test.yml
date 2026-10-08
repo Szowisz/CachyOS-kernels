@@ -8,6 +8,7 @@ on:
       - 'sys-kernel/cachyos-kernel/**'
       - 'virtual/dist-kernel/**'
       - '.github/workflows/ebuild-test.yml'
+      - 'tests/test-ci-use-matrix.py'
   pull_request:
     branches: [ main, master ]
     paths:
@@ -15,6 +16,7 @@ on:
       - 'sys-kernel/cachyos-kernel/**'
       - 'virtual/dist-kernel/**'
       - '.github/workflows/ebuild-test.yml'
+      - 'tests/test-ci-use-matrix.py'
   workflow_dispatch:
 
 jobs:
@@ -26,6 +28,9 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Validate CI USE matrix against ebuild requirements
+      run: python3 tests/test-ci-use-matrix.py
 
     - name: Validate dist-kernel dependency resolution with emerge --pretend
       shell: bash
@@ -150,15 +155,15 @@ jobs:
         version: ${{ fromJson(needs.detect-versions.outputs.versions) }}
         # Comprehensive test matrix based on all USE flags in the ebuild
         use_flags:
-          # Default USE flags (bore scheduler is default)
+          # Default USE flags (scheduler and LTO defaults vary by version)
           - ""
           
           # === Scheduler Tests (mutually exclusive) ===
-          - "bmq -bore"
-          - "bmq-lfbmq -bore"
+          - "bmq -bore -eevdf"
+          - "bmq-lfbmq -bore -eevdf"
           - "eevdf -bore"
-          - "rt -bore"
-          - "rt-bore -bore"
+          - "rt -bore -eevdf"
+          - "rt-bore -bore -eevdf"
           
           # === Special Configurations ===
           - "kcfi"
@@ -166,19 +171,19 @@ jobs:
           - "deckify kcfi"
           
           # === Hz Tick Rate Tests (mutually exclusive) ===
-          - "hz_ticks_100 -hz_ticks_1000"
-          - "hz_ticks_250 -hz_ticks_1000"
-          - "hz_ticks_300 -hz_ticks_1000"
-          - "hz_ticks_500 -hz_ticks_1000"
-          - "hz_ticks_600 -hz_ticks_1000"
-          - "hz_ticks_750 -hz_ticks_1000"
+          - "hz-ticks-100 -hz-ticks-1000"
+          - "hz-ticks-250 -hz-ticks-1000"
+          - "hz-ticks-300 -hz-ticks-1000"
+          - "hz-ticks-500 -hz-ticks-1000"
+          - "hz-ticks-600 -hz-ticks-1000"
+          - "hz-ticks-750 -hz-ticks-1000"
           
           # === Tick Type Tests (mutually exclusive) ===
-          - "tickrate_periodic -tickrate_full"
-          - "tickrate_idle -tickrate_full"
+          - "tickrate-periodic -tickrate-full"
+          - "tickrate-idle -tickrate-full"
           
           # === Preemption Mode Tests ===
-          - "preempt_lazy -preempt_full"
+          - "preempt-lazy -preempt-full"
           
           # === Compiler Optimization Tests ===
           - "o3"  # Default
@@ -192,63 +197,63 @@ jobs:
           - "-per-gov"
           
           # === Memory Management ===
-          - "hugepage_always"  # Default
-          - "hugepage_madvise -hugepage_always"
+          - "hugepage-always"  # Default
+          - "hugepage-madvise -hugepage-always"
           
           # === CPU Architecture Optimization ===
           - "mnative"  # Default
           - "mgeneric -mnative"
-          - "mgeneric_v1 -mnative"
-          - "mgeneric_v2 -mnative"
-          - "mgeneric_v3 -mnative"
-          - "mgeneric_v4 -mnative"
+          - "mgeneric-v1 -mnative"
+          - "mgeneric-v2 -mnative"
+          - "mgeneric-v3 -mnative"
+          - "mgeneric-v4 -mnative"
           - "mzen4 -mnative"
           
           # === LLVM LTO Tests (mutually exclusive) ===
-          - "llvm-lto-thin-dist -llvm-lto-thin -llvm-lto-full"  # Default
-          - "llvm-lto-thin -llvm-lto-thin-dist -llvm-lto-full"
-          - "llvm-lto-full -llvm-lto-thin -llvm-lto-thin-dist -propeller"
+          - "llvm-lto-thin-dist -llvm-lto-thin -llvm-lto-full -llvm-lto-none"
+          - "llvm-lto-thin -llvm-lto-thin-dist -llvm-lto-full -llvm-lto-none"
+          - "llvm-lto-full -llvm-lto-thin -llvm-lto-thin-dist -llvm-lto-none -propeller"
           
           # === Advanced Optimization ===
-          - "autofdo propeller llvm-lto-thin-dist -llvm-lto-thin -llvm-lto-full"  # autofdo requires LTO, propeller conflicts with full LTO
+          - "autofdo propeller llvm-lto-thin-dist -llvm-lto-thin -llvm-lto-full -llvm-lto-none"  # autofdo requires LTO, propeller conflicts with full LTO
           - "-autofdo -propeller"
-          - "autofdo llvm-lto-thin -propeller -llvm-lto-thin-dist -llvm-lto-full"
-          - "propeller llvm-lto-thin-dist -llvm-lto-thin -llvm-lto-full"  # propeller without autofdo
-          - "autofdo llvm-lto-thin -llvm-lto-thin-dist -llvm-lto-full"
-          - "autofdo llvm-lto-full -propeller -llvm-lto-thin -llvm-lto-thin-dist"  # propeller conflicts with full LTO
+          - "autofdo llvm-lto-thin -propeller -llvm-lto-thin-dist -llvm-lto-full -llvm-lto-none"
+          - "propeller llvm-lto-thin-dist -llvm-lto-thin -llvm-lto-full -llvm-lto-none"  # propeller without autofdo
+          - "autofdo llvm-lto-thin -llvm-lto-thin-dist -llvm-lto-full -llvm-lto-none"
+          - "autofdo llvm-lto-full -propeller -llvm-lto-thin -llvm-lto-thin-dist -llvm-lto-none"  # propeller conflicts with full LTO
           
           # === ZFS Support ===
           - "kernel-builtin-zfs"
           
           # === Complex Real-world Combinations ===
           # Performance gaming setup
-          - "bmq o3 bbr3 hz_ticks_1000 per-gov mzen4 -bore -mnative"
+          - "bmq o3 bbr3 hz-ticks-1000 per-gov mzen4 -bore -eevdf -mnative"
           # Low latency audio workstation
-          - "rt hz_ticks_1000 tickrate_full -bore"
+          - "rt hz-ticks-1000 tickrate-full -bore -eevdf"
           # Power saving laptop
-          - "eevdf os hz_ticks_250 tickrate_idle -per-gov -bore -tickrate_full -hz_ticks_1000 -o3"
+          - "eevdf os hz-ticks-250 tickrate-idle -per-gov -bore -tickrate-full -hz-ticks-1000 -o3"
           # Steam Deck optimized (deckify requires a BORE-family scheduler)
-          - "deckify hz_ticks_500 o3 -hz_ticks_1000"
+          - "deckify hz-ticks-500 o3 -hz-ticks-1000"
           # Development workstation with debugging
-          - "debug eevdf tickrate_periodic -o3 -bore -tickrate_full"
+          - "debug eevdf tickrate-periodic -o3 -bore -tickrate-full"
           # Maximum optimization build
-          - "bore o3 bbr3 autofdo propeller llvm-lto-thin mzen4 -llvm-lto-thin-dist -llvm-lto-full -mnative"
+          - "bore o3 bbr3 autofdo propeller llvm-lto-thin mzen4 -eevdf -llvm-lto-thin-dist -llvm-lto-full -llvm-lto-none -mnative"
           # Conservative stable build
           - "eevdf mgeneric os -bore -o3 -autofdo -propeller -mnative"
           # RT audio production
-          - "rt-bore hz_ticks_1000 o3 -bore"
+          - "rt-bore hz-ticks-1000 o3 -bore -eevdf"
           # Virtual machine host
-          - "eevdf hugepage_madvise tickrate_idle mgeneric_v3 -bore -hugepage_always -tickrate_full -mnative"
+          - "eevdf hugepage-madvise tickrate-idle mgeneric-v3 -bore -hugepage-always -tickrate-full -mnative"
           # Container host optimized
-          - "bore per-gov bbr3 hz_ticks_300 -hz_ticks_1000"
+          - "bore per-gov bbr3 hz-ticks-300 -eevdf -hz-ticks-1000"
           # Compile server optimized
-          - "bmq llvm-lto-full os mgeneric_v4 -bore -o3 -propeller -llvm-lto-thin -llvm-lto-thin-dist -mnative"
+          - "bmq llvm-lto-full os mgeneric-v4 -bore -eevdf -o3 -propeller -llvm-lto-thin -llvm-lto-thin-dist -llvm-lto-none -mnative"
           # Desktop with AutoFDO profiling
-          - "bore autofdo llvm-lto-thin hz_ticks_1000 o3 -llvm-lto-thin-dist -llvm-lto-full"
+          - "bore autofdo llvm-lto-thin hz-ticks-1000 o3 -eevdf -llvm-lto-thin-dist -llvm-lto-full -llvm-lto-none"
           # Maximum compatibility
           - "eevdf mgeneric -bore -autofdo -propeller -kcfi -mnative"
           # KCFI security feature with RT
-          - "kcfi rt-bore -bore"
+          - "kcfi rt-bore -bore -eevdf"
           
     container:
       image: docker.io/gentoo/stage3:latest

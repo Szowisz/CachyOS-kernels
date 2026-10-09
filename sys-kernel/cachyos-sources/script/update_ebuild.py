@@ -189,7 +189,7 @@ OFFICIAL_PACKAGE_PATTERNS = {
         "_HZ_ticks:=300",
         "_tickrate:=full",
         "_preempt:=lazy",
-        "_hugepage:=always",
+        "_hugepage:=madvise",
         "_use_llvm_lto:=none",
     ),
 }

@@ -78,8 +78,8 @@
 
     <!-- Network and memory -->
     <flag name="bbr3">Use TCP BBR3 and the FQ packet scheduler by default</flag>
-    <flag name="hugepage-always">Always enable transparent huge pages</flag>
-    <flag name="hugepage-madvise">Enable transparent huge pages only when requested with madvise</flag>
+    <flag name="hugepage-always">Force transparent huge pages to always. On server-capable versions, disabling both hugepage flags uses madvise with server and always otherwise.</flag>
+    <flag name="hugepage-madvise">Force transparent huge pages to madvise. On server-capable versions, disabling both hugepage flags uses madvise with server and always otherwise.</flag>
     <flag name="hugepage_always">Legacy always-THP flag used by older ebuilds</flag>
     <flag name="hugepage_madvise">Legacy madvise-THP flag used by older ebuilds</flag>
 

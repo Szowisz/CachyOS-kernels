@@ -131,7 +131,7 @@ IUSE="
 	hz-ticks-100 hz-ticks-250 hz-ticks-300 hz-ticks-500 hz-ticks-600 hz-ticks-750 +hz-ticks-1000
 	+per-gov tickrate-periodic tickrate-idle +tickrate-full +preempt-full preempt-lazy
 	+o3 os debug +bbr3
-	+hugepage-always hugepage-madvise
+	hugepage-always hugepage-madvise
 	mgeneric mgeneric-v1 mgeneric-v2 mgeneric-v3 mgeneric-v4
 	+mnative mzen4
 "
@@ -157,7 +157,7 @@ REQUIRED_USE="
 	^^ ( tickrate-periodic tickrate-idle tickrate-full )
 	^^ ( preempt-full preempt-lazy )
 	?? ( o3 os debug )
-	^^ ( hugepage-always hugepage-madvise )
+	?? ( hugepage-always hugepage-madvise )
 	?? ( mgeneric mgeneric-v1 mgeneric-v2 mgeneric-v3 mgeneric-v4 mnative mzen4 )
 "
 
@@ -488,10 +488,11 @@ src_prepare() {
 			-e DEFAULT_FQ || die
 	fi
 
-	if use hugepage-always; then
-		scripts/config -d TRANSPARENT_HUGEPAGE_MADVISE -e TRANSPARENT_HUGEPAGE_ALWAYS || die
-	elif use hugepage-madvise; then
+	# Follow the upstream variant default unless a THP mode is selected.
+	if use hugepage-madvise || { use server && ! use hugepage-always; }; then
 		scripts/config -d TRANSPARENT_HUGEPAGE_ALWAYS -e TRANSPARENT_HUGEPAGE_MADVISE || die
+	else
+		scripts/config -d TRANSPARENT_HUGEPAGE_MADVISE -e TRANSPARENT_HUGEPAGE_ALWAYS || die
 	fi
 
 	for march_flag in "${march_flags[@]}"; do

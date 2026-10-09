@@ -10,6 +10,7 @@ on:
       - 'virtual/dist-kernel/**'
       - '.github/workflows/ebuild-test.yml'
       - 'tests/test-ci-use-matrix.py'
+      - 'tests/test-thp-defaults.py'
       - 'tests/test-bin-headers-install.sh'
   pull_request:
     branches: [ main, master ]
@@ -20,6 +21,7 @@ on:
       - 'virtual/dist-kernel/**'
       - '.github/workflows/ebuild-test.yml'
       - 'tests/test-ci-use-matrix.py'
+      - 'tests/test-thp-defaults.py'
       - 'tests/test-bin-headers-install.sh'
   workflow_dispatch:
 
@@ -35,6 +37,9 @@ jobs:
 
     - name: Validate CI USE matrix against ebuild requirements
       run: python3 tests/test-ci-use-matrix.py
+
+    - name: Validate THP defaults and explicit overrides
+      run: python3 tests/test-thp-defaults.py
 
     - name: Validate dist-kernel dependency resolution with emerge --pretend
       shell: bash
@@ -212,7 +217,7 @@ jobs:
           - "-per-gov"
           
           # === Memory Management ===
-          - "hugepage-always"  # Default
+          - "hugepage-always"  # Explicit override (default is variant-dependent)
           - "hugepage-madvise -hugepage-always"
           
           # === CPU Architecture Optimization ===

@@ -75,8 +75,8 @@
     <flag name="bbr3">Enable TCP BBR3 (Bottleneck Bandwidth and RTT) congestion control algorithm as default</flag>
 
     <!-- Memory management -->
-    <flag name="hugepage_always">Always enable Transparent Huge Pages for better memory performance</flag>
-    <flag name="hugepage_madvise">Enable Transparent Huge Pages only when requested via madvise</flag>
+    <flag name="hugepage_always">Force transparent huge pages to always. On server-capable versions, disabling both hugepage flags uses madvise with server and always otherwise.</flag>
+    <flag name="hugepage_madvise">Force transparent huge pages to madvise. On server-capable versions, disabling both hugepage flags uses madvise with server and always otherwise.</flag>
 
     <!-- CPU-specific optimizations -->
     <flag name="mgeneric">Use generic x86-64 optimizations (default kernel optimizations, portable across machines)</flag>

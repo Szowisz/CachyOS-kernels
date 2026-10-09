@@ -99,7 +99,7 @@ IUSE="
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 +hz_ticks_1000
 	+per-gov tickrate_periodic tickrate_idle +tickrate_full +preempt_full preempt_lazy
 	+o3 os debug +bbr3
-	+hugepage_always hugepage_madvise
+	hugepage_always hugepage_madvise
 	mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4
 	+mnative mzen4
 "
@@ -123,7 +123,7 @@ REQUIRED_USE="
 	^^ ( tickrate_periodic tickrate_idle tickrate_full )
 	^^ ( preempt_full preempt_lazy )
 	?? ( o3 os debug )
-	^^ ( hugepage_always hugepage_madvise )
+	?? ( hugepage_always hugepage_madvise )
 	?? ( mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative mzen4 )
 "
 
@@ -482,13 +482,11 @@ src_prepare() {
 			-e DEFAULT_FQ || die
 	fi
 
-	### Select THP
-	if use hugepage_always; then
-		scripts/config -d TRANSPARENT_HUGEPAGE_MADVISE -e TRANSPARENT_HUGEPAGE_ALWAYS || die
-	fi
-
-	if use hugepage_madvise; then
+	# Follow the upstream variant default unless a THP mode is selected.
+	if use hugepage_madvise || { use server && ! use hugepage_always; }; then
 		scripts/config -d TRANSPARENT_HUGEPAGE_ALWAYS -e TRANSPARENT_HUGEPAGE_MADVISE || die
+	else
+		scripts/config -d TRANSPARENT_HUGEPAGE_MADVISE -e TRANSPARENT_HUGEPAGE_ALWAYS || die
 	fi
 
 	### Select CPU optimization

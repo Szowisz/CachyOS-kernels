@@ -6,17 +6,21 @@ on:
     paths:
       - 'sys-kernel/cachyos-sources/**'
       - 'sys-kernel/cachyos-kernel/**'
+      - 'sys-kernel/cachyos-kernel-bin/**'
       - 'virtual/dist-kernel/**'
       - '.github/workflows/ebuild-test.yml'
       - 'tests/test-ci-use-matrix.py'
+      - 'tests/test-bin-headers-install.sh'
   pull_request:
     branches: [ main, master ]
     paths:
       - 'sys-kernel/cachyos-sources/**'
       - 'sys-kernel/cachyos-kernel/**'
+      - 'sys-kernel/cachyos-kernel-bin/**'
       - 'virtual/dist-kernel/**'
       - '.github/workflows/ebuild-test.yml'
       - 'tests/test-ci-use-matrix.py'
+      - 'tests/test-bin-headers-install.sh'
   workflow_dispatch:
 
 jobs:
@@ -78,6 +82,17 @@ jobs:
           echo "Testing dependency resolution for =sys-kernel/${pkg}"
           emerge --pretend --verbose "=sys-kernel/${pkg}"
         done
+
+    - name: Issue 57 regression - bin kernel installs real build tree
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Install eselect in the Gentoo container for ROOT-scoped checks.
+        emerge --quiet --verbose app-admin/eselect
+        # The test sources the real ebuild src_install functions against
+        # synthetic fixture packages and asserts the installed image has a
+        # usable kernel build tree. No distfile downloads or kernel builds.
+        bash tests/test-bin-headers-install.sh
 
   detect-versions:
     runs-on: ubuntu-latest

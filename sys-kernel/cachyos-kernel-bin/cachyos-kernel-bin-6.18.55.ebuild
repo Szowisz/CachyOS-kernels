@@ -205,6 +205,9 @@ src_install() {
 
 	dodir "${rel_kernel_dir}"
 
+	# Install exact-match headers before overlaying locally prepared build tools.
+	cp -p -R "${headers_build}/." "${ED}${rel_kernel_dir}/" || die
+
 	insinto "${rel_kernel_dir}/arch/x86/boot"
 	newins "${binpkg_modules}/vmlinuz" bzImage
 

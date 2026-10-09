@@ -44,7 +44,15 @@ make_fixture() {
 	printf '#!/bin/sh\necho local-fixdep\n' > "$WORKDIR/modprep/scripts/basic/fixdep"
 	chmod 0755 "$WORKDIR/modprep/scripts/basic/fixdep"
 	printf '%s\n' "$KV_FULL" > "$WORKDIR/modprep/include/config/kernel.release"
-	cp "$h/.config" "$WORKDIR/modprep/.config"
+	# Upstream Kconfig output must survive the locally regenerated copy.
+	mkdir -p "$h/include/config" "$h/include/generated" "$WORKDIR/modprep/include/generated"
+	printf '%s\n' "$KV_FULL" > "$h/include/config/kernel.release"
+	local g
+	for g in config/auto.conf generated/autoconf.h generated/compile.h generated/rustc_cfg; do
+		printf 'upstream %s\n' "$g" > "$h/include/$g"
+		printf 'local %s\n' "$g" > "$WORKDIR/modprep/include/$g"
+	done
+	printf 'CONFIG_MODULES=y\nCONFIG_LOCAL=y\n' > "$WORKDIR/modprep/.config"
 	printf 'drop-me\n' > "$WORKDIR/modprep/Makefile"
 	printf 'drop-me\n' > "$WORKDIR/modprep/scripts/basic/fixdep.o"
 }
@@ -70,10 +78,15 @@ run_case() (
 		else
 			mv "${h%/build}" "$WORKDIR/missing-headers"
 		fi
-		if ( src_install ) > "$WORKDIR/rejected.log" 2>&1; then
-			die "$PF: accepted $invalid headers"
-		fi
-		grep -Fq "$h" "$WORKDIR/rejected.log" || { cat "$WORKDIR/rejected.log"; die 'Unexpected rejection'; }
+		local phase
+		for phase in src_configure src_install; do
+			if ( "$phase" ) > "$WORKDIR/rejected.log" 2>&1; then
+				die "$PF: $phase accepted $invalid headers"
+			fi
+			# Rejection must name the exact path, not a fallback release.
+			grep -Fq "$h" "$WORKDIR/rejected.log" && ! grep -q 'Auto-detected' "$WORKDIR/rejected.log" ||
+				{ cat "$WORKDIR/rejected.log"; die "$PF: unexpected $phase rejection"; }
+		done
 		printf 'PASS: %s rejects %s headers\n' "$PF" "$invalid"
 		exit 0
 	fi
@@ -83,7 +96,8 @@ run_case() (
 	[[ $compress_called == 0 ]] || die "$PF: compressor ran with no uncompressed modules"
 	local d=$ED/usr/src/linux-$KV_FULL f
 	for f in Makefile Kconfig Module.symvers System.map .config include/linux/module.h \
-		scripts/Makefile.build arch/x86/include/fixture.h scripts/sign-file; do
+		scripts/Makefile.build arch/x86/include/fixture.h scripts/sign-file \
+		include/config/auto.conf include/generated/{autoconf.h,compile.h,rustc_cfg}; do
 		cmp "$h/$f" "$d/$f" || die "$PF: changed or missing $f"
 	done
 	cmp "$WORKDIR/modprep/scripts/basic/fixdep" "$d/scripts/basic/fixdep" || die 'Local tool not installed'

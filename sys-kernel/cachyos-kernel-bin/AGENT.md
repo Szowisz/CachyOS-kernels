@@ -298,8 +298,9 @@ tar tf /var/cache/distfiles/linux-cachyos-*.pkg.tar.zst | grep 'usr/lib/modules/
 # The "6.19.10-1-cachyos" part must match KV_FULL
 ```
 
-If there's a mismatch, the `src_configure` phase has auto-detection that will
-warn and adjust. But fixing `_cachyos_variant_suffix()` is the proper solution.
+If there's a mismatch, `src_configure` and `src_install` die on the missing
+exact-match headers directory; there is no fallback to another release. Fix
+`_cachyos_variant_suffix()` or `_cachyos_pkg_variant()` instead.
 
 ### modules_prepare fails
 

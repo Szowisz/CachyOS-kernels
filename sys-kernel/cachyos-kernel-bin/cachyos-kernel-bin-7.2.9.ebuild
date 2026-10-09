@@ -264,24 +264,15 @@ src_configure() {
 
 	# Determine the headers build directory from the binary package
 	local headers_build="${WORKDIR}/headerspkg/usr/lib/modules/${KV_FULL}/build"
+	# Headers must match the binary exactly; never fall back to another release.
+	[[ -d ${headers_build} ]] ||
+		die "Cannot find exact-match headers build directory: ${headers_build}"
 
-	if [[ ! -d "${headers_build}" ]]; then
-		# Try to auto-detect the module directory name
-		local moddir
-		moddir=( "${WORKDIR}/headerspkg/usr/lib/modules"/*/ )
-		if [[ ${#moddir[@]} -eq 1 && -d "${moddir[0]}/build" ]]; then
-			headers_build="${moddir[0]}/build"
-			# Update KV_FULL to match what was actually in the package
-			local detected_kv="${moddir[0]%/}"
-			detected_kv="${detected_kv##*/}"
-			ewarn "Auto-detected kernel version: ${detected_kv}"
-			ewarn "Expected: ${KV_FULL}"
-			KV_FULL="${detected_kv}"
-			KV_LOCALVERSION="${KV_FULL#${PV}}"
-		else
-			die "Cannot find headers build directory. Expected: ${headers_build}"
-		fi
-	fi
+	# Mirrored lto variants are built with Clang; all others with GCC.
+	local cc_config=CONFIG_CC_IS_GCC
+	use lto && cc_config=CONFIG_CC_IS_CLANG
+	grep -qx "${cc_config}=y" "${headers_build}/.config" ||
+		die "Mirrored headers lack ${cc_config}=y; update the USE=lto toolchain mapping"
 
 	# Set up toolchain for modules_prepare
 	local HOSTLD="$(tc-getBUILD_LD)"
@@ -410,8 +401,11 @@ src_install() {
 	find "${WORKDIR}/modprep" -type f '(' \
 			-name Makefile -o \
 			-name '*.[ao]' -o \
-			'(' -name '.*' -a -not -name '.config' ')' \
+			-name '.*' \
 		')' -delete || die
+	# Keep upstream Kconfig output; local syncconfig rewrites it for this host.
+	rm -rf "${WORKDIR}/modprep/include/config" \
+		"${WORKDIR}"/modprep/include/generated/{autoconf.h,compile.h,rustc_cfg} || die
 	rm -f "${WORKDIR}/modprep/source" 2>/dev/null
 	cp -p -R "${WORKDIR}/modprep/." "${ED}${rel_kernel_dir}/" || die
 

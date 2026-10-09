@@ -5,7 +5,7 @@ EAPI=8
 
 KERNEL_IUSE_GENERIC_UKI=1
 
-inherit flag-o-matic kernel-install toolchain-funcs
+inherit kernel-install toolchain-funcs
 
 # CachyOS source package is at pkgrel 1; the LTS binary pkgrel follows the
 # Gentoo revision (6.18.55 -> pkgrel 1).
@@ -57,9 +57,6 @@ BDEPEND="
 	dev-util/pahole
 	virtual/libelf
 	app-alternatives/yacc
-	llvm-core/llvm:22
-	llvm-core/clang:22
-	llvm-core/lld:22
 "
 PDEPEND="
 	>=virtual/dist-kernel-${PV}
@@ -114,30 +111,23 @@ src_configure() {
 	_cachyos_setup_kv
 
 	local headers_build="${WORKDIR}/headerspkg/usr/lib/modules/${KV_FULL}/build"
+	# Headers must match the binary exactly; never fall back to another release.
+	[[ -d ${headers_build} ]] ||
+		die "Cannot find exact-match headers build directory: ${headers_build}"
 
-	if [[ ! -d "${headers_build}" ]]; then
-		local moddir
-		moddir=( "${WORKDIR}/headerspkg/usr/lib/modules"/*/ )
-		if [[ ${#moddir[@]} -eq 1 && -d "${moddir[0]}/build" ]]; then
-			headers_build="${moddir[0]}/build"
-			local detected_kv="${moddir[0]%/}"
-			detected_kv="${detected_kv##*/}"
-			ewarn "Auto-detected kernel version: ${detected_kv}"
-			ewarn "Expected: ${KV_FULL}"
-			KV_FULL="${detected_kv}"
-			KV_LOCALVERSION="${KV_FULL#${PV}}"
-		else
-			die "Cannot find headers build directory. Expected: ${headers_build}"
-		fi
-	fi
+	# Generated build files must use the compiler that built the mirrored kernel.
+	grep -qx 'CONFIG_CC_IS_GCC=y' "${headers_build}/.config" ||
+		die "Mirrored LTS headers were not built with GCC; update the toolchain"
 
 	local HOSTLD="$(tc-getBUILD_LD)"
 	if type -P "${HOSTLD}.bfd" &>/dev/null; then
 		HOSTLD+=.bfd
 	fi
+	local LD="$(tc-getLD)"
+	if type -P "${LD}.bfd" &>/dev/null; then
+		LD+=.bfd
+	fi
 
-	# LLVM=1 links host tools with lld, which cannot read GCC LTO objects.
-	filter-lto
 	tc-export_build_env
 	local makeargs=(
 		V=1
@@ -152,19 +142,18 @@ src_configure() {
 		O="${WORKDIR}/modprep"
 	)
 
-	# The mirrored LTS headers were built with Clang 22 and ThinLTO.
-	local llvm_bindir="${BROOT}/usr/lib/llvm/22/bin"
+	# The mirrored LTS kernel is built with GCC and BFD without LTO.
 	makeargs+=(
-		LLVM=1
-		LLVM_IAS=1
-		CC="${llvm_bindir}/clang"
-		LD="${llvm_bindir}/ld.lld"
-		AR="${llvm_bindir}/llvm-ar"
-		NM="${llvm_bindir}/llvm-nm"
-		STRIP="${llvm_bindir}/llvm-strip"
-		OBJCOPY="${llvm_bindir}/llvm-objcopy"
-		OBJDUMP="${llvm_bindir}/llvm-objdump"
-		READELF="${llvm_bindir}/llvm-readelf"
+		CROSS_COMPILE=${CHOST}-
+		AS="$(tc-getAS)"
+		CC="$(tc-getCC)"
+		LD="${LD}"
+		AR="$(tc-getAR)"
+		NM="$(tc-getNM)"
+		STRIP="$(tc-getSTRIP)"
+		OBJCOPY="$(tc-getOBJCOPY)"
+		OBJDUMP="$(tc-getOBJDUMP)"
+		READELF="$(tc-getREADELF)"
 	)
 
 	mkdir "${WORKDIR}/modprep" || die
@@ -224,8 +213,11 @@ src_install() {
 	find "${WORKDIR}/modprep" -type f '(' \
 			-name Makefile -o \
 			-name '*.[ao]' -o \
-			'(' -name '.*' -a -not -name '.config' ')' \
+			-name '.*' \
 		')' -delete || die
+	# Keep upstream Kconfig output; local syncconfig rewrites it for this host.
+	rm -rf "${WORKDIR}/modprep/include/config" \
+		"${WORKDIR}"/modprep/include/generated/{autoconf.h,compile.h,rustc_cfg} || die
 	rm -f "${WORKDIR}/modprep/source" 2>/dev/null
 	cp -p -R "${WORKDIR}/modprep/." "${ED}${rel_kernel_dir}/" || die
 

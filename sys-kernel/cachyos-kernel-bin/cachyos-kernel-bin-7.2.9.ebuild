@@ -38,8 +38,8 @@ SRC_URI="
 	!cachyos? ( https://github.com/CachyOS/linux/releases/download/${VARIANT_MY_P}/${VARIANT_MY_P}.tar.gz )
 "
 
-# 7.2.9 ships lto sub-variants for every scheduler, a gcc build for the
-# default cachyos package, and hardened+lto hardened on the mirror.
+# 7.2.9 ships lto sub-variants for every scheduler except deckify, a gcc build
+# for the default cachyos package, and hardened+lto hardened on the mirror.
 SRC_URI+="
 	cachyos? (
 		lto? (
@@ -101,17 +101,22 @@ SRC_URI+="
 			${MIRROR_V3}/linux-cachyos-server-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
+	deckify? (
+		${MIRROR_V3}/linux-cachyos-deckify-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		${MIRROR_V3}/linux-cachyos-deckify-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+	)
 "
 
 S="${WORKDIR}"
 
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
-IUSE="+cachyos bore cachyos-hardened eevdf rt-bore server +lto gcc debug"
+IUSE="+cachyos bore cachyos-hardened eevdf rt-bore server deckify +lto gcc debug"
 REQUIRED_USE="
-	^^ ( cachyos bore cachyos-hardened eevdf rt-bore server )
+	^^ ( cachyos bore cachyos-hardened eevdf rt-bore server deckify )
 	?? ( lto gcc )
 	cachyos? ( || ( lto gcc ) )
+	deckify? ( !lto )
 	gcc? ( cachyos )
 "
 
@@ -153,6 +158,8 @@ _cachyos_pkg_variant() {
 		variant="rt-bore"
 	elif use server; then
 		variant="server"
+	elif use deckify; then
+		variant="deckify"
 	fi
 
 	if [[ -n ${variant} && ${variant} != gcc ]] && use lto; then

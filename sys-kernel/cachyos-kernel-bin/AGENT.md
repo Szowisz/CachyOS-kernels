@@ -166,7 +166,6 @@ Total download can be >2GB. Ensure good connectivity.
 | `cachyos-hardened !lto` | `linux-cachyos-hardened` | `{PV}-{PR}-cachyos-hardened` |
 | `rt-bore lto` | `linux-cachyos-rt-bore-lto` | `{PV}-{PR}-cachyos-rt-bore-lto` |
 | `rt-bore !lto` | `linux-cachyos-rt-bore` | `{PV}-{PR}-cachyos-rt-bore` |
-| `deckify lto` | `linux-cachyos-deckify-lto` | `{PV}-{PR}-cachyos-deckify-lto` |
 | `deckify !lto` | `linux-cachyos-deckify` | `{PV}-{PR}-cachyos-deckify` |
 | `server lto` | `linux-cachyos-server-lto` | `{PV}-{PR}-cachyos-server-lto` |
 | `server !lto` | `linux-cachyos-server` | `{PV}-{PR}-cachyos-server` |
@@ -272,7 +271,7 @@ test_matrix:
   - "eevdf -cachyos -lto"        # EEVDF without LTO
   - "cachyos-hardened -cachyos lto" # hardened + LTO
   - "rt-bore -cachyos lto"       # RT-BORE + LTO
-  - "deckify -cachyos lto"       # deckify + LTO
+  - "deckify -cachyos -lto"      # deckify (GCC only on the mirror)
   - "server -cachyos lto"        # server + LTO
 ```
 

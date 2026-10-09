@@ -5,7 +5,7 @@ EAPI=8
 
 KERNEL_IUSE_GENERIC_UKI=1
 
-inherit kernel-install toolchain-funcs
+inherit flag-o-matic kernel-install toolchain-funcs
 
 # CachyOS source package is at pkgrel 1; the LTS binary pkgrel follows the
 # Gentoo revision (6.18.55 -> pkgrel 1).
@@ -136,6 +136,8 @@ src_configure() {
 		HOSTLD+=.bfd
 	fi
 
+	# LLVM=1 links host tools with lld, which cannot read GCC LTO objects.
+	filter-lto
 	tc-export_build_env
 	local makeargs=(
 		V=1
@@ -232,7 +234,10 @@ src_install() {
 	find "${ED}/lib" -name '*.ko' -o -name '*.ko.zst' -exec touch {} + 2>/dev/null || true
 
 	dostrip -x /lib/modules
-	kernel-install_compress_modules
+	# Upstream modules are already compressed; an empty compressor run reads stdin.
+	if [[ -n $(find "${ED}/lib/modules/${KV_FULL}" -name '*.ko' -print -quit) ]]; then
+		kernel-install_compress_modules
+	fi
 
 	if use debug; then
 		dostrip -x "${rel_kernel_dir}/vmlinux"

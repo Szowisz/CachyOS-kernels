@@ -5,7 +5,7 @@ EAPI=8
 
 KERNEL_IUSE_GENERIC_UKI=1
 
-inherit kernel-install toolchain-funcs
+inherit flag-o-matic kernel-install toolchain-funcs
 
 # CachyOS package release numbers. The 7.2.9 source and binary packages are
 # both pkgrel 1 on the mirror.
@@ -293,6 +293,8 @@ src_configure() {
 		LD+=.bfd
 	fi
 
+	# LLVM=1 links host tools with lld, which cannot read GCC LTO objects.
+	use lto && filter-lto
 	tc-export_build_env
 	local makeargs=(
 		V=1
@@ -421,7 +423,10 @@ src_install() {
 
 	# Modules were already stripped by CachyOS
 	dostrip -x /lib/modules
-	kernel-install_compress_modules
+	# Upstream modules are already compressed; an empty compressor run reads stdin.
+	if [[ -n $(find "${ED}/lib/modules/${KV_FULL}" -name '*.ko' -print -quit) ]]; then
+		kernel-install_compress_modules
+	fi
 
 	if use debug; then
 		dostrip -x "${rel_kernel_dir}/vmlinux"

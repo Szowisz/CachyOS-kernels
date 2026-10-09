@@ -20,12 +20,14 @@ doins() { cp "$@" "${ED}${insdest}/"; }
 newins() { cp "$1" "${ED}${insdest}/$2"; }
 dosym() { mkdir -p "${ED}$(dirname "$2")"; ln -s "$1" "${ED}$2"; }
 dostrip() { :; }
-kernel-install_compress_modules() { :; }
+kernel-install_compress_modules() { compress_called=1; }
 
 make_fixture() {
 	mkdir -p "$h/include/linux" "$h/scripts/basic" "$h/arch/x86/include" \
 		"$b/kernel" "$WORKDIR/modprep/scripts/basic" "$WORKDIR/modprep/include/config"
 	printf 'fixture-modules\n' > "$b/modules.order"
+	# CachyOS ships modules already zstd-compressed.
+	printf 'fixture-module\n' > "$b/kernel/fixture.ko.zst"
 	printf 'FIXTURE-VMLINUZ\n' > "$b/vmlinuz"
 	printf 'fixture-map\n' > "$h/System.map"
 	printf 'CONFIG_MODULES=y\n' > "$h/.config"
@@ -48,13 +50,20 @@ make_fixture() {
 }
 
 run_case() (
-	local tag=$1 USE=$2 invalid=${3:-}
+	local tag=$1 USE=$2 invalid=${3:-} compress_called=0
 	_cachyos_setup_kv
 	WORKDIR=$run/$PF/$tag/work ED=$run/$PF/$tag/image
 	local h=$WORKDIR/headerspkg/usr/lib/modules/$KV_FULL/build
 	local b=$WORKDIR/binpkg/usr/lib/modules/$KV_FULL
 	make_fixture
 
+	if [[ $invalid == plain-ko ]]; then
+		printf 'fixture-module\n' > "$b/kernel/plain.ko"
+		src_install
+		[[ $compress_called == 1 ]] || die "$PF: uncompressed module not compressed"
+		printf 'PASS: %s compresses uncompressed modules\n' "$PF"
+		exit 0
+	fi
 	if [[ -n $invalid ]]; then
 		if [[ $invalid == mismatched ]]; then
 			mv "${h%/build}" "${h%/$KV_FULL/build}/wrong-release-variant"
@@ -70,6 +79,8 @@ run_case() (
 	fi
 
 	src_install
+	# Recompressing already compressed modules makes zstd read stdin and abort.
+	[[ $compress_called == 0 ]] || die "$PF: compressor ran with no uncompressed modules"
 	local d=$ED/usr/src/linux-$KV_FULL f
 	for f in Makefile Kconfig Module.symvers System.map .config include/linux/module.h \
 		scripts/Makefile.build arch/x86/include/fixture.h scripts/sign-file; do
@@ -112,6 +123,7 @@ for ebuild in "${ebuilds[@]}"; do
 		run_case default "$defaults"
 		run_case mismatched "$defaults" mismatched
 		run_case missing "$defaults" missing
+		run_case plain-ko "$defaults" plain-ko
 		if $bore; then
 			run_case bore 'bore'
 		fi

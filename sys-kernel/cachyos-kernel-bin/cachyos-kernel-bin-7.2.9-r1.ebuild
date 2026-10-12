@@ -7,9 +7,9 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit flag-o-matic kernel-install toolchain-funcs
 
-# CachyOS package release numbers. The 7.2.9 source and binary packages are
-# both pkgrel 1 on the mirror.
-CACHYOS_SOURCE_PR="1"
+# CachyOS package release numbers. The 7.2.9 source package is pkgrel 2 and
+# the binary pkgrel follows the Gentoo revision (7.2.9-r1 -> pkgrel 2).
+CACHYOS_SOURCE_PR="2"
 CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
 
 MAIN_MY_P="cachyos-${PV}-${CACHYOS_SOURCE_PR}"
@@ -29,7 +29,7 @@ HOMEPAGE="
 "
 
 # Source tarball (shared by all variants, needed for modules_prepare).
-# All binary variants of this version are at pkgrel 1 on the CachyOS mirror.
+# All binary variants of this version are at pkgrel 2 on the CachyOS mirror.
 SRC_URI="
 	cachyos? (
 		gcc? ( https://github.com/CachyOS/linux/releases/download/${GCC_MY_P}/${GCC_MY_P}.tar.gz )
@@ -38,8 +38,8 @@ SRC_URI="
 	!cachyos? ( https://github.com/CachyOS/linux/releases/download/${VARIANT_MY_P}/${VARIANT_MY_P}.tar.gz )
 "
 
-# 7.2.9 ships lto sub-variants for every scheduler except deckify, a gcc build
-# for the default cachyos package, and hardened+lto hardened on the mirror.
+# 7.2.9 ships lto sub-variants for every scheduler, a gcc build for the
+# default cachyos package, and hardened+lto hardened on the mirror.
 SRC_URI+="
 	cachyos? (
 		lto? (
@@ -102,8 +102,14 @@ SRC_URI+="
 		)
 	)
 	deckify? (
-		${MIRROR_V3}/linux-cachyos-deckify-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		${MIRROR_V3}/linux-cachyos-deckify-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		lto? (
+			${MIRROR_V3}/linux-cachyos-deckify-lto-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-deckify-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-deckify-headers-${VARIANT_BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
 	)
 "
 
@@ -116,7 +122,6 @@ REQUIRED_USE="
 	^^ ( cachyos bore cachyos-hardened eevdf rt-bore server deckify )
 	?? ( lto gcc )
 	cachyos? ( || ( lto gcc ) )
-	deckify? ( !lto )
 	gcc? ( cachyos )
 "
 

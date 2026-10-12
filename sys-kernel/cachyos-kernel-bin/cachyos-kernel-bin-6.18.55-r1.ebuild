@@ -8,7 +8,7 @@ KERNEL_IUSE_GENERIC_UKI=1
 inherit kernel-install toolchain-funcs
 
 # CachyOS source package is at pkgrel 1; the LTS binary pkgrel follows the
-# Gentoo revision (6.18.55 -> pkgrel 1).
+# Gentoo revision (6.18.55-r1 -> pkgrel 2).
 CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
 
 # CachyOS pre-patched source tarball (needed for modules_prepare)

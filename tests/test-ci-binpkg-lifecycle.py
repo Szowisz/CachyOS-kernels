@@ -102,8 +102,13 @@ printf 'PACKAGES: 0\\n' > "$CI_BINPKG_OUT/pkgdir/Packages"
                    str(ipv4_root), var])
         assert out.returncode == 0, out.stdout
         resolved = out.stdout.strip().splitlines()[-1]
-        assert resolved.startswith("wget ") and resolved.endswith(' "${URI}" --inet4-only'), resolved
-    print("PASS: generated fetch and resume settings resolve to IPv4-only wget via Portage config expansion")
+        args = resolved.split()
+        assert args[0] == "wget", resolved
+        for flag in ("--inet4-only", "--retry-on-host-error", "-t", '"${URI}"'):
+            assert flag in args, (var, flag, resolved)
+        assert args[args.index("-t") + 1] == "3", resolved
+        assert ("-c" in args) == (var == "RESUMECOMMAND"), resolved
+    print("PASS: generated fetch and resume settings resolve to IPv4-only wget with bounded host-error retries via Portage config expansion")
 
     version = sorted((ROOT / "sys-kernel/cachyos-sources").glob("*.ebuild"))[-1].stem.removeprefix("cachyos-sources-")
     versions = temp / "versions"

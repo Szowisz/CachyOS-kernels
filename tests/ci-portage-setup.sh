@@ -33,9 +33,10 @@ EOF
 	# package needs unstable keywords. Never set global USE for matrix cases.
 	echo 'sys-kernel/cachyos-sources ~amd64' > /etc/portage/package.accept_keywords/ci
 	echo "FEATURES=\"\${FEATURES} getbinpkg -news\"" >> /etc/portage/make.conf
-	# Keep CI downloads off IPv6 addresses that may lack a usable route.
-	echo 'FETCHCOMMAND="${FETCHCOMMAND} --inet4-only"' >> /etc/portage/make.conf
-	echo 'RESUMECOMMAND="${RESUMECOMMAND} --inet4-only"' >> /etc/portage/make.conf
+	# Keep CI downloads off IPv6 addresses that may lack a usable route, and let
+	# transient DNS resolution failures consume the same bounded retry budget.
+	echo 'FETCHCOMMAND="${FETCHCOMMAND} --inet4-only --retry-on-host-error"' >> /etc/portage/make.conf
+	echo 'RESUMECOMMAND="${RESUMECOMMAND} --inet4-only --retry-on-host-error"' >> /etc/portage/make.conf
 	touch /etc/portage/package.use/zz-autounmask
 	emerge --sync -q
 

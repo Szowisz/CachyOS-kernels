@@ -90,6 +90,21 @@ printf 'PACKAGES: 0\\n' > "$CI_BINPKG_OUT/pkgdir/Packages"
     calls.write_text("")
     print("PASS: musl perf workaround is scoped to affected 7.1/7.2, not stable 6.19")
 
+    # Resolve the generated fetch settings through Portage's real make.globals.
+    ipv4_root = temp / "ipv4-config"
+    shutil.copytree(temp / "etc", ipv4_root / "etc")
+    (ipv4_root / "usr/share/portage").mkdir(parents=True)
+    (ipv4_root / "usr/share/portage/config").symlink_to("/usr/share/portage/config")
+    for var in ("FETCHCOMMAND", "RESUMECOMMAND"):
+        out = run(["python3", "-c",
+                   "import portage, sys; s = portage.config(config_root=sys.argv[1], "
+                   "target_root='/', env=None); print(s[sys.argv[2]])",
+                   str(ipv4_root), var])
+        assert out.returncode == 0, out.stdout
+        resolved = out.stdout.strip().splitlines()[-1]
+        assert resolved.startswith("wget ") and resolved.endswith(' "${URI}" --inet4-only'), resolved
+    print("PASS: generated fetch and resume settings resolve to IPv4-only wget via Portage config expansion")
+
     version = sorted((ROOT / "sys-kernel/cachyos-sources").glob("*.ebuild"))[-1].stem.removeprefix("cachyos-sources-")
     versions = temp / "versions"
     versions.write_text(version + "\n")

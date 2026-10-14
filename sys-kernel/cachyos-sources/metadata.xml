@@ -66,13 +66,6 @@
     <flag name="hz-ticks-600">Set the kernel timer frequency to 600 Hz</flag>
     <flag name="hz-ticks-750">Set the kernel timer frequency to 750 Hz</flag>
     <flag name="hz-ticks-1000">Set the kernel timer frequency to 1000 Hz</flag>
-    <flag name="hz_ticks_100">Legacy 100 Hz flag used by older ebuilds</flag>
-    <flag name="hz_ticks_250">Legacy 250 Hz flag used by older ebuilds</flag>
-    <flag name="hz_ticks_300">Legacy 300 Hz flag used by older ebuilds</flag>
-    <flag name="hz_ticks_500">Legacy 500 Hz flag used by older ebuilds</flag>
-    <flag name="hz_ticks_600">Legacy 600 Hz flag used by older ebuilds</flag>
-    <flag name="hz_ticks_750">Legacy 750 Hz flag used by older ebuilds</flag>
-    <flag name="hz_ticks_1000">Legacy 1000 Hz flag used by older ebuilds</flag>
 
     <!-- Governor and tick mode -->
     <flag name="per-gov">Use the performance CPU frequency governor by default</flag>
@@ -81,15 +74,10 @@
     <flag name="tickrate-periodic">Use periodic kernel ticks</flag>
     <flag name="tickrate-idle">Use idle tickless mode</flag>
     <flag name="tickrate-full">Use full tickless mode</flag>
-    <flag name="tickrate_periodic">Legacy periodic-tick flag used by older ebuilds</flag>
-    <flag name="tickrate_idle">Legacy idle-tickless flag used by older ebuilds</flag>
-    <flag name="tickrate_full">Legacy full-tickless flag used by older ebuilds</flag>
 
     <!-- Preemption models -->
     <flag name="preempt-full">Use the full preemption model</flag>
     <flag name="preempt-lazy">Use the lazy preemption model</flag>
-    <flag name="preempt_full">Legacy full-preemption flag used by older ebuilds</flag>
-    <flag name="preempt_lazy">Legacy lazy-preemption flag used by older ebuilds</flag>
 
     <!-- Compiler optimization levels -->
     <flag name="o3">Optimize the kernel with -O3</flag>
@@ -103,8 +91,6 @@
     <flag name="bbr3">Use TCP BBR3 and the FQ packet scheduler by default</flag>
     <flag name="hugepage-always">Force transparent huge pages to always. On server-capable versions, disabling both hugepage flags uses madvise with server and always otherwise.</flag>
     <flag name="hugepage-madvise">Force transparent huge pages to madvise. On server-capable versions, disabling both hugepage flags uses madvise with server and always otherwise.</flag>
-    <flag name="hugepage_always">Legacy always-THP flag used by older ebuilds</flag>
-    <flag name="hugepage_madvise">Legacy madvise-THP flag used by older ebuilds</flag>
 
     <!-- CPU-specific optimizations -->
     <flag name="mgeneric">Use the generic x86-64 CPU target</flag>
@@ -112,10 +98,6 @@
     <flag name="mgeneric-v2">Use the x86-64-v2 CPU target</flag>
     <flag name="mgeneric-v3">Use the x86-64-v3 CPU target</flag>
     <flag name="mgeneric-v4">Use the x86-64-v4 CPU target</flag>
-    <flag name="mgeneric_v1">Legacy x86-64-v1 flag used by older ebuilds</flag>
-    <flag name="mgeneric_v2">Legacy x86-64-v2 flag used by older ebuilds</flag>
-    <flag name="mgeneric_v3">Legacy x86-64-v3 flag used by older ebuilds</flag>
-    <flag name="mgeneric_v4">Legacy x86-64-v4 flag used by older ebuilds</flag>
     <flag name="mnative">Use compiler CPU autodetection for the build host</flag>
     <flag name="mzen4">Use the AMD Zen 4 CPU target</flag>
   </use>

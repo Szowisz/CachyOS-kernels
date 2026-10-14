@@ -1,0 +1,46 @@
+name: CI Binpkg Artifact Cleanup
+
+# Trusted cleanup: workflow_run executes in the base-repo context, so this
+# job can delete artifacts even when the originating pull_request run had a
+# read-only GITHUB_TOKEN. Scoping is exact: only artifacts whose name matches
+# ci-binpkgs-{glibc,musl}-<originating run_id>-<attempt> are deleted; nothing else.
+on:
+  workflow_run:
+    workflows:
+      - "Ebuild Merge Test"
+      - "Ebuild Merge Test (musl-llvm)"
+    types: [completed]
+
+permissions:
+  actions: write
+
+jobs:
+  delete-binpkg-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Delete this run's transient binpkg artifacts
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const runId = context.payload.workflow_run.id;
+          const attempt = context.payload.workflow_run.run_attempt;
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const names = [
+            `ci-binpkgs-glibc-${runId}-${attempt}`,
+            `ci-binpkgs-musl-${runId}-${attempt}`,
+          ];
+          const artifacts = await github.paginate(
+            github.rest.actions.listWorkflowRunArtifacts,
+            { owner, repo, run_id: runId, per_page: 100 }
+          );
+          for (const artifact of artifacts) {
+            if (!names.includes(artifact.name)) {
+              console.log(`skip unrelated artifact ${artifact.name}`);
+              continue;
+            }
+            console.log(`deleting artifact ${artifact.name} (${artifact.id})`);
+            await github.rest.actions.deleteArtifact({
+              owner, repo, artifact_id: artifact.id,
+            });
+          }

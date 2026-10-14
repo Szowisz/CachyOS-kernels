@@ -6,18 +6,34 @@ on:
     paths:
       - 'sys-kernel/cachyos-sources/**'
       - '.github/workflows/ebuild-test-musl-llvm.yml'
+      - 'tests/ci-portage-setup.sh'
+      - 'tests/ci-binpkg-producer.sh'
+      - 'tests/ci-binpkg-consumer.sh'
+      - 'tests/ci_matrix_cases.py'
+      - 'tests/test-ci-binpkg-lifecycle.py'
+      - '.github/workflows/ebuild-binpkg-cleanup.yml'
   pull_request:
     branches: [ main, master ]
     paths:
       - 'sys-kernel/cachyos-sources/**'
       - '.github/workflows/ebuild-test-musl-llvm.yml'
+      - 'tests/ci-portage-setup.sh'
+      - 'tests/ci-binpkg-producer.sh'
+      - 'tests/ci-binpkg-consumer.sh'
+      - 'tests/ci_matrix_cases.py'
+      - 'tests/test-ci-binpkg-lifecycle.py'
+      - '.github/workflows/ebuild-binpkg-cleanup.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   detect-versions:
     runs-on: ubuntu-latest
     outputs:
       versions: ${{ steps.detect.outputs.versions }}
+      image: ${{ steps.image.outputs.image }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -29,6 +45,10 @@ jobs:
       run: |
         if [ "${{ github.event_name }}" = "pull_request" ]; then
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
+        elif [ "${{ github.event_name }}" = "push" ] &&
+             [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] &&
+             git cat-file -e "${{ github.event.before }}^{commit}"; then
+          BASE_SHA="${{ github.event.before }}"
         else
           BASE_SHA="HEAD~1"
         fi
@@ -39,12 +59,12 @@ jobs:
           sed -E 's|^sys-kernel/cachyos-sources/cachyos-sources-(.+)\.ebuild$|\1|' | \
           sort -V || true)
 
-        WORKFLOW_CHANGED=$(git diff --no-renames --name-only --diff-filter=AM "$BASE_SHA" HEAD | \
-          grep -E "^\.github/workflows/ebuild-test-musl-llvm\.yml$" || true)
+        WORKFLOW_CHANGED=$(git diff --no-renames --name-only "$BASE_SHA" HEAD | \
+          grep -E "^(\.github/workflows/ebuild-(test(-musl-llvm)?|binpkg-cleanup)\.yml|tests/(ci-.*\.sh|ci_matrix_cases\.py|test-ci-binpkg-lifecycle\.py))$" || true)
 
         if [ -z "$NEW_EBUILDS" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ -z "$WORKFLOW_CHANGED" ]; then
           echo "::notice::No new or modified ebuilds detected, skipping tests"
-          echo "versions=[]" >> $GITHUB_OUTPUT
+          echo "versions=[]" >> "$GITHUB_OUTPUT"
         else
           if [ -z "$NEW_EBUILDS" ]; then
             echo "Workflow changed or manual dispatch, testing latest version"
@@ -68,11 +88,48 @@ jobs:
           fi
 
           echo "Versions to test: $VERSIONS_JSON"
-          echo "versions=$VERSIONS_JSON" >> $GITHUB_OUTPUT
+          echo "versions=$VERSIONS_JSON" >> "$GITHUB_OUTPUT"
         fi
 
-  test:
+    - name: Resolve immutable container image for this run
+      id: image
+      if: steps.detect.outputs.versions != '[]'
+      run: |
+        docker pull docker.io/gentoo/stage3:musl-llvm
+        IMAGE=$(docker image inspect --format '{{index .RepoDigests 0}}' docker.io/gentoo/stage3:musl-llvm)
+        echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+  build-binpkgs:
     needs: detect-versions
+    if: needs.detect-versions.outputs.versions != '[]'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Build uncovered dependency binpkgs once per run
+      run: |
+        mkdir -p "$RUNNER_TEMP/ci-binpkg"
+        printf '%s\n' '${{ needs.detect-versions.outputs.versions }}' | \
+          python3 -c 'import json,sys; [print(v) for v in json.load(sys.stdin)]' > "$RUNNER_TEMP/versions.txt"
+        docker run --rm --privileged \
+          -v "${{ github.workspace }}:/repo:ro" \
+          -v "$RUNNER_TEMP/versions.txt:/versions.txt:ro" \
+          -v "$RUNNER_TEMP/ci-binpkg:/ci-binpkg" \
+          ${{ needs.detect-versions.outputs.image }} \
+          /bin/bash -c 'set -euo pipefail; bash /repo/tests/ci-portage-setup.sh musl /repo; bash /repo/tests/ci-binpkg-producer.sh /versions.txt musl'
+
+    - name: Upload local binpkg artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ci-binpkgs-musl-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/ci-binpkg/
+        if-no-files-found: error
+        retention-days: 1
+        compression-level: 0
+
+  test:
+    needs: [detect-versions, build-binpkgs]
     if: needs.detect-versions.outputs.versions != '[]'
     runs-on: ubuntu-latest
     strategy:
@@ -92,122 +149,34 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Pull container image
-      run: docker pull docker.io/gentoo/stage3:musl-llvm
+    - name: Download local binpkg artifact
+      id: download
+      continue-on-error: true
+      uses: actions/download-artifact@v4
+      with:
+        name: ci-binpkgs-musl-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/ci-binpkg
+
+    - name: Require current attempt artifact
+      if: steps.download.outcome != 'success'
+      run: |
+        echo '::error::Dependency artifact unavailable. Artifacts are deleted after each run; use Re-run all jobs, not failed jobs only.'
+        exit 1
 
     - name: Test ebuild in musl-llvm container
       run: |
         docker run --rm --privileged \
           -v "${{ github.workspace }}:/repo:ro" \
+          -v "${{ runner.temp }}/ci-binpkg:/ci-binpkg:ro" \
           -e VERSION="${{ matrix.version }}" \
           -e USE_FLAGS="${{ matrix.use_flags }}" \
-          docker.io/gentoo/stage3:musl-llvm \
+          ${{ needs.detect-versions.outputs.image }} \
           /bin/bash -c '
         set -e
         set -o pipefail
 
-        # Random startup delay to stagger mirror hits (0-30s)
-        STARTUP_DELAY=$(( RANDOM % 30 ))
-        echo "Waiting ${STARTUP_DELAY}s before starting..."
-        sleep $STARTUP_DELAY
-
-        # Create local overlay from bind-mounted repo
-        mkdir -p /var/db/repos/cachyos-overlay
-        cp -a /repo/. /var/db/repos/cachyos-overlay/
-
-        # Configure repos.conf
-        mkdir -p /etc/portage/repos.conf
-        cat > /etc/portage/repos.conf/cachyos.conf <<REPOEOF
-        [CachyOS-kernels]
-        location = /var/db/repos/cachyos-overlay
-        auto-sync = no
-        priority = 50
-        REPOEOF
-
-        # Configure binhost for musl-llvm binary packages
-        mkdir -p /etc/portage/binrepos.conf
-        cat > /etc/portage/binrepos.conf/gentoobinhost.conf <<BINEOF
-        [gentoobinhost]
-        priority = 10
-        sync-uri = https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64_musl_llvm/
-        BINEOF
-
-        # Enable binary packages and accept testing keywords
-        echo "FEATURES=\"\${FEATURES} getbinpkg -news\"" >> /etc/portage/make.conf
-        echo "ACCEPT_KEYWORDS=\"~amd64\"" >> /etc/portage/make.conf
-
-        # Sync main repo with retry
-        MAX_RETRIES=10
-        BASE_DELAY=20
-        for i in $(seq 1 $MAX_RETRIES); do
-          echo "Attempt $i of $MAX_RETRIES: Syncing Gentoo repository..."
-          SYNC_EXIT_CODE=0
-          emerge --sync -q 2>&1 | tee /tmp/sync.log || SYNC_EXIT_CODE=$?
-          if [ $SYNC_EXIT_CODE -eq 0 ]; then
-            echo "Repository sync successful"
-            break
-          else
-            echo "emerge --sync failed with exit code $SYNC_EXIT_CODE"
-            if [ $i -lt $MAX_RETRIES ]; then
-              RANDOM_EXTRA=$(( 30 + RANDOM % 31 ))
-              RETRY_DELAY=$((BASE_DELAY + RANDOM_EXTRA))
-              echo "Waiting ${RETRY_DELAY}s before retry..."
-              sleep $RETRY_DELAY
-            else
-              echo "Max retries reached"
-              exit $SYNC_EXIT_CODE
-            fi
-          fi
-        done
-
-        # getuto with retry
-        for i in $(seq 1 5); do
-          echo "Attempt $i of 5: Running getuto..."
-          GETUTO_EXIT_CODE=0
-          getuto 2>&1 || GETUTO_EXIT_CODE=$?
-          if [ $GETUTO_EXIT_CODE -eq 0 ]; then
-            echo "getuto successful"
-            break
-          else
-            echo "getuto failed with exit code $GETUTO_EXIT_CODE"
-            if [ $i -lt 5 ]; then
-              RETRY_DELAY=$(( 10 + RANDOM % 20 ))
-              echo "Waiting ${RETRY_DELAY}s before retry..."
-              sleep $RETRY_DELAY
-            else
-              echo "Max retries reached for getuto"
-              exit $GETUTO_EXIT_CODE
-            fi
-          fi
-        done
-
-        # dev-util/perf-7.1 auto-detects Rust and then builds the optional
-        # code_with_type test workload. Keep Rust support enabled, but patch the
-        # workload non-standard glibc-ism uint so it also compiles on musl.
-        mkdir -p /etc/portage/patches/dev-util/perf
-        cat > /etc/portage/patches/dev-util/perf/perf-7.1-musl-code-with-type-uint.patch <<PATCHEOF
-        --- a/tests/workloads/code_with_type.c
-        +++ b/tests/workloads/code_with_type.c
-        @@ -6,7 +6,7 @@
-         #include <linux/compiler.h>
-         #include "../tests.h"
-
-        -extern void test_rs(uint count);
-        +extern void test_rs(unsigned int count);
-
-         static volatile sig_atomic_t done;
-        PATCHEOF
-
-        # Configure USE flags
-        mkdir -p /etc/portage/package.use
-        echo "sys-kernel/cachyos-sources ${USE_FLAGS}" > /etc/portage/package.use/cachyos-sources
-
-        # Show USE flags
-        echo "Testing version ${VERSION} with USE flags: ${USE_FLAGS:-<default>}"
-        emerge --pretend --verbose =sys-kernel/cachyos-sources-${VERSION} | grep USE || true
-
-        # Install kernel sources
-        emerge --verbose --autounmask --autounmask-continue =sys-kernel/cachyos-sources-${VERSION}
+        bash /repo/tests/ci-portage-setup.sh musl /repo /ci-binpkg
+        bash /repo/tests/ci-binpkg-consumer.sh /ci-binpkg "${VERSION}" "${USE_FLAGS}"
 
         echo "Successfully installed cachyos-sources-${VERSION} on musl-llvm"
         '

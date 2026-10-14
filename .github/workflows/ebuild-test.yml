@@ -12,6 +12,12 @@ on:
       - 'tests/test-ci-use-matrix.py'
       - 'tests/test-thp-defaults.py'
       - 'tests/test-bin-headers-install.sh'
+      - 'tests/ci-portage-setup.sh'
+      - 'tests/ci-binpkg-producer.sh'
+      - 'tests/ci-binpkg-consumer.sh'
+      - 'tests/ci_matrix_cases.py'
+      - 'tests/test-ci-binpkg-lifecycle.py'
+      - '.github/workflows/ebuild-binpkg-cleanup.yml'
   pull_request:
     branches: [ main, master ]
     paths:
@@ -23,7 +29,16 @@ on:
       - 'tests/test-ci-use-matrix.py'
       - 'tests/test-thp-defaults.py'
       - 'tests/test-bin-headers-install.sh'
+      - 'tests/ci-portage-setup.sh'
+      - 'tests/ci-binpkg-producer.sh'
+      - 'tests/ci-binpkg-consumer.sh'
+      - 'tests/ci_matrix_cases.py'
+      - 'tests/test-ci-binpkg-lifecycle.py'
+      - '.github/workflows/ebuild-binpkg-cleanup.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   validate-dist-kernel-links:
@@ -37,6 +52,9 @@ jobs:
 
     - name: Validate CI USE matrix against ebuild requirements
       run: python3 tests/test-ci-use-matrix.py
+
+    - name: Validate binary dependency lifecycle
+      run: python3 tests/test-ci-binpkg-lifecycle.py
 
     - name: Validate THP defaults and explicit overrides
       run: python3 tests/test-thp-defaults.py
@@ -103,6 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       versions: ${{ steps.detect.outputs.versions }}
+      image: ${{ steps.image.outputs.image }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -131,12 +150,12 @@ jobs:
           sort -V || true)
         
         # Also check if the workflow itself was modified
-        WORKFLOW_CHANGED=$(git diff --no-renames --name-only --diff-filter=AM "$BASE_SHA" HEAD | \
-          grep -E "^\.github/workflows/ebuild-test\.yml$" || true)
+        WORKFLOW_CHANGED=$(git diff --no-renames --name-only "$BASE_SHA" HEAD | \
+          grep -E "^(\.github/workflows/ebuild-(test(-musl-llvm)?|binpkg-cleanup)\.yml|tests/(ci-.*\.sh|ci_matrix_cases\.py|test-ci-binpkg-lifecycle\.py))$" || true)
         
         if [ -z "$NEW_EBUILDS" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ -z "$WORKFLOW_CHANGED" ]; then
           echo "::notice::No new or modified ebuilds detected, skipping tests"
-          echo "versions=[]" >> $GITHUB_OUTPUT
+          echo "versions=[]" >> "$GITHUB_OUTPUT"
         else
           if [ -z "$NEW_EBUILDS" ]; then
             echo "Workflow changed or manual dispatch, testing latest version"
@@ -161,11 +180,51 @@ jobs:
           fi
           
           echo "Versions to test: $VERSIONS_JSON"
-          echo "versions=$VERSIONS_JSON" >> $GITHUB_OUTPUT
+          echo "versions=$VERSIONS_JSON" >> "$GITHUB_OUTPUT"
         fi
 
-  test:
+    - name: Resolve immutable container image for this run
+      id: image
+      if: steps.detect.outputs.versions != '[]'
+      run: |
+        docker pull docker.io/gentoo/stage3:latest
+        IMAGE=$(docker image inspect --format '{{index .RepoDigests 0}}' docker.io/gentoo/stage3:latest)
+        echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+  build-binpkgs:
     needs: detect-versions
+    if: needs.detect-versions.outputs.versions != '[]'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.detect-versions.outputs.image }}
+      options: --privileged
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Portage repository
+      shell: bash
+      run: bash tests/ci-portage-setup.sh glibc "$PWD"
+
+    - name: Build uncovered dependency binpkgs once per run
+      shell: bash
+      run: |
+        set -euo pipefail
+        printf '%s\n' '${{ needs.detect-versions.outputs.versions }}' | \
+          python3 -c 'import json,sys; [print(v) for v in json.load(sys.stdin)]' > /tmp/versions.txt
+        bash tests/ci-binpkg-producer.sh /tmp/versions.txt glibc
+
+    - name: Upload local binpkg artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ci-binpkgs-glibc-${{ github.run_id }}-${{ github.run_attempt }}
+        path: /ci-binpkg/
+        if-no-files-found: error
+        retention-days: 1
+        compression-level: 0
+
+  test:
+    needs: [detect-versions, build-binpkgs]
     if: needs.detect-versions.outputs.versions != '[]'
     runs-on: ubuntu-latest
     strategy:
@@ -276,103 +335,35 @@ jobs:
           - "kcfi rt-bore -bore -eevdf"
           
     container:
-      image: docker.io/gentoo/stage3:latest
+      image: ${{ needs.detect-versions.outputs.image }}
       options: --privileged
       
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Portage repository
+    - name: Download local binpkg artifact
+      id: download
+      continue-on-error: true
+      uses: actions/download-artifact@v4
+      with:
+        name: ci-binpkgs-glibc-${{ github.run_id }}-${{ github.run_attempt }}
+        path: /ci-binpkg
+
+    - name: Require current attempt artifact
+      if: steps.download.outcome != 'success'
+      run: |
+        echo '::error::Dependency artifact unavailable. Artifacts are deleted after each run; use Re-run all jobs, not failed jobs only.'
+        exit 1
+
+    - name: Restore producer Portage snapshot
+      shell: bash
+      run: bash tests/ci-portage-setup.sh glibc "$PWD" /ci-binpkg
+
+    - name: Consume binary deps and merge source ebuild
       shell: bash
       run: |
-        set -o pipefail
-
-        # Random startup delay to stagger jobs hitting mirrors (0-30 seconds)
-        STARTUP_DELAY=$(( RANDOM % 30 ))
-        echo "Waiting ${STARTUP_DELAY} seconds before starting (stagger delay)..."
-        sleep $STARTUP_DELAY
-
-        # Create local overlay
-        mkdir -p /var/db/repos/cachyos-overlay
-        cp -r . /var/db/repos/cachyos-overlay/
-
-        # Configure repos.conf
-        mkdir -p /etc/portage/repos.conf
-        cat > /etc/portage/repos.conf/cachyos.conf <<EOF
-        [CachyOS-kernels]
-        location = /var/db/repos/cachyos-overlay
-        auto-sync = no
-        priority = 50
-        EOF
-
-        # Configure binhost for faster dependency installation
-        mkdir -p /etc/portage/binrepos.conf
-        cat > /etc/portage/binrepos.conf/gentoobinhost.conf <<EOF
-        [gentoobinhost]
-        priority = 10
-        sync-uri = https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64/
-        EOF
-
-        # Enable binary packages and accept testing keywords globally
-        # Disable signature verification for CI environment
-        echo 'FEATURES="${FEATURES} getbinpkg -news"' >> /etc/portage/make.conf
-        echo 'ACCEPT_KEYWORDS="~amd64"' >> /etc/portage/make.conf
-
-        # Sync main repo with retry on failures
-        MAX_RETRIES=10
-        BASE_DELAY=20
-
-        for i in $(seq 1 $MAX_RETRIES); do
-          echo "Attempt $i of $MAX_RETRIES: Syncing Gentoo repository..."
-
-          # Use subshell to capture exit code without triggering set -e
-          SYNC_EXIT_CODE=0
-          emerge --sync -q 2>&1 | tee /tmp/sync.log || SYNC_EXIT_CODE=$?
-
-          if [ $SYNC_EXIT_CODE -eq 0 ]; then
-            echo "Repository sync successful"
-            break
-          else
-            echo "emerge --sync failed with exit code $SYNC_EXIT_CODE"
-
-            if [ $i -lt $MAX_RETRIES ]; then
-              # Calculate random delay: base time + random 30-60 seconds
-              RANDOM_EXTRA=$(( 30 + RANDOM % 31 ))
-              RETRY_DELAY=$((BASE_DELAY + RANDOM_EXTRA))
-              echo "Waiting ${RETRY_DELAY} seconds before retry (base: ${BASE_DELAY}s + random: ${RANDOM_EXTRA}s)..."
-              sleep $RETRY_DELAY
-            else
-              echo "Max retries reached. Sync failed with exit code $SYNC_EXIT_CODE"
-              exit $SYNC_EXIT_CODE
-            fi
-          fi
-        done
-
-        # getuto with retry (can also fail due to network issues)
-        for i in $(seq 1 5); do
-          echo "Attempt $i of 5: Running getuto..."
-          GETUTO_EXIT_CODE=0
-          getuto 2>&1 || GETUTO_EXIT_CODE=$?
-
-          if [ $GETUTO_EXIT_CODE -eq 0 ]; then
-            echo "getuto successful"
-            break
-          else
-            echo "getuto failed with exit code $GETUTO_EXIT_CODE"
-            if [ $i -lt 5 ]; then
-              RETRY_DELAY=$(( 10 + RANDOM % 20 ))
-              echo "Waiting ${RETRY_DELAY} seconds before retry..."
-              sleep $RETRY_DELAY
-            else
-              echo "Max retries reached for getuto"
-              exit $GETUTO_EXIT_CODE
-            fi
-          fi
-        done
-        
-    - name: Configure package.use
-      run: |
+        set -euo pipefail
         EBUILD_PATH="sys-kernel/cachyos-sources/cachyos-sources-${{ matrix.version }}.ebuild"
         USE_FLAGS="${{ matrix.use_flags }}"
 
@@ -384,25 +375,10 @@ jobs:
           if printf '%s\n' "${USE_FLAG_WORDS[@]}" | grep -Fxq "${OPTIONAL_FLAG}" &&
              ! grep -Eq "(^|[[:space:]])\\+?${OPTIONAL_FLAG}([[:space:]]|$)" "${EBUILD_PATH}"; then
             echo "::notice::Skipping ${USE_FLAGS}: unsupported by cachyos-sources-${{ matrix.version }}"
-            echo "SKIP_USE_CASE=true" >> "$GITHUB_ENV"
             exit 0
           fi
         done
 
-        mkdir -p /etc/portage/package.use
-        echo "sys-kernel/cachyos-sources ${USE_FLAGS}" > /etc/portage/package.use/cachyos-sources
-
-        # Show the USE flags that will be used
-        echo "Testing version ${{ matrix.version }} with USE flags: ${USE_FLAGS:-<default>}"
-        emerge --pretend --verbose =sys-kernel/cachyos-sources-${{ matrix.version }} | grep USE
-
-    - name: Install kernel sources
-      if: env.SKIP_USE_CASE != 'true'
-      run: |
-        # Install the kernel sources package
-        # This is a sources package, it doesn't compile anything, just installs sources
-        # The ebuild should handle all dependencies correctly
-        # Use --autounmask to automatically handle dependency USE flag requirements
-        emerge --verbose --autounmask --autounmask-continue =sys-kernel/cachyos-sources-${{ matrix.version }}
+        bash tests/ci-binpkg-consumer.sh /ci-binpkg "${{ matrix.version }}" "${USE_FLAGS}"
 
         echo "✓ Successfully installed cachyos-sources-${{ matrix.version }} with USE='${{ matrix.use_flags }}'"

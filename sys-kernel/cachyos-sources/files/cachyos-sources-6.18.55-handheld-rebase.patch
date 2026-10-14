@@ -1,0 +1,68 @@
+From: Gentoo CachyOS overlay
+Subject: [PATCH] preserve LTS Surface HID and BETOP controller additions
+
+Only update context in the pinned handheld patch. Keep the ZOTAC driver
+exclusion and all stable-kernel device IDs. Apply to temporary handheld.patch.
+Upstream: kernel-patches@a8efcb97a509c3d36f839451dacb896ab48581c5/6.18/misc/0001-handheld.patch
+
+--- a/handheld.patch
++++ b/handheld.patch
+@@ -1912,10 +1912,9 @@
+ +
+  endif # HID_SUPPORT
+ diff --git a/drivers/hid/Makefile b/drivers/hid/Makefile
+-index 083677e71993..4c862e4e64d9 100644
+ --- a/drivers/hid/Makefile
+ +++ b/drivers/hid/Makefile
+-@@ -77,6 +77,8 @@ obj-$(CONFIG_HID_KYE)		+= hid-kye.o
++@@ -78,6 +78,8 @@
+  obj-$(CONFIG_HID_KYSONA)	+= hid-kysona.o
+  obj-$(CONFIG_HID_LCPOWER)	+= hid-lcpower.o
+  obj-$(CONFIG_HID_LENOVO)	+= hid-lenovo.o
+@@ -1924,20 +1923,12 @@
+  obj-$(CONFIG_HID_LETSKETCH)	+= hid-letsketch.o
+  obj-$(CONFIG_HID_LOGITECH)	+= hid-logitech.o
+  obj-$(CONFIG_HID_LOGITECH)	+= hid-lg-g15.o
+-@@ -174,6 +176,8 @@ obj-$(CONFIG_INTEL_ISH_HID)	+= intel-ish-hid/
+- 
+- obj-$(CONFIG_AMD_SFH_HID)       += amd-sfh-hid/
+- 
+-+obj-$(CONFIG_ZOTAC_ZONE_HID)  += zotac-zone-hid/
+-+
++@@ -184,3 +186,6 @@
+  obj-$(CONFIG_SURFACE_HID_CORE)  += surface-hid/
+  
+  obj-$(CONFIG_INTEL_THC_HID)     += intel-thc-hid/
+-@@ -181,3 +185,5 @@ obj-$(CONFIG_INTEL_THC_HID)     += intel-thc-hid/
+- obj-$(CONFIG_SPI_HID_APPLE_CORE)	+= spi-hid/
+- 
+- obj-$(CONFIG_HID_DOCKCHANNEL)   += dockchannel-hid/
+-+
+++
+++obj-$(CONFIG_ZOTAC_ZONE_HID)  += zotac-zone-hid/
+ +obj-$(CONFIG_HID_MSI_CLAW)      += hid-msi-claw.o
+ diff --git a/drivers/hid/hid-core.c b/drivers/hid/hid-core.c
+ index b353fd819989..7734cc87494c 100644
+@@ -11531,9 +11522,9 @@
+ +	#if !IS_REACHABLE(CONFIG_ZOTAC_ZONE_HID)
+  	{ 0x1ee9, 0x1590, "ZOTAC Gaming Zone", 0, XTYPE_XBOX360 },
+ +	#endif /* !IS_REACHABLE(CONFIG_ZOTAC_ZONE_HID) */
++ 	{ 0x20bc, 0x5134, "BETOP BTP-KP50B Xinput Dongle", 0, XTYPE_XBOX360 },
++ 	{ 0x20bc, 0x514a, "BETOP BTP-KP50C Xinput Dongle", 0, XTYPE_XBOX360 },
+  	{ 0x20d6, 0x2001, "BDA Xbox Series X Wired Controller", 0, XTYPE_XBOXONE },
+- 	{ 0x20d6, 0x2009, "PowerA Enhanced Wired Controller for Xbox Series X|S", 0, XTYPE_XBOXONE },
+- 	{ 0x20d6, 0x2064, "PowerA Wired Controller for Xbox", MAP_SHARE_BUTTON, XTYPE_XBOXONE },
+ @@ -561,7 +563,9 @@ static const struct usb_device_id xpad_table[] = {
+  	XPAD_XBOX360_VENDOR(0x1949),		/* Amazon controllers */
+  	XPAD_XBOX360_VENDOR(0x1a86),		/* Nanjing Qinheng Microelectronics (WCH) */
+@@ -11541,9 +11532,9 @@
+ +	#if !IS_REACHABLE(CONFIG_ZOTAC_ZONE_HID)
+  	XPAD_XBOX360_VENDOR(0x1ee9),		/* ZOTAC Technology Limited */
+ +	#endif /* !IS_REACHABLE(CONFIG_ZOTAC_ZONE_HID) */
++ 	XPAD_XBOX360_VENDOR(0x20bc),		/* BETOP wireless dongles */
+  	XPAD_XBOX360_VENDOR(0x20d6),		/* PowerA controllers */
+  	XPAD_XBOXONE_VENDOR(0x20d6),		/* PowerA controllers */
+- 	XPAD_XBOX360_VENDOR(0x2345),		/* Machenike Controllers */
+ diff --git a/drivers/leds/Kconfig b/drivers/leds/Kconfig
+ index 06e6291be11b..75a2e8bac4b7 100644
+ --- a/drivers/leds/Kconfig

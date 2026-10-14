@@ -9,6 +9,6 @@ KEYWORDS="~amd64"
 IUSE="cachyos-hardened"
 
 RDEPEND="
-	cachyos-hardened? ( ~sys-kernel/cachyos-sources-6.18.50[cachyos-hardened] )
+	cachyos-hardened? ( ~sys-kernel/cachyos-sources-6.18.55[cachyos-hardened] )
 	!cachyos-hardened? ( sys-kernel/cachyos-sources )
 "

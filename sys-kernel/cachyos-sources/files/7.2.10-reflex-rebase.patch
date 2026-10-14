@@ -1,0 +1,36 @@
+Rebase Reflex onto the policy-based adjust_perf API and moved tick helper.
+
+--- a/reflex.patch
++++ b/reflex.patch
+@@ -88,9 +88,9 @@
+  
+  /**
+   * cpufreq_get_current_driver - Return the current driver's name.
+-@@ -2248,6 +2249,7 @@ void cpufreq_driver_adjust_perf(unsigned int cpu,
++@@ -2248,6 +2249,7 @@ void cpufreq_driver_adjust_perf(struct cpufreq_policy *policy,
+  {
+- 	cpufreq_driver->adjust_perf(cpu, min_perf, target_perf, capacity);
++ 	cpufreq_driver->adjust_perf(policy, min_perf, target_perf, capacity);
+  }
+ +EXPORT_SYMBOL_GPL(cpufreq_driver_adjust_perf);
+  
+@@ -636,7 +636,7 @@
+ +	if (rfx_hold_freq(rfx_c) && rfx_c->util < prev_util)
+ +		rfx_c->util = prev_util;
+ +
+-+	cpufreq_driver_adjust_perf(rfx_c->cpu, rfx_c->bw_min,
+++	cpufreq_driver_adjust_perf(rfx_pol->policy, rfx_c->bw_min,
+ +				   rfx_c->util, max_cap);
+ +
+ +	rfx_pol->last_freq_update_time = time;
+@@ -1268,8 +1268,8 @@
+  }
+ +EXPORT_SYMBOL_GPL(tick_nohz_get_idle_calls_cpu);
+  
+- static void tick_nohz_account_idle_time(struct tick_sched *ts,
+- 					ktime_t now)
++ void tick_nohz_idle_restart_tick(void)
++ {
+ -- 
+ 2.34.1
+ 

@@ -617,9 +617,9 @@ pkg_postinst() {
 	optfeature "sched_ext schedulers" sys-kernel/scx-loader
 
 	if use kernel-builtin-zfs; then
-		ewarn "WARNING: You are using kernel-builtin-zfs USE flag."
-		ewarn "It is STRONGLY RECOMMENDED to use sys-fs/zfs instead of building ZFS into the kernel."
-		ewarn "sys-fs/zfs provides better compatibility and easier updates."
+		ewarn "kernel-builtin-zfs only stages ZFS sources and a build helper."
+		ewarn "It does not build or install ZFS modules for this distribution kernel."
+		ewarn "Use sys-fs/zfs and sys-fs/zfs-kmod for managed ZFS support."
 	fi
 	if use autofdo || use propeller; then
 		ewarn "AutoFDO/Propeller are enabled in Kconfig, but they only apply profile-guided"

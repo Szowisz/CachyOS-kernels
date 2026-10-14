@@ -12,23 +12,41 @@
   <use>
     <!-- CPU Schedulers -->
     <flag name="bore">CachyOS Scheduler (BORE - Burst-Oriented Response Enhancer), optimized for desktop responsiveness</flag>
+    <flag name="bore-dev">Experimental BORE scheduler from the CachyOS sched-dev patch family</flag>
     <flag name="bmq">Project C BMQ (BitMap Queue) scheduler, alternative CPU scheduler with different performance characteristics</flag>
     <flag name="pds">Project C Priority and Deadline based Skip list scheduler</flag>
     <flag name="bmq-lfbmq">PRJC BMQ scheduler with the LFBMQ (lock-free bitmap queue) runqueue variant from kernel-patches</flag>
     <flag name="rt">EEVDF scheduler with realtime patches for low-latency applications</flag>
     <flag name="rt-bore">BORE scheduler with realtime patches for low-latency applications</flag>
-    <flag name="eevdf">Linux EEVDF scheduler with the CachyOS POC idle CPU selector</flag>
+    <flag name="eevdf">Linux EEVDF scheduler; includes the CachyOS POC idle CPU selector on mainline kernels</flag>
+    <flag name="sched-ext-peek">Add the experimental sched_ext lockless DSQ peek API and attach fixes; ordinary sched_ext support does not require this flag</flag>
+    <flag name="poc-selector">Enable the CachyOS POC idle CPU selector on LTS kernels with a fair-class scheduler</flag>
     <flag name="muqss">MuQSS scheduler patchset carried in CachyOS kernel-patches</flag>
     <flag name="server">Disable CONFIG_CACHY kernel tweaks; scheduler and tuning options remain independently selectable</flag>
 
     <!-- Hardware-specific patches -->
-    <flag name="deckify">Apply the upstream handheld and ACPI patchsets and enable Steam Deck, ASUS Ally, Lenovo Go, MSI Claw, and ZOTAC Zone support with the selected scheduler</flag>
+    <flag name="deckify">Apply the CachyOS handheld configuration and patches with the BORE scheduler</flag>
+    <flag name="handheld">Apply handheld hardware drivers and configuration without changing the selected scheduler or base config</flag>
+    <flag name="acpi-call">Enable the acpi_call module for userspace ACPI method calls</flag>
+    <flag name="apple-t2">Include Apple T2 SMC, Buffer Copy Engine, USB and audio drivers</flag>
+    <flag name="asus-ally">Include the ASUS ROG Ally HID driver</flag>
+    <flag name="asus-armoury">Include the ASUS Armoury firmware attributes driver</flag>
+    <flag name="asus-wmi-legacy">Keep deprecated ASUS WMI sysfs attributes for older userspace tools</flag>
+    <flag name="amd-private-color">Enable experimental AMD private color management for compositors</flag>
+    <flag name="hda-aw88399">Include the AW88399 HDA side-codec and I2C driver</flag>
+    <flag name="hda-max98390">Include the MAX98390 HDA side-codec and I2C driver</flag>
+    <flag name="v4l2loopback">Include the V4L2 loopback video device driver</flag>
+    <flag name="vhba">Include the virtual SCSI host bus adapter driver</flag>
+    <flag name="adios">Include the ADIOS block I/O scheduler</flag>
+    <flag name="adios-default">Use ADIOS as the default block I/O scheduler</flag>
     <flag name="aufs">Enable the AUFS union filesystem as a module</flag>
 
     <!-- Toolchain -->
-    <flag name="clang">Build the kernel using Clang/LLVM toolchain instead of GCC (required for LTO and KCFI)</flag>
+    <flag name="clang">Build the kernel using Clang/LLVM toolchain instead of GCC (required for LTO, KCFI and Polly)</flag>
+    <flag name="clang-polly">Enable Clang Polly loop optimizations using the matching LLVM-slot Polly compiler plugin</flag>
 
     <!-- Security features -->
+    <flag name="unprivileged-userns">Allow unprivileged user namespace creation by default; runtime sysctl can override this</flag>
     <flag name="cachyos-hardened">Enable the CachyOS hardened kernel variant and patchset</flag>
     <flag name="kcfi">Enable kCFI (Kernel Control Flow Integrity) for additional security protection (requires clang)</flag>
 
@@ -43,7 +61,7 @@
     <flag name="llvm-lto-none">Disable LLVM link-time optimization</flag>
 
     <!-- ZFS support -->
-    <flag name="kernel-builtin-zfs">Build ZFS module directly into the kernel (not recommended, use sys-fs/zfs-kmod instead)</flag>
+    <flag name="kernel-builtin-zfs">Stage pinned ZFS sources and a manual build helper; does not build or install ZFS modules</flag>
 
     <!-- Timer frequency -->
     <flag name="hz_ticks_100">Set kernel timer frequency to 100 Hz (server/battery optimized)</flag>
@@ -55,6 +73,8 @@
     <flag name="hz_ticks_1000">Set kernel timer frequency to 1000 Hz (desktop optimized, default)</flag>
 
     <!-- Governor and power management -->
+    <flag name="governor-nap">Include the experimental Neural Adaptive Predictor CPU idle governor</flag>
+    <flag name="governor-reflex">Include the experimental Reflex CPU frequency governor as a module</flag>
     <flag name="per-gov">Set CPU frequency performance governor as default instead of schedutil</flag>
 
     <!-- Tick rate configuration -->
@@ -75,6 +95,9 @@
     <flag name="bbr3">Enable TCP BBR3 (Bottleneck Bandwidth and RTT) congestion control algorithm as default</flag>
 
     <!-- Memory management -->
+    <flag name="anon-min-protection">Keep CachyOS minimum anonymous-page reclaim protection; disabling sets vm.anon_min_ratio default to zero</flag>
+    <flag name="clean-low-protection">Keep CachyOS best-effort clean-page reclaim protection; disabling sets vm.clean_low_ratio default to zero</flag>
+    <flag name="clean-min-protection">Keep CachyOS hard clean-page reclaim protection; disabling sets vm.clean_min_ratio default to zero</flag>
     <flag name="hugepage_always">Force transparent huge pages to always. On server-capable versions, disabling both hugepage flags uses madvise with server and always otherwise.</flag>
     <flag name="hugepage_madvise">Force transparent huge pages to madvise. On server-capable versions, disabling both hugepage flags uses madvise with server and always otherwise.</flag>
 

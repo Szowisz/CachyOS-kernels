@@ -1,0 +1,18 @@
+Place DSQ peek compatibility helper after the released cpumask macro.
+Keep the release bpf_cpumask type fix; declarations come from common.bpf.h.
+
+--- a/peek.patch
++++ b/peek.patch
+@@ -161,9 +161,9 @@
+ index dd9144624dc99e..467a987880e10d 100644
+ --- a/tools/sched_ext/include/scx/compat.bpf.h
+ +++ b/tools/sched_ext/include/scx/compat.bpf.h
+-@@ -130,6 +130,24 @@ int bpf_cpumask_populate(struct cpumask *dst, void *src, size_t src__sz) __ksym
+- 	false;									\
+- })
++@@ -26,6 +26,24 @@ int bpf_cpumask_populate(struct bpf_cpumask *dst, void *src, size_t src__sz) __ksym __weak;
++ 	(bpf_ksym_exists(bpf_cpumask_populate) ?			\
++ 	 (bpf_cpumask_populate(cpumask, src, size__sz)) : -EOPNOTSUPP)
+  
+ +/*
+ + * v6.19: Introduce lockless peek API for user DSQs.

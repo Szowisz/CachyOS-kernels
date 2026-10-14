@@ -26,6 +26,7 @@ for ebuild in ebuilds:
     required = re.search(r'^REQUIRED_USE="([^"]*)"', source, re.MULTILINE).group(1)
     # LLVM slot constraints come from an eclass and do not affect THP selection.
     required = required.replace("${LLVM_REQUIRED_USE}", "")
+    required = re.sub(r"!?llvm_slot_\d+", "", required)
     # Execute the actual inline THP conditionals, not a duplicate selection algorithm.
     blocks = re.findall(r"\tif use hugepage[-_][^\n]*\n.*?\tfi\n", source, re.DOTALL)
     assert blocks, f"{ebuild.name}: no inline THP configuration found"
@@ -65,7 +66,9 @@ scripts/config() { printf '%s\\n' "$@"; }
             assert result.returncode == 0, f"{ebuild.name}: {result.stderr}"
             args = result.stdout.splitlines()
             assert len(args) % 2 == 0, f"Unexpected scripts/config arguments: {args}"
-            expected = choice if choice in ("always", "madvise") else ("madvise" if server else "always")
+            expected = ("madvise" if madvise in enabled else
+                        "always" if always in enabled else
+                        "madvise" if server else "always")
             # Both possible starting defaults must converge to exactly one requested mode.
             for initial in ("always", "madvise"):
                 config = {"TRANSPARENT_HUGEPAGE_" + name.upper(): name == initial

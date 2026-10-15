@@ -19,26 +19,38 @@ At minimum, audit:
 - dependencies, source URIs, release/pkgrel mappings, and binary asset names
 - installed files, package splits, build options, and mutually exclusive combinations
 
-Do not copy an old ebuild, change only its version, and assume it is current. For every upstream capability, identify the corresponding ebuild USE flag/logic, or document a concrete compatibility reason for excluding it. When upstream removes or renames functionality, remove or rename the stale downstream flag, conditional branch, patch reference, and distfile entry as appropriate. Whenever a package adds, removes, or renames a local USE flag, update its `metadata.xml` flag description in the same change. The audit must cover `cachyos-sources`, `cachyos-kernel`, and `cachyos-kernel-bin` independently because their upstream feature sets can differ.
+Do not copy an old ebuild, change only its version, and assume it is current. For every capability that `linux-cachyos` packaging exposes (see section 2), identify the corresponding ebuild USE flag/logic, or document a concrete compatibility reason for excluding it. When upstream removes or renames functionality, remove or rename the stale downstream flag, conditional branch, patch reference, and distfile entry as appropriate. Whenever a package adds, removes, or renames a local USE flag, update its `metadata.xml` flag description in the same change. The audit must cover `cachyos-sources`, `cachyos-kernel`, and `cachyos-kernel-bin` independently because their upstream feature sets can differ.
 
-### 2. Exhaustively mine both canonical CachyOS kernel repositories
+### 2. USE flags follow `linux-cachyos` packaging, not every patch in the patch repositories
 
-**Do not rely only on `linux-cachyos`, `.SRCINFO`, documented/default variants, or release notes.** Treat the following as the authoritative places to discover the complete CachyOS kernel feature set and inspect them thoroughly on every update pass:
-- https://github.com/CachyOS/kernel-patches
-- https://github.com/CachyOS/linux
+**The USE-flag surface of `cachyos-sources`/`cachyos-kernel` mirrors what `linux-cachyos` packaging actually lets a user select for the target version.** Do not index every patch or config fragment that exists in `CachyOS/kernel-patches` or `CachyOS/linux`. The sources of truth for USE flags are, at the pinned `CACHYOS_CONFIGS_COMMIT`:
+- the `: "${_option:=default}"` build options and their documented values in `linux-cachyos/PKGBUILD` and `linux-cachyos-lts/PKGBUILD` (for example `_cpusched`, `_HZ_ticks`, `_tickrate`, `_preempt`, `_hugepage`, `_processor_opt`, `_use_llvm_lto`, `_use_kcfi`, `_per_gov`, `_tcp_bbr3`, `_cc_harder`, `_build_debug`, `_autofdo`, `_propeller`);
+- the package variant directories (for example `linux-cachyos-bore`, `-bmq`, `-eevdf`, `-rt-bore`, `-server`, `-deckify`, `-hardened`, `-lts`) and the config/patch differences each one selects;
+- `.SRCINFO` where it reflects the above.
 
-Fetch all branches and tags, then inspect current and historical patch directories, series files, config fragments, commits, release-tag diffs, and features that are unadvertised, disabled by default, omitted from normal packaging metadata, or otherwise hidden from the usual build path. For `CachyOS/linux`, compare the relevant CachyOS release tag/tree with the matching vanilla kernel so patches carried only in the pre-patched tree are not missed. Do not assume that the default branch or the currently advertised package variants provide complete coverage.
+On each update pass, diff those PKGBUILD options and variant directories against the previous pinned commit. Add, rename, or retire USE flags (with `REQUIRED_USE` and `metadata.xml`) only for changes found there. Use `CachyOS/kernel-patches` and `CachyOS/linux` only to obtain and pin the patches/configs that those packaging options select, and to check per-version applicability.
 
-Every viable upstream-provided feature must be surfaced in the Gentoo ebuilds with explicit, granular USE flags and the required patch/config logic, rather than silently omitted merely because CachyOS does not advertise it. This explicitly includes scheduler patch families such as `prjc` and `prjc-lfbmq`, and applies equally to any similarly concealed or non-default feature discovered later. “Include every feature” means making incompatible alternatives selectable, not applying mutually exclusive patches simultaneously: encode conflicts/dependencies in `REQUIRED_USE`, verify per-kernel-version applicability, and fail clearly for unsupported combinations.
+Not USE flags:
+- patches, drivers, sysctls, or Kconfig choices that the selected CachyOS patchset/config always applies. Keep them with upstream defaults; do not split them into toggles;
+- patches or config fragments that exist only in `kernel-patches`/`CachyOS/linux` and are not selectable through PKGBUILD options or a variant directory (for example unpackaged schedulers, governors, compiler plugins, drivers, or experimental APIs).
 
-For each update, keep an explicit inventory mapping:
+Allowed exceptions (the only USE flags permitted outside PKGBUILD/variants):
+- the Project C scheduler family beyond PKGBUILD's `bmq`: `pds` and `bmq-lfbmq` (`prjc`/`prjc-lfbmq`);
+- existing overlay-specific flags already shipped by this overlay or gentoo-zh (for example `cjk`/`cjk32`).
+Adding any other exception requires explicit user approval and must be added to this list in the same change.
+
+Mutually exclusive alternatives stay selectable, never applied together: encode conflicts/dependencies in `REQUIRED_USE`, verify per-kernel-version applicability, and fail clearly for unsupported combinations.
+
+Keep an explicit inventory for each update:
 
 ```text
-upstream patch/config/feature -> ebuild USE flag and implementation
-                              -> or documented technical exclusion
+PKGBUILD option / variant directory / listed exception -> ebuild USE flag and implementation
+                                                       -> or documented technical exclusion
 ```
 
-Before declaring an update complete, diff that inventory against the previous pass so newly added features are exposed and deleted features are retired. Regenerate manifests and run the applicable prepare/package/unpack tests after changing feature coverage.
+Before declaring an update complete, diff that inventory against the previous pass so new packaging options are exposed and removed ones are retired.
+
+Convergence: ebuilds published before this rule may carry USE flags outside this scope. Do not edit already-published ebuilds for this. In the next version update pass, create the new ebuilds without those flags (always-applied upstream defaults stay applied; non-default extras are dropped), remove the matching `metadata.xml` entries and unused overlay rebase patches, and state the removed flags in the commit message. Regenerate manifests and run the applicable prepare/package/unpack tests after changing feature coverage.
 
 ---
 

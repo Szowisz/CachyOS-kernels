@@ -364,7 +364,6 @@ src_prepare() {
 			-e DEFAULT_FQ || die
 	fi
 
-	# Preserve the default LTS output; server selects madvise unless overridden.
 	if use hugepage-always; then
 		scripts/config -d TRANSPARENT_HUGEPAGE_MADVISE -e TRANSPARENT_HUGEPAGE_ALWAYS || die
 	elif use hugepage-madvise; then

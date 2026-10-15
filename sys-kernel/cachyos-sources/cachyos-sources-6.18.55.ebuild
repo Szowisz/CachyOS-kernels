@@ -216,12 +216,16 @@ src_prepare() {
 		cp "${patches_prefix}-${prjc}.patch" "${T}/${prjc}.patch" || die
 		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-6.18.55-${prjc}-rebase.patch"
 		eapply --fuzz=0 -- "${T}/${prjc}.patch"
+		eapply --fuzz=0 -- "${FILESDIR}/cachyos-sources-6.18.55-prjc-blk-plug.patch"
+		eapply --fuzz=0 -- "${FILESDIR}/cachyos-sources-prjc-futex-schedule.patch"
+		eapply --fuzz=0 -- "${FILESDIR}/cachyos-sources-6.18.55-prjc-mm-cid.patch"
 	fi
 
 	if use cachyos-hardened; then
 		cp "${patches_prefix}-hardened.patch" "${T}/hardened.patch" || die
 		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-6.18.55-hardened-rebase.patch"
 		eapply --fuzz=0 -- "${T}/hardened.patch"
+		eapply --fuzz=0 -- "${FILESDIR}/cachyos-sources-6.18.55-hardened-canary-stub.patch"
 	fi
 
 	if use rt || use rt-bore; then

@@ -12,7 +12,6 @@ inherit kernel-build toolchain-funcs llvm-r2 optfeature
 # Pin patch and config inputs so Manifest checks cover exact upstream bytes.
 CACHYOS_PATCHES_COMMIT="17bb0bb818d283d0dc6e0280a2e9d5b95e66808b"
 CACHYOS_CONFIGS_COMMIT="5a14cc870dbe958da0fe3fff96d0df6561b8b064"
-CACHYOS_HARDENED_CONFIG_COMMIT="${CACHYOS_CONFIGS_COMMIT}"
 CACHYOS_PR="$(( ${PR#r} + 1 ))"
 
 # CachyOS pre-patched tarball
@@ -26,10 +25,8 @@ ZFS_COMMIT="71a9f9578616a90c3c14bb59629fb4d31bfd68d1"
 CACHYOS_SERIES="$(ver_cut 1-2)"
 CACHYOS_PATCH_URI="https://github.com/CachyOS/kernel-patches/raw/${CACHYOS_PATCHES_COMMIT}/${CACHYOS_SERIES}"
 CACHYOS_CONFIG_URI="https://github.com/CachyOS/linux-cachyos/raw/${CACHYOS_CONFIGS_COMMIT}"
-CACHYOS_HARDENED_CONFIG_URI="https://github.com/CachyOS/linux-cachyos/raw/${CACHYOS_HARDENED_CONFIG_COMMIT}"
 CACHYOS_PATCH_PREFIX="cachyos-kernel-patches-${CACHYOS_PATCHES_COMMIT}-${CACHYOS_SERIES}"
 CACHYOS_CONFIG_PREFIX="linux-cachyos-${CACHYOS_CONFIGS_COMMIT}"
-CACHYOS_HARDENED_CONFIG_PREFIX="linux-cachyos-hardened-${CACHYOS_HARDENED_CONFIG_COMMIT}"
 
 DESCRIPTION="Linux kernel built with CachyOS patches (BORE, LTO, AutoFDO, BBR3 and more)"
 HOMEPAGE="
@@ -73,8 +70,8 @@ SRC_URI="
 			-> ${CACHYOS_PATCH_PREFIX}-bore.patch
 		${CACHYOS_PATCH_URI}/misc/0001-hardened.patch
 			-> ${CACHYOS_PATCH_PREFIX}-hardened.patch
-		${CACHYOS_HARDENED_CONFIG_URI}/linux-cachyos-hardened/config
-			-> ${CACHYOS_HARDENED_CONFIG_PREFIX}-config
+		${CACHYOS_CONFIG_URI}/linux-cachyos-hardened/config
+			-> ${CACHYOS_CONFIG_PREFIX}-hardened-config
 	)
 	deckify? (
 		${CACHYOS_PATCH_URI}/sched/0001-bore-cachy.patch
@@ -118,10 +115,8 @@ IUSE="
 # Scheduler patch compatibility for 7.2.10:
 # - PRJC-LFBMQ has no 7.2 patch family
 # - bare BORE targets vanilla fair.c, not CachyOS's POC/scheduler preimage
-# - hardened: needs files/7.2.9/misc/0001-hardened-namei-sysctls.patch for the
-#   fs/namei.c sysctl defaults that genpatches-7.2-11 already partially set;
-#   upstream hardened build does not apply genpatches, so that fixup carries
-#   the remaining genpatch-colliding hunk.
+# - bore-cachy, hardened and handheld are rebased onto the 7.2.10 release plus
+#   genpatches-7.2-11 and applied at fuzz 0.
 # - PRJC needs the cpuset preimage rollback and a context rebase; MuQSS
 #   already matches the cpuset fix and must not receive that rollback.
 REQUIRED_USE="
@@ -268,11 +263,10 @@ src_prepare() {
 	# https://github.com/Szowisz/CachyOS-kernels/issues/35
 	eapply "${FILESDIR}/6.19.0/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
 
-	local rej_list
 	if use bore || use rt-bore || use deckify || use cachyos-hardened; then
-		# bore-cachy: sched.h hunk needs fuzz to place bore_ctx after task_ipi_mask
-		patch -p1 --forward --no-backup-if-mismatch < \
-			"${patches_prefix}-bore.patch" || die
+		cp "${patches_prefix}-bore.patch" "${T}/bore.patch" || die
+		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-7.2.10-bore-rebase.patch"
+		eapply --fuzz=0 -- "${T}/bore.patch"
 	elif use bmq || use pds || use muqss; then
 		local scheduler=prjc
 		if use muqss; then
@@ -284,20 +278,17 @@ src_prepare() {
 			eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-7.2.9-prjc-rebase.patch"
 			mv "${T}/prjc.patch" "${T}/scheduler.patch" || die
 		fi
-		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/7.2.10-${scheduler}-comment-rebase.patch"
+		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-7.2.10-${scheduler}-comment-rebase.patch"
 		eapply --fuzz=0 -- "${T}/scheduler.patch"
+		if [[ ${scheduler} == prjc ]]; then
+			eapply --fuzz=0 -- "${FILESDIR}/cachyos-sources-prjc-futex-schedule.patch"
+		fi
 	fi
 
 	if use cachyos-hardened; then
-		# hardened: fs/namei.c hunk collides with genpatches-11's sysctl
-		# defaults; assert that is the only reject and repair it.
-		patch -p1 --forward --no-backup-if-mismatch < \
-			"${patches_prefix}-hardened.patch" || true
-		rej_list=$(find . -name '*.rej' -printf '%P\n' | sort)
-		[[ ${rej_list} == $'fs/namei.c.rej' ]] || \
-			die "unexpected hardened rejects: ${rej_list}"
-		find . -name '*.rej' -delete
-		eapply "${FILESDIR}/7.2.9/misc/0001-hardened-namei-sysctls.patch"
+		cp "${patches_prefix}-hardened.patch" "${T}/hardened.patch" || die
+		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-7.2.10-hardened-rebase.patch"
+		eapply --fuzz=0 -- "${T}/hardened.patch"
 	fi
 
 	if use rt || use rt-bore; then
@@ -306,16 +297,9 @@ src_prepare() {
 
 	if use deckify; then
 		eapply "${patches_prefix}-acpi-call.patch"
-
-		# handheld: amdgpu_dm hunk conflicts with newer upstream YUV logic
-		# (force_yuv420/422/444 paths) that superseded the patch's intent;
-		# assert it is the only reject and keep upstream's version.
-		patch -p1 --forward --no-backup-if-mismatch < \
-			"${patches_prefix}-handheld.patch" || true
-		rej_list=$(find . -name '*.rej' -printf '%P\n' | sort)
-		[[ ${rej_list} == $'drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c.rej' ]] || \
-			die "unexpected handheld rejects: ${rej_list}"
-		find . -name '*.rej' -delete
+		cp "${patches_prefix}-handheld.patch" "${T}/handheld.patch" || die
+		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-7.2.10-handheld-rebase.patch"
+		eapply --fuzz=0 -- "${T}/handheld.patch"
 	fi
 
 	if use aufs; then
@@ -325,7 +309,7 @@ src_prepare() {
 	if use deckify; then
 		cp "${configs_prefix}-deckify-config" .config || die
 	elif use cachyos-hardened; then
-		cp "${DISTDIR}/${CACHYOS_HARDENED_CONFIG_PREFIX}-config" .config || die
+		cp "${configs_prefix}-hardened-config" .config || die
 	else
 		cp "${configs_prefix}-config" .config || die
 	fi

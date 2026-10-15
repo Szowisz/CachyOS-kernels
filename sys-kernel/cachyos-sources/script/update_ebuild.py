@@ -42,15 +42,15 @@ VALIDATED_HIDDEN_FEATURES = {
     "6.18.55": {
         "pds": {
             "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "full PRJC plus 6.18.55 context rebase; release tarball does not contain PRJC",
+            "evidence": "full PRJC plus 6.18.55 context, block timestamp, futex and mm_cid backports; gcc vmlinux linked",
         },
         "bmq-lfbmq": {
             "path": "sched/0001-prjc-cachy-lfbmq.patch",
-            "evidence": "full LFBMQ patch plus 6.18.55 context rebase; prepare and Kconfig checked",
+            "evidence": "full LFBMQ plus 6.18.55 context, block timestamp, futex and mm_cid backports; gcc vmlinux linked",
         },
         "cachyos-hardened": {
             "path": "misc/0001-hardened.patch",
-            "evidence": "existing 6.18.55 hardened rebase retained; now includes real BORE sources",
+            "evidence": "6.18.55 hardened rebase plus disabled-canary stub; gcc vmlinux linked",
         },
     },
     "7.2.10": {
@@ -60,11 +60,11 @@ VALIDATED_HIDDEN_FEATURES = {
         },
         "deckify": {
             "path": "misc/0001-handheld.patch",
-            "evidence": "asserted single amdgpu_dm reject; upstream YUV logic retained",
+            "evidence": "fuzz=0 millipercent context rebase retains prev_brightness declaration; amdgpu and gcc vmlinux built",
         },
         "pds": {
             "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "7.2.2 cpuset prerequisite, unchanged 7.2.9 rebase and 7.2.10 comment rebase pass",
+            "evidence": "cpuset prerequisite, context rebases and futex helpers; gcc vmlinux linked",
         },
         "muqss": {
             "path": "sched/0001-muqss-cachy.patch",
@@ -76,7 +76,7 @@ VALIDATED_HIDDEN_FEATURES = {
         },
         "cachyos-hardened": {
             "path": "misc/0001-hardened.patch",
-            "evidence": "exact fs/namei.c reject repaired by unchanged files/7.2.9 fixup",
+            "evidence": "fuzz=0 namei sysctl preimage rebase for genpatches-7.2-11; gcc vmlinux linked",
         },
     },
     "7.2.2": {

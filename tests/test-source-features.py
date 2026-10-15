@@ -63,6 +63,12 @@ def check(ebuild: Path, tree: Path, overrides: str) -> None:
             exists(path)
     if enabled & {'bmq', 'bmq-lfbmq', 'pds'}:
         expect('SCHED_ALT', 'y')
+        alt_core = (tree / 'kernel/sched/alt_core.c').read_text()
+        for helper in ('rt_mutex_futex_pre_schedule', 'rt_mutex_futex_post_schedule'):
+            assert f'void {helper}(void)' in alt_core, f'missing futex scheduler API: {helper}'
+        if pv.startswith('6.18.'):
+            assert 'void sched_mm_cid_exit(struct task_struct *t)' in alt_core
+            assert 'blk_plug_invalidate_ts(tsk)' not in alt_core
     if 'bmq-lfbmq' in enabled:
         exists('kernel/sched/sched_preempt_mask.c')
     if enabled & {'rt', 'rt-bore'}:
@@ -76,6 +82,9 @@ def check(ebuild: Path, tree: Path, overrides: str) -> None:
     if 'deckify' in enabled:
         expect('ACPI_CALL', 'y')
         exists('drivers/platform/x86/acpi_call.c')
+        display = (tree / 'drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c').read_text()
+        backlight = re.search(r'static void amdgpu_dm_backlight_set_level\([^;]*?\n\{(.*?)\n\}', display, re.S).group(1)
+        assert 'u32 prev_brightness;' in backlight, 'handheld backlight uses undeclared prev_brightness'
     if 'deckify' in enabled:
         for symbol in ['MFD_STEAMDECK', 'HID_LENOVO_GO', 'ZOTAC_ZONE_HID', 'HID_MSI']:
             expect(symbol, 'm')

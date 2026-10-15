@@ -12,42 +12,24 @@
   <use>
     <!-- CPU schedulers -->
     <flag name="bore">CachyOS BORE scheduler, optimized for desktop responsiveness</flag>
-    <flag name="bore-dev">Experimental BORE scheduler from the CachyOS sched-dev patch family</flag>
     <flag name="bmq">Project C BMQ scheduler</flag>
     <flag name="pds">Project C Priority and Deadline based Skip list scheduler</flag>
     <flag name="bmq-lfbmq">Project C BMQ scheduler with the lock-free bitmap queue runqueue variant</flag>
     <flag name="rt">Select PREEMPT_RT and apply the RT i915 patch where supported</flag>
     <flag name="rt-bore">BORE scheduler with PREEMPT_RT</flag>
     <flag name="eevdf">Linux EEVDF scheduler; includes the CachyOS POC idle CPU selector on mainline kernels</flag>
-    <flag name="sched-ext-peek">Add the experimental sched_ext lockless DSQ peek API and attach fixes; ordinary sched_ext support does not require this flag</flag>
-    <flag name="poc-selector">Enable the CachyOS POC idle CPU selector on LTS kernels with a fair-class scheduler</flag>
     <flag name="muqss">MuQSS scheduler patchset carried in CachyOS kernel-patches</flag>
     <flag name="server">Disable CONFIG_CACHY kernel tweaks; scheduler and tuning options remain independently selectable</flag>
 
     <!-- Hardware-specific patches -->
-    <flag name="handheld">Apply handheld hardware drivers and configuration without changing the selected scheduler or base config</flag>
     <flag name="deckify">Apply the CachyOS handheld configuration and patches with the selected CPU scheduler</flag>
     <flag name="aufs">Enable the AUFS union filesystem as a module</flag>
-    <flag name="acpi-call">Enable the acpi_call module for userspace ACPI method calls</flag>
-    <flag name="apple-t2">Include Apple T2 SMC, Buffer Copy Engine, USB and audio drivers</flag>
-    <flag name="asus-ally">Include the ASUS ROG Ally HID driver</flag>
-    <flag name="asus-armoury">Include the ASUS Armoury firmware attributes driver</flag>
-    <flag name="asus-wmi-legacy">Keep deprecated ASUS WMI sysfs attributes for older userspace tools</flag>
-    <flag name="amd-private-color">Enable experimental AMD private color management for compositors</flag>
-    <flag name="hda-aw88399">Include the AW88399 HDA side-codec and I2C driver</flag>
-    <flag name="hda-max98390">Include the MAX98390 HDA side-codec and I2C driver</flag>
-    <flag name="v4l2loopback">Include the V4L2 loopback video device driver</flag>
-    <flag name="vhba">Include the virtual SCSI host bus adapter driver</flag>
-    <flag name="adios">Include the ADIOS block I/O scheduler</flag>
-    <flag name="adios-default">Use ADIOS as the default block I/O scheduler</flag>
 
     <!-- Security features -->
     <flag name="cachyos-hardened">Enable the CachyOS hardened kernel variant and patchset</flag>
     <flag name="kcfi">Enable Clang Kernel Control Flow Integrity</flag>
-    <flag name="unprivileged-userns">Allow unprivileged user namespace creation by default; runtime sysctl can override this</flag>
 
     <!-- Optimization features -->
-    <flag name="clang-polly">Enable Clang Polly loop optimizations using the LLVMPolly compiler plugin</flag>
     <flag name="autofdo">Enable Clang AutoFDO support for profile-guided optimization</flag>
     <flag name="propeller">Enable Clang Propeller support for basic-block reordering</flag>
     <flag name="llvm-lto-thin">Enable LLVM ThinLTO</flag>
@@ -69,8 +51,6 @@
 
     <!-- Governor and tick mode -->
     <flag name="per-gov">Use the performance CPU frequency governor by default</flag>
-    <flag name="governor-nap">Include the experimental Neural Adaptive Predictor CPU idle governor</flag>
-    <flag name="governor-reflex">Include the experimental Reflex CPU frequency governor as a module</flag>
     <flag name="tickrate-periodic">Use periodic kernel ticks</flag>
     <flag name="tickrate-idle">Use idle tickless mode</flag>
     <flag name="tickrate-full">Use full tickless mode</flag>
@@ -85,9 +65,6 @@
     <flag name="debug">Use the CachyOS debug-oriented configuration profile</flag>
 
     <!-- Network and memory -->
-    <flag name="anon-min-protection">Keep CachyOS minimum anonymous-page reclaim protection; disabling sets vm.anon_min_ratio default to zero</flag>
-    <flag name="clean-low-protection">Keep CachyOS best-effort clean-page reclaim protection; disabling sets vm.clean_low_ratio default to zero</flag>
-    <flag name="clean-min-protection">Keep CachyOS hard clean-page reclaim protection; disabling sets vm.clean_min_ratio default to zero</flag>
     <flag name="bbr3">Use TCP BBR3 and the FQ packet scheduler by default</flag>
     <flag name="hugepage-always">Force transparent huge pages to always. On server-capable versions, disabling both hugepage flags uses madvise with server and always otherwise.</flag>
     <flag name="hugepage-madvise">Force transparent huge pages to madvise. On server-capable versions, disabling both hugepage flags uses madvise with server and always otherwise.</flag>

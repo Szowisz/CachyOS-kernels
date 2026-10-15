@@ -31,8 +31,6 @@ ZFS_COMMIT="71a9f9578616a90c3c14bb59629fb4d31bfd68d1"
 CKV="$(ver_cut 1-3)"
 CACHYOS_SERIES="$(ver_cut 1-2)"
 CACHYOS_PATCH_URI="https://github.com/CachyOS/kernel-patches/raw/${CACHYOS_PATCHES_COMMIT}/${CACHYOS_SERIES}"
-CACHYOS_LTS_PATCH_URI="https://github.com/CachyOS/kernel-patches/raw/${CACHYOS_PATCHES_COMMIT}/6.18"
-CACHYOS_LTS_PATCH_PREFIX="cachyos-kernel-patches-${CACHYOS_PATCHES_COMMIT}-6.18"
 CACHYOS_CONFIG_URI="https://github.com/CachyOS/linux-cachyos/raw/${CACHYOS_CONFIGS_COMMIT}"
 CACHYOS_HARDENED_CONFIG_URI="https://github.com/CachyOS/linux-cachyos/raw/${CACHYOS_HARDENED_CONFIG_COMMIT}"
 CACHYOS_PATCH_PREFIX="cachyos-kernel-patches-${CACHYOS_PATCHES_COMMIT}-${CACHYOS_SERIES}"
@@ -66,10 +64,6 @@ SRC_URI="
 	bore? (
 		${CACHYOS_PATCH_URI}/sched/0001-bore-cachy.patch
 			-> ${CACHYOS_PATCH_PREFIX}-bore.patch
-	)
-	bore-dev? (
-		${CACHYOS_PATCH_URI}/sched-dev/0001-bore-cachy.patch
-			-> ${CACHYOS_PATCH_PREFIX}-bore-dev.patch
 	)
 	bmq? (
 		${CACHYOS_PATCH_URI}/sched/0001-prjc-cachy.patch
@@ -111,31 +105,11 @@ SRC_URI="
 		${CACHYOS_CONFIG_URI}/linux-cachyos-deckify/config
 			-> ${CACHYOS_CONFIG_PREFIX}-deckify-config
 	)
-	handheld? (
-		${CACHYOS_PATCH_URI}/misc/0001-handheld.patch
-			-> ${CACHYOS_PATCH_PREFIX}-handheld.patch
-	)
-	acpi-call? (
-		${CACHYOS_PATCH_URI}/misc/0001-acpi-call.patch
-			-> ${CACHYOS_PATCH_PREFIX}-acpi-call.patch
-	)
 	${CACHYOS_PATCH_URI}/misc/dkms-clang.patch
 		-> ${CACHYOS_PATCH_PREFIX}-dkms-clang.patch
 	aufs? (
 		${CACHYOS_PATCH_URI}/misc/0001-aufs-7.2-merge-v20260914.patch
 			-> ${CACHYOS_PATCH_PREFIX}-aufs.patch
-	)
-	governor-nap? (
-		${CACHYOS_LTS_PATCH_URI}/misc/nap-governor.patch
-			-> ${CACHYOS_LTS_PATCH_PREFIX}-nap-governor.patch
-	)
-	governor-reflex? (
-		${CACHYOS_LTS_PATCH_URI}/misc/reflex-governor.patch
-			-> ${CACHYOS_LTS_PATCH_PREFIX}-reflex-governor.patch
-	)
-	clang-polly? (
-		${CACHYOS_LTS_PATCH_URI}/misc/0001-clang-polly.patch
-			-> ${CACHYOS_LTS_PATCH_PREFIX}-clang-polly.patch
 	)
 	kernel-builtin-zfs? (
 		https://github.com/cachyos/zfs/archive/${ZFS_COMMIT}.tar.gz
@@ -146,13 +120,10 @@ SRC_URI="
 LICENSE+=" kernel-builtin-zfs? ( BSD-2 CDDL GPL-3 MIT )"
 KEYWORDS="~amd64"
 IUSE="
-	+bore bore-dev bmq pds muqss rt rt-bore eevdf
-	clang-polly governor-nap governor-reflex
-	server deckify handheld acpi-call aufs kcfi cachyos-hardened
+	+bore bmq pds muqss rt rt-bore eevdf
+	server deckify aufs kcfi cachyos-hardened
 	+autofdo +propeller
 	+llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none
-	+adios adios-default +v4l2loopback +vhba +apple-t2 amd-private-color
-	+hda-aw88399 +hda-max98390
 	kernel-builtin-zfs
 	hz-ticks-100 hz-ticks-250 hz-ticks-300 hz-ticks-500 hz-ticks-600 hz-ticks-750 +hz-ticks-1000
 	+per-gov tickrate-periodic tickrate-idle +tickrate-full +preempt-full preempt-lazy
@@ -171,11 +142,8 @@ IUSE="
 #   the remaining genpatch-colliding hunk.
 # - PRJC needs the cpuset preimage rollback and a context rebase; MuQSS
 #   already matches the cpuset fix and must not receive that rollback.
-# Reflex requires the fair/SCX utilization helpers, not PRJC/MuQSS stubs.
 REQUIRED_USE="
-	^^ ( bore bore-dev bmq pds muqss rt rt-bore eevdf cachyos-hardened )
-	governor-reflex? ( !bmq !pds !muqss )
-	adios-default? ( adios )
+	^^ ( bore bmq pds muqss rt rt-bore eevdf cachyos-hardened )
 	cachyos-hardened? ( llvm-lto-none )
 	deckify? ( bore )
 	propeller? ( !llvm-lto-full !llvm-lto-none )
@@ -191,7 +159,6 @@ REQUIRED_USE="
 "
 
 RDEPEND+="
-	clang-polly? ( llvm-core/clang llvm-core/polly )
 	dev-util/pahole
 	autofdo? ( dev-util/perf[libpfm] )
 	!llvm-lto-none? (
@@ -271,9 +238,7 @@ src_prepare() {
 	eapply "${FILESDIR}/6.19.0/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
 
 	local rej_list
-	if use bore-dev; then
-		eapply --fuzz=0 -- "${patches_prefix}-bore-dev.patch"
-	elif use bore || use rt-bore || use deckify || use cachyos-hardened; then
+	if use bore || use rt-bore || use deckify || use cachyos-hardened; then
 		# bore-cachy: sched.h hunk needs fuzz to place bore_ctx after task_ipi_mask
 		patch -p1 --forward --no-backup-if-mismatch < \
 			"${patches_prefix}-bore.patch" || die
@@ -308,11 +273,9 @@ src_prepare() {
 		eapply "${patches_prefix}-rt-i915.patch"
 	fi
 
-	if use acpi-call || use deckify; then
+	if use deckify; then
 		eapply "${patches_prefix}-acpi-call.patch"
-	fi
 
-	if use deckify || use handheld; then
 		# handheld: amdgpu_dm hunk conflicts with newer upstream YUV logic
 		# (force_yuv420/422/444 paths) that superseded the patch's intent;
 		# assert it is the only reject and keep upstream's version.
@@ -328,15 +291,6 @@ src_prepare() {
 		eapply "${patches_prefix}-aufs.patch"
 	fi
 
-	local lts_patches_prefix="${DISTDIR}/${CACHYOS_LTS_PATCH_PREFIX}"
-	use governor-nap && eapply --fuzz=0 -- "${lts_patches_prefix}-nap-governor.patch"
-	if use governor-reflex; then
-		cp "${lts_patches_prefix}-reflex-governor.patch" "${T}/reflex.patch" || die
-		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/7.2.10-reflex-rebase.patch"
-		eapply --fuzz=0 -- "${T}/reflex.patch"
-	fi
-	use clang-polly && eapply --fuzz=0 -- "${lts_patches_prefix}-clang-polly.patch"
-
 	if use deckify; then
 		cp "${configs_prefix}-deckify-config" .config || die
 	elif use cachyos-hardened; then
@@ -345,7 +299,7 @@ src_prepare() {
 		cp "${configs_prefix}-config" .config || die
 	fi
 
-	if use kcfi || use clang-polly || use propeller || ! use llvm-lto-none; then
+	if use kcfi || use propeller || ! use llvm-lto-none; then
 		eapply "${patches_prefix}-dkms-clang.patch"
 	fi
 
@@ -363,7 +317,7 @@ src_prepare() {
 		scripts/config -e CACHY || die
 	fi
 
-	if use bore || use bore-dev || use cachyos-hardened; then
+	if use bore || use cachyos-hardened; then
 		scripts/config -e SCHED_BORE || die
 	elif use bmq; then
 		scripts/config -e SCHED_ALT -e SCHED_BMQ || die
@@ -381,15 +335,13 @@ src_prepare() {
 
 	if use deckify; then
 		scripts/config -e ACPI_CALL || die
-	elif use acpi-call; then
-		scripts/config -m ACPI_CALL || die
 	fi
 
 	if use aufs; then
 		scripts/config -m AUFS_FS || die
 	fi
 
-	if use deckify || use handheld; then
+	if use deckify; then
 		# Upstream handheld config knobs from linux-cachyos-deckify prepare()
 		scripts/config \
 			-d RCU_LAZY_DEFAULT_OFF \
@@ -406,43 +358,6 @@ src_prepare() {
 			-m ZOTAC_ZONE_PLATFORM \
 			-m EXTCON_STEAMDECK \
 			-m HID_MSI || die
-	fi
-
-	if use clang-polly; then
-		scripts/config -e POLLY_CLANG || die
-	fi
-	if use governor-nap; then
-		scripts/config -e CPU_IDLE_GOV_NAP || die
-	fi
-	if use governor-reflex; then
-		scripts/config -e CPU_FREQ_GOV_SCHEDUTIL -m CPU_FREQ_GOV_REFLEX || die
-	fi
-
-	# Keep existing upstream driver defaults; provide independent opt-outs.
-	if ! use adios; then
-		scripts/config -d MQ_IOSCHED_ADIOS -d MQ_IOSCHED_DEFAULT_ADIOS || die
-	elif use adios-default; then
-		scripts/config -e MQ_IOSCHED_DEFAULT_ADIOS || die
-	fi
-	if ! use v4l2loopback; then
-		scripts/config -d V4L2_LOOPBACK || die
-	fi
-	if ! use vhba; then
-		scripts/config -d VHBA || die
-	fi
-	if ! use apple-t2; then
-		scripts/config -d SENSORS_APPLESMC_T2 -d T2BCE_CORE -d T2BCE_DMA \
-			-d T2BCE_VHCI -d T2BCE_AUDIO || die
-	fi
-	if use amd-private-color; then
-		scripts/config -e AMD_PRIVATE_COLOR || die
-	fi
-
-	if ! use hda-aw88399; then
-		scripts/config -d SND_HDA_SCODEC_AW88399_I2C -d SND_HDA_SCODEC_AW88399 || die
-	fi
-	if ! use hda-max98390; then
-		scripts/config -d SND_HDA_SCODEC_MAX98390_I2C -d SND_HDA_SCODEC_MAX98390 || die
 	fi
 
 	### Enable KCFI

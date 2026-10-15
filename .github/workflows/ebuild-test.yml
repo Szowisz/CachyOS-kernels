@@ -247,7 +247,6 @@ jobs:
           # === Scheduler Tests (mutually exclusive) ===
           - "bmq -bore -eevdf"
           - "bmq-lfbmq -bore -eevdf"
-          - "bore-dev -bore -eevdf"
           - "pds -bore -eevdf"
           - "muqss -bore -eevdf"
           - "cachyos-hardened -bore -eevdf llvm-lto-none -llvm-lto-thin -autofdo -propeller"
@@ -259,17 +258,8 @@ jobs:
           - "kcfi"
           - "deckify"
           - "deckify kcfi"
-          - "deckify acpi-call"
           - "aufs"
-          - "governor-nap governor-reflex poc-selector acpi-call"
-          - "governor-nap governor-reflex"
-          - "clang-polly"
-          - "sched-ext-peek"
-          - "acpi-call"
-          - "handheld"
           - "server"
-          - "adios-default amd-private-color -v4l2loopback -vhba -apple-t2"
-          - "hda-aw88399 -hda-max98390 -adios"
           
           # === Hz Tick Rate Tests (mutually exclusive) ===
           - "hz-ticks-100 -hz-ticks-1000"
@@ -393,7 +383,7 @@ jobs:
         # case when its positive selector is absent instead of creating an
         # invalid fallback build.
         read -r -a USE_FLAG_WORDS <<< "${USE_FLAGS}"
-        for OPTIONAL_FLAG in bmq bmq-lfbmq deckify bore-dev pds muqss cachyos-hardened server aufs handheld acpi-call poc-selector governor-nap governor-reflex clang-polly sched-ext-peek adios-default hda-aw88399; do
+        for OPTIONAL_FLAG in bmq bmq-lfbmq deckify pds muqss cachyos-hardened server aufs; do
           if printf '%s\n' "${USE_FLAG_WORDS[@]}" | grep -Fxq "${OPTIONAL_FLAG}" &&
              ! grep -Eq "(^|[[:space:]])\\+?${OPTIONAL_FLAG}([[:space:]]|$)" "${EBUILD_PATH}"; then
             echo "::notice::Skipping ${USE_FLAGS}: unsupported by cachyos-sources-${{ matrix.version }}"

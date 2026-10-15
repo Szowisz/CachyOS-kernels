@@ -19,39 +19,31 @@ for version in ("7.2.10", "6.18.55"):
     paths = {f"{details.get('series', series)}/{details['path']}"
              for details in features.values() if "path" in details}
     assert not updater.audit_hidden_patch_inventory(version, paths)
-    if version == "7.2.10":
-        missing = paths - {"6.18/misc/nap-governor.patch"}
-        assert any("governor-nap" in error for error in updater.audit_hidden_patch_inventory(version, missing))
+    missing = paths - {f"{series}/sched/0001-prjc-cachy.patch"}
+    assert any("pds" in error for error in updater.audit_hidden_patch_inventory(version, missing))
     for package in ("cachyos-sources", "cachyos-kernel"):
         ebuild = ROOT / f"sys-kernel/{package}/{package}-{version}.ebuild"
         source = ebuild.read_text()
         iuse = re.search(r'^IUSE="([^"]*)"', source, re.M).group(1).split()
         available = {flag.lstrip("+-") for flag in iuse}
         defaults = {flag[1:] for flag in iuse if flag.startswith("+")}
-        assert not defaults & {"governor-nap", "governor-reflex", "clang-polly", "sched-ext-peek"}
+        assert not defaults & {"pds", "bmq-lfbmq", "deckify", "cachyos-hardened"}
         required = re.search(r'^REQUIRED_USE="([^"]*)"', source, re.M).group(1)
         slots = {f"llvm_slot_{slot}" for slot in range(17, 24)}
         required = required.replace('${LLVM_REQUIRED_USE}', '^^ ( ' + ' '.join(sorted(slots)) + ' )')
         available |= slots
         if package == "cachyos-kernel":
             defaults.add("llvm_slot_23")
-            for slot in range(17, 24):
-                use = (defaults - slots) | {"clang-polly", f"llvm_slot_{slot}"}
-                assert bool(check_required_use(required, use, available.__contains__, eapi="8")) == (slot >= 20)
-            gcc = (defaults - {"clang", "llvm-lto-thin", "autofdo", "propeller"}) | {"llvm-lto-none", "clang-polly"}
-            assert not check_required_use(required, gcc, available.__contains__, eapi="8")
-        for flag in {"governor-reflex", "sched-ext-peek"} & available:
-            for scheduler in {"bmq", "pds", "bmq-lfbmq", "muqss"} & available:
-                use = (defaults - {"bore", "eevdf"}) | {flag, scheduler}
-                assert not check_required_use(required, use, available.__contains__, eapi="8")
+        for scheduler in {"pds", "bmq-lfbmq"} & available:
+            use = (defaults - {"bore", "eevdf"}) | {scheduler}
+            assert check_required_use(required, use, available.__contains__, eapi="8"), scheduler
+            assert not check_required_use(required, use | {"bore"}, available.__contains__, eapi="8"), scheduler
         if package != "cachyos-sources":
             continue
         upstream = {name: version for name in updater.UPSTREAM_PACKAGES}
         assert not updater.audit_feature_inventory(source, version, upstream, lts=version.startswith("6."))
-        if version == "6.18.55":
-            for commit in features["sched-ext-peek"]["commits"]:
-                broken = source.replace(f"{commit}.patch", "obsolete.patch")
-                assert updater.audit_feature_inventory(broken, version, upstream, lts=True)
+        broken = source.replace("-e SCHED_ALT -d SCHED_BMQ -e SCHED_PDS", "")
+        assert updater.audit_feature_inventory(broken, version, upstream, lts=version.startswith("6."))
         # Generation refuses unvalidated inherited flags/URIs instead of emitting stale wiring.
         next_version = "7.2.11" if version.startswith("7.") else "6.18.56"
         with tempfile.TemporaryDirectory(prefix="cachyos-feature-test-", dir="/var/tmp") as tmp:

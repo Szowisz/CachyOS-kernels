@@ -40,19 +40,6 @@ UPSTREAM_PACKAGES = [
 # directory entry as an automatically supported USE flag.
 VALIDATED_HIDDEN_FEATURES = {
     "6.18.55": {
-        "sched-ext-peek": {
-            "commits": (
-                "b99db259aa4e75b3051e0b4ea464c08700829d3b",
-                "83659f4458c702385efc657ff678cdcec74d7342",
-                "2f15c2b511c5322cefafbcd49ab496eeaed9c045",
-                "f853a289756a2d3c6addd17dbe40c24b95082ad0",
-            ),
-            "evidence": "6.18/sched-ext branch: four published commits, release-context compat rebase; PRJC disables SCHED_CLASS_EXT",
-        },
-        "bore-dev": {
-            "path": "sched-dev/0001-bore-cachy.patch",
-            "evidence": "BORE 7.0.0 applies after genpatches-6.18-63; source package and olddefconfig checked",
-        },
         "pds": {
             "path": "sched/0001-prjc-cachy.patch",
             "evidence": "full PRJC plus 6.18.55 context rebase; release tarball does not contain PRJC",
@@ -61,55 +48,12 @@ VALIDATED_HIDDEN_FEATURES = {
             "path": "sched/0001-prjc-cachy-lfbmq.patch",
             "evidence": "full LFBMQ patch plus 6.18.55 context rebase; prepare and Kconfig checked",
         },
-        "handheld": {
-            "path": "misc/0001-handheld.patch",
-            "evidence": "6.18.55 context rebase preserves Surface HID and BETOP IDs; independent of scheduler",
-        },
-        "clang-polly": {
-            "path": "misc/0001-clang-polly.patch",
-            "evidence": "multi-patch stream applies sequentially; requires llvm-core/polly compiler plugin",
-        },
-        "poc-selector": {
-            "path": "misc/poc-selector.patch",
-            "evidence": "applies after genpatches-6.18-63 with EEVDF and BORE; not compatible with PRJC",
-        },
-        "governor-nap": {
-            "path": "misc/nap-governor.patch",
-            "evidence": "CPU idle governor (not cpufreq); optional package and Kconfig checked",
-        },
-        "governor-reflex": {
-            "path": "misc/reflex-governor.patch",
-            "evidence": "applies with fuzz=2; requires schedutil, incompatible with PRJC",
-        },
-        "acpi-call": {
-            "path": "misc/0001-acpi-call.patch",
-            "evidence": "standalone module applies after genpatches-6.18-63",
-        },
-        "aufs": {
-            "path": "misc/0001-aufs-6.18-merge-v20251208.patch",
-            "evidence": "applies with fuzz=2 after genpatches-6.18-63; AUFS_FS=m survives olddefconfig",
-        },
         "cachyos-hardened": {
             "path": "misc/0001-hardened.patch",
             "evidence": "existing 6.18.55 hardened rebase retained; now includes real BORE sources",
         },
     },
     "7.2.10": {
-        "clang-polly": {
-            "series": "6.18",
-            "path": "misc/0001-clang-polly.patch",
-            "evidence": "dependent stream applies sequentially at fuzz=0; matching LLVMPolly plugin required",
-        },
-        "governor-nap": {
-            "series": "6.18",
-            "path": "misc/nap-governor.patch",
-            "evidence": "cross-series patch applies at fuzz=0; CPU_IDLE_GOV_NAP survives olddefconfig",
-        },
-        "governor-reflex": {
-            "series": "6.18",
-            "path": "misc/reflex-governor.patch",
-            "evidence": "7.2.10 context and policy-pointer API rebase; requires schedutil, excludes PRJC and MuQSS",
-        },
         "bmq": {
             "path": "sched/0001-prjc-cachy.patch",
             "evidence": "same validated PRJC path as pds",
@@ -117,18 +61,6 @@ VALIDATED_HIDDEN_FEATURES = {
         "deckify": {
             "path": "misc/0001-handheld.patch",
             "evidence": "asserted single amdgpu_dm reject; upstream YUV logic retained",
-        },
-        "handheld": {
-            "path": "misc/0001-handheld.patch",
-            "evidence": "same patch as deckify without imposing its config/scheduler",
-        },
-        "acpi-call": {
-            "path": "misc/0001-acpi-call.patch",
-            "evidence": "standalone module and deckify path checked after genpatches-7.2-11",
-        },
-        "bore-dev": {
-            "path": "sched-dev/0001-bore-cachy.patch",
-            "evidence": "BORE 7.0.0 applies at fuzz=0 after genpatches-7.2-11",
         },
         "pds": {
             "path": "sched/0001-prjc-cachy.patch",
@@ -242,15 +174,7 @@ AUDIT_PATTERNS = {
         "HZ_PERIODIC_NODEF",
         "NO_HZ_IDLE_NODEF",
     ),
-    "bore-dev": ("sched-dev/0001-bore-cachy.patch", "use bore-dev", "-e SCHED_BORE"),
     "bmq-lfbmq": ("sched/0001-prjc-cachy-lfbmq.patch", "use bmq-lfbmq", "-e SCHED_BMQ"),
-    "poc-selector": ("misc/poc-selector.patch", "-e SCHED_POC_SELECTOR"),
-    "handheld": ("misc/0001-handheld.patch", "use handheld", "HID_LENOVO_GO"),
-    "sched-ext-peek": ("if use sched-ext-peek; then", "-e SCHED_CLASS_EXT", "6.18.55-sched-ext-peek-rebase.patch"),
-    "clang-polly": ("misc/0001-clang-polly.patch", "-e POLLY_CLANG", "llvm-core/polly"),
-    "governor-nap": ("misc/nap-governor.patch", "-e CPU_IDLE_GOV_NAP"),
-    "governor-reflex": ("misc/reflex-governor.patch", "-m CPU_FREQ_GOV_REFLEX"),
-    "acpi-call": ("misc/0001-acpi-call.patch", "-m ACPI_CALL"),
     "aufs": (
         "misc/0001-aufs-",
         "if use aufs; then",
@@ -498,7 +422,8 @@ def audit_feature_inventory(content, target_version, upstream_versions, lts=Fals
         if lts and clean_version_helper(target_version) not in VALIDATED_HIDDEN_FEATURES:
             continue
         details = VALIDATED_HIDDEN_FEATURES.get(clean_version_helper(target_version), {}).get(feature, {})
-        patterns = list(AUDIT_PATTERNS[feature])
+        # LTS EEVDF is the stock scheduler; POC selector is mainline-only.
+        patterns = [] if lts and feature == "eevdf" else list(AUDIT_PATTERNS[feature])
         patterns.extend(f"https://github.com/CachyOS/linux/commit/{commit}.patch"
                         for commit in details.get("commits", ()))
         if "series" in details:

@@ -44,10 +44,6 @@ SRC_URI="
 		${CACHYOS_PATCH_URI}/sched/0001-bore-cachy.patch
 			-> ${CACHYOS_PATCH_PREFIX}-bore.patch
 	)
-	bore-dev? (
-		${CACHYOS_PATCH_URI}/sched-dev/0001-bore-cachy.patch
-			-> ${CACHYOS_PATCH_PREFIX}-bore-dev.patch
-	)
 	bmq? (
 		${CACHYOS_PATCH_URI}/sched/0001-prjc-cachy.patch
 			-> ${CACHYOS_PATCH_PREFIX}-prjc.patch
@@ -76,46 +72,8 @@ SRC_URI="
 		${CACHYOS_PATCH_URI}/misc/0001-rt-i915.patch
 			-> ${CACHYOS_PATCH_PREFIX}-rt-i915.patch
 	)
-	handheld? (
-		${CACHYOS_PATCH_URI}/misc/0001-handheld.patch
-			-> ${CACHYOS_PATCH_PREFIX}-handheld.patch
-	)
-	acpi-call? (
-		${CACHYOS_PATCH_URI}/misc/0001-acpi-call.patch
-			-> ${CACHYOS_PATCH_PREFIX}-acpi-call.patch
-	)
-	aufs? (
-		${CACHYOS_PATCH_URI}/misc/0001-aufs-6.18-merge-v20251208.patch
-			-> ${CACHYOS_PATCH_PREFIX}-aufs.patch
-	)
-	poc-selector? (
-		${CACHYOS_PATCH_URI}/misc/poc-selector.patch
-			-> ${CACHYOS_PATCH_PREFIX}-poc-selector.patch
-	)
-	governor-nap? (
-		${CACHYOS_PATCH_URI}/misc/nap-governor.patch
-			-> ${CACHYOS_PATCH_PREFIX}-nap-governor.patch
-	)
-	governor-reflex? (
-		${CACHYOS_PATCH_URI}/misc/reflex-governor.patch
-			-> ${CACHYOS_PATCH_PREFIX}-reflex-governor.patch
-	)
-	clang-polly? (
-		${CACHYOS_PATCH_URI}/misc/0001-clang-polly.patch
-			-> ${CACHYOS_PATCH_PREFIX}-clang-polly.patch
-	)
 	${CACHYOS_PATCH_URI}/misc/dkms-clang.patch
 		-> ${CACHYOS_PATCH_PREFIX}-dkms-clang.patch
-	sched-ext-peek? (
-		https://github.com/CachyOS/linux/commit/b99db259aa4e75b3051e0b4ea464c08700829d3b.patch
-			-> cachyos-sched-ext-b99db259aa4e75b3051e0b4ea464c08700829d3b.patch
-		https://github.com/CachyOS/linux/commit/83659f4458c702385efc657ff678cdcec74d7342.patch
-			-> cachyos-sched-ext-83659f4458c702385efc657ff678cdcec74d7342.patch
-		https://github.com/CachyOS/linux/commit/2f15c2b511c5322cefafbcd49ab496eeaed9c045.patch
-			-> cachyos-sched-ext-2f15c2b511c5322cefafbcd49ab496eeaed9c045.patch
-		https://github.com/CachyOS/linux/commit/f853a289756a2d3c6addd17dbe40c24b95082ad0.patch
-			-> cachyos-sched-ext-f853a289756a2d3c6addd17dbe40c24b95082ad0.patch
-	)
 	kernel-builtin-zfs? (
 		https://github.com/cachyos/zfs/archive/${ZFS_COMMIT}.tar.gz
 			-> zfs-${ZFS_COMMIT}.tar.gz
@@ -126,14 +84,10 @@ S="${WORKDIR}/${MY_P}"
 LICENSE="GPL-3"
 KEYWORDS="~amd64"
 IUSE="
-	bore bore-dev bmq pds bmq-lfbmq cachyos-hardened rt rt-bore +eevdf
-	sched-ext-peek
-	kcfi server clang-polly handheld acpi-call aufs poc-selector governor-nap governor-reflex
+	bore bmq pds bmq-lfbmq cachyos-hardened rt rt-bore +eevdf
+	kcfi
 	+clang autofdo propeller
 	llvm-lto-thin llvm-lto-full llvm-lto-thin-dist +llvm-lto-none
-	+adios adios-default +v4l2loopback +vhba +apple-t2 amd-private-color
-	+asus-armoury +asus-ally +asus-wmi-legacy +unprivileged-userns
-	+anon-min-protection +clean-low-protection +clean-min-protection
 	kernel-builtin-zfs
 	hz_ticks_100 hz_ticks_250 hz_ticks_300 hz_ticks_500 hz_ticks_600 hz_ticks_750 +hz_ticks_1000
 	+per-gov tickrate_periodic tickrate_idle +tickrate_full +preempt_full preempt_lazy
@@ -148,14 +102,9 @@ IUSE="
 # stable kernel's PID lifetime and fair-scheduler backports.
 # LTS keeps EEVDF as its default; optional patches never affect that path.
 REQUIRED_USE="
-	^^ ( bore bore-dev bmq pds bmq-lfbmq cachyos-hardened rt rt-bore eevdf )
-	sched-ext-peek? ( !bmq !pds !bmq-lfbmq )
-	poc-selector? ( !bmq !pds !bmq-lfbmq )
-	governor-reflex? ( !bmq !pds !bmq-lfbmq )
-	adios-default? ( adios )
+	^^ ( bore bmq pds bmq-lfbmq cachyos-hardened rt rt-bore eevdf )
 	cachyos-hardened? ( !autofdo !propeller llvm-lto-none )
 	propeller? ( clang !llvm-lto-full !llvm-lto-none )
-	clang-polly? ( clang !llvm_slot_17 !llvm_slot_18 !llvm_slot_19 )
 	clang? ( ${LLVM_REQUIRED_USE} )
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )
 	kernel-builtin-zfs? ( !kcfi )
@@ -168,7 +117,7 @@ REQUIRED_USE="
 	^^ ( tickrate_periodic tickrate_idle tickrate_full )
 	^^ ( preempt_full preempt_lazy )
 	?? ( o3 os debug )
-	?? ( hugepage_always hugepage_madvise )
+	^^ ( hugepage_always hugepage_madvise )
 	?? ( mgeneric mgeneric_v1 mgeneric_v2 mgeneric_v3 mgeneric_v4 mnative mzen4 )
 "
 
@@ -183,12 +132,6 @@ BDEPEND="
 			llvm-core/clang:${LLVM_SLOT}
 			llvm-core/lld:${LLVM_SLOT}
 		')
-	)
-	clang-polly? (
-		llvm_slot_20? ( llvm-core/polly:20 )
-		llvm_slot_21? ( llvm-core/polly:21 )
-		llvm_slot_22? ( llvm-core/polly:22 )
-		llvm_slot_23? ( llvm-core/polly:23 )
 	)
 	dev-util/pahole
 "
@@ -228,10 +171,6 @@ pkg_setup() {
 		export OBJDUMP="${llvm_bindir}/llvm-objdump"
 		export READELF="${llvm_bindir}/llvm-readelf"
 		export STRIP="${llvm_bindir}/llvm-strip"
-		if use clang-polly; then
-			# The upstream patch loads LLVMPolly.so by name.
-			export LD_LIBRARY_PATH="$(get_llvm_prefix -b)/$(get_libdir)${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-		fi
 	else
 		tc-export CC CXX
 	fi
@@ -292,9 +231,7 @@ src_prepare() {
 	# Fix AutoFDO/Propeller support for LTO_CLANG_THIN_DIST
 	eapply "${FILESDIR}/6.19.0/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
 
-	if use bore-dev; then
-		eapply --fuzz=0 -- "${patches_prefix}-bore-dev.patch"
-	elif use bore || use rt-bore || use cachyos-hardened; then
+	if use bore || use rt-bore || use cachyos-hardened; then
 		cp "${patches_prefix}-bore.patch" "${T}/bore.patch" || die
 		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-6.18.55-bore-rebase.patch"
 		eapply --fuzz=0 -- "${T}/bore.patch"
@@ -305,28 +242,6 @@ src_prepare() {
 		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-6.18.55-${prjc}-rebase.patch"
 		eapply --fuzz=0 -- "${T}/${prjc}.patch"
 	fi
-
-	if use sched-ext-peek; then
-		eapply --fuzz=0 -- "${DISTDIR}/cachyos-sched-ext-b99db259aa4e75b3051e0b4ea464c08700829d3b.patch"
-		cp "${DISTDIR}/cachyos-sched-ext-83659f4458c702385efc657ff678cdcec74d7342.patch" "${T}/peek.patch" || die
-		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/6.18.55-sched-ext-peek-rebase.patch"
-		eapply --fuzz=0 -- "${T}/peek.patch"
-		eapply --fuzz=0 -- "${DISTDIR}/cachyos-sched-ext-2f15c2b511c5322cefafbcd49ab496eeaed9c045.patch"
-		eapply --fuzz=0 -- "${DISTDIR}/cachyos-sched-ext-f853a289756a2d3c6addd17dbe40c24b95082ad0.patch"
-	fi
-
-	if use handheld; then
-		cp "${patches_prefix}-handheld.patch" "${T}/handheld.patch" || die
-		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-6.18.55-handheld-rebase.patch"
-		eapply "${T}/handheld.patch"
-	fi
-
-	local feature
-	for feature in acpi-call aufs poc-selector clang-polly; do
-		use "${feature}" && eapply "${patches_prefix}-${feature}.patch"
-	done
-	use governor-nap && eapply "${patches_prefix}-nap-governor.patch"
-	use governor-reflex && eapply "${patches_prefix}-reflex-governor.patch"
 
 	if use cachyos-hardened; then
 		cp "${patches_prefix}-hardened.patch" "${T}/hardened.patch" || die
@@ -352,13 +267,9 @@ src_prepare() {
 
 	# --- Kernel config modifications ---
 
-	if use server; then
-		scripts/config -d CACHY || die
-	else
-		scripts/config -e CACHY || die
-	fi
+	scripts/config -e CACHY || die
 
-	if use bore || use bore-dev || use cachyos-hardened; then
+	if use bore || use cachyos-hardened; then
 		scripts/config -e SCHED_BORE || die
 	elif use bmq || use bmq-lfbmq; then
 		scripts/config -e SCHED_ALT -e SCHED_BMQ || die
@@ -368,77 +279,6 @@ src_prepare() {
 		scripts/config -e PREEMPT_RT || die
 	elif use rt-bore; then
 		scripts/config -e SCHED_BORE -e PREEMPT_RT || die
-	fi
-
-	if use handheld; then
-		scripts/config -e AMD_PRIVATE_COLOR -d RCU_LAZY_DEFAULT_OFF \
-			-m EXTCON_STEAMDECK -m MFD_STEAMDECK -m SENSORS_STEAMDECK \
-			-m LEDS_STEAMDECK -m SND_SOC_AW87XXX -m HID_LENOVO_GO \
-			-m HID_LENOVO_GO_S -m HID_MSI_CLAW -m ZOTAC_ZONE_HID \
-			-m ZOTAC_ZONE_PLATFORM || die
-	fi
-	if use sched-ext-peek; then
-		scripts/config -e SCHED_CLASS_EXT || die
-	fi
-	if use clang-polly; then
-		scripts/config -e POLLY_CLANG || die
-	fi
-	if use acpi-call; then
-		scripts/config -m ACPI_CALL || die
-	fi
-	if use aufs; then
-		scripts/config -m AUFS_FS || die
-	fi
-	if use poc-selector; then
-		scripts/config -e SCHED_POC_SELECTOR || die
-	fi
-	if use governor-nap; then
-		scripts/config -e CPU_IDLE_GOV_NAP || die
-	fi
-	if use governor-reflex; then
-		scripts/config -e CPU_FREQ_GOV_SCHEDUTIL -m CPU_FREQ_GOV_REFLEX || die
-	fi
-
-	# Keep existing upstream driver defaults; provide independent opt-outs.
-	if ! use adios; then
-		scripts/config -d MQ_IOSCHED_ADIOS -d MQ_IOSCHED_DEFAULT_ADIOS || die
-	elif use adios-default; then
-		scripts/config -e MQ_IOSCHED_DEFAULT_ADIOS || die
-	fi
-	if ! use v4l2loopback; then
-		scripts/config -d V4L2_LOOPBACK || die
-	fi
-	if ! use vhba; then
-		scripts/config -d VHBA || die
-	fi
-	if ! use apple-t2; then
-		scripts/config -d SENSORS_APPLESMC_T2 -d T2BCE_CORE -d T2BCE_DMA \
-			-d T2BCE_VHCI -d T2BCE_AUDIO || die
-	fi
-	if use amd-private-color; then
-		scripts/config -e AMD_PRIVATE_COLOR || die
-	fi
-
-	if ! use asus-armoury; then
-		scripts/config -d ASUS_ARMOURY || die
-	fi
-	if ! use asus-ally; then
-		scripts/config -d HID_ASUS_ALLY || die
-	fi
-	if ! use asus-wmi-legacy; then
-		scripts/config -d ASUS_WMI_DEPRECATED_ATTRS || die
-	fi
-	if ! use unprivileged-userns; then
-		scripts/config -d USER_NS_UNPRIVILEGED || die
-	fi
-	if ! use anon-min-protection; then
-		scripts/config --set-val ANON_MIN_RATIO 0 || die
-	fi
-	if ! use clean-low-protection; then
-		scripts/config --set-val CLEAN_LOW_RATIO 0 || die
-	fi
-	if ! use clean-min-protection; then
-		scripts/config --set-val CLEAN_MIN_RATIO 0 || die
 	fi
 
 	### Enable KCFI
@@ -560,11 +400,10 @@ src_prepare() {
 			-e DEFAULT_FQ || die
 	fi
 
-	# Preserve the default LTS output; server selects madvise unless overridden.
-	if use hugepage_madvise || { use server && ! use hugepage_always; }; then
-		scripts/config -d TRANSPARENT_HUGEPAGE_ALWAYS -e TRANSPARENT_HUGEPAGE_MADVISE || die
-	else
+	if use hugepage_always; then
 		scripts/config -d TRANSPARENT_HUGEPAGE_MADVISE -e TRANSPARENT_HUGEPAGE_ALWAYS || die
+	elif use hugepage_madvise; then
+		scripts/config -d TRANSPARENT_HUGEPAGE_ALWAYS -e TRANSPARENT_HUGEPAGE_MADVISE || die
 	fi
 
 	### Select CPU optimization

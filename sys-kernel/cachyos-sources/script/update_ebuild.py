@@ -79,6 +79,32 @@ VALIDATED_HIDDEN_FEATURES = {
             "evidence": "fuzz=0 namei sysctl preimage rebase for genpatches-7.2-11; gcc vmlinux linked",
         },
     },
+    "7.2.11": {
+        "muqss": {
+            "path": "sched/0001-muqss-cachy.patch",
+            "evidence": "all 145 sections apply at fuzz=0 on cachyos-7.2.11-1 with existing 7.2.10 comment rebase; no PRJC cpuset rollback",
+        },
+        "bmq": {
+            "path": "sched/0001-prjc-cachy.patch",
+            "evidence": "same validated PRJC path as pds",
+        },
+        "pds": {
+            "path": "sched/0001-prjc-cachy.patch",
+            "evidence": "cpuset prerequisite, 7.2.9 rebase plus 7.2.11 comment rebase and futex helpers apply at fuzz=0 on cachyos-7.2.11-1",
+        },
+        "cachyos-hardened": {
+            "path": "misc/0001-hardened.patch",
+            "evidence": "7.2.11 hardened meta-rebase adjusts fs/namei.c sysctl defaults for genpatches-7.2-12; patch applies at fuzz=0",
+        },
+        "deckify": {
+            "path": "misc/0001-handheld.patch",
+            "evidence": "official 333b9269 handheld applies directly at fuzz=0 after genpatches-7.2-12 and BORE rebase; HID API, lifetime, locking and IBEX checks pass",
+        },
+        "aufs": {
+            "path": "misc/0001-aufs-7.2-merge-v20260914.patch",
+            "evidence": "applies to cachyos-7.2.11-1 plus genpatches-7.2-12; overlay exception retained per existing-overlay-flags policy",
+        },
+    },
     "7.2.2": {
         "muqss": {
             "path": "sched/0001-muqss-cachy.patch",

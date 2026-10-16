@@ -42,6 +42,9 @@ for ebuild in ebuilds:
         assert "bmq-lfbmq -bore -eevdf" in producer_cases
     assert producer_cases == [case for case in cases if not any(
         flag in case.split() and flag not in available for flag in OPTIONAL_VARIANT_FLAGS)]
+    if version == "7.2.11":
+        assert "muqss" in available
+        assert "muqss -bore -eevdf" in producer_cases
     # The workflow consumer greps the whole ebuild, so stray words (comments) must not differ.
     consumer_cases = [case for case in cases if not any(
         flag in case.split() and not re.search(rf"(^|\s)\+?{re.escape(flag)}(\s|$)", source, re.M)

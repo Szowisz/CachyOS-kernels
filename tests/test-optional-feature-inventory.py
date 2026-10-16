@@ -13,7 +13,7 @@ spec = spec_from_file_location("updater", ROOT / "sys-kernel/cachyos-sources/scr
 updater = module_from_spec(spec)
 spec.loader.exec_module(updater)
 
-for version in ("7.2.10", "6.18.55"):
+for version in ("7.2.11", "7.2.10", "6.18.55"):
     features = updater.VALIDATED_HIDDEN_FEATURES[version]
     series = ".".join(version.split(".")[:2])
     paths = {f"{details.get('series', series)}/{details['path']}"
@@ -34,7 +34,7 @@ for version in ("7.2.10", "6.18.55"):
         available |= slots
         if package == "cachyos-kernel":
             defaults.add("llvm_slot_23")
-        for scheduler in {"pds", "bmq-lfbmq"} & available:
+        for scheduler in {"pds", "bmq-lfbmq", "muqss"} & available:
             use = (defaults - {"bore", "eevdf"}) | {scheduler}
             assert check_required_use(required, use, available.__contains__, eapi="8"), scheduler
             assert not check_required_use(required, use | {"bore"}, available.__contains__, eapi="8"), scheduler
@@ -45,7 +45,7 @@ for version in ("7.2.10", "6.18.55"):
         broken = source.replace("-e SCHED_ALT -d SCHED_BMQ -e SCHED_PDS", "")
         assert updater.audit_feature_inventory(broken, version, upstream, lts=version.startswith("6."))
         # Generation refuses unvalidated inherited flags/URIs instead of emitting stale wiring.
-        next_version = "7.2.11" if version.startswith("7.") else "6.18.56"
+        next_version = "7.2.12" if version.startswith("7.") else "6.18.56"
         with tempfile.TemporaryDirectory(prefix="cachyos-feature-test-", dir="/var/tmp") as tmp:
             target = Path(tmp) / f"cachyos-sources-{next_version}.ebuild"
             target.write_text("keep existing target\n")

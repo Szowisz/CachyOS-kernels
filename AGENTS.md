@@ -36,6 +36,7 @@ Not USE flags:
 
 Allowed exceptions (the only USE flags permitted outside PKGBUILD/variants):
 - the Project C scheduler family beyond PKGBUILD's `bmq`: `pds` and `bmq-lfbmq` (`prjc`/`prjc-lfbmq`);
+- the legacy MuQSS scheduler: `muqss`. Keep it while the pinned `kernel-patches` MuQSS patch applies to the exact release; drop it only for a reproduced incompatibility;
 - existing overlay-specific flags already shipped by this overlay or gentoo-zh (for example `cjk`/`cjk32`).
 Adding any other exception requires explicit user approval and must be added to this list in the same change.
 

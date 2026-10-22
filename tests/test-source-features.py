@@ -112,7 +112,17 @@ def check(ebuild: Path, tree: Path, overrides: str) -> None:
         expect('CC_OPTIMIZE_FOR_SIZE', 'y')
         expect('CC_OPTIMIZE_FOR_PERFORMANCE', 'n')
     if 'muqss' in enabled:
-        expect('MUQSS_IOTIME', 'y')
+        if vercmp(pv, '7.3.0') < 0:
+            expect('MUQSS_IOTIME', 'y')
+        else:
+            for symbol in ('SCHED_BORE', 'SCHED_ALT', 'SCHED_BMQ', 'SCHED_PDS',
+                           'PREEMPT_RT', 'SCHED_POC_SELECTOR'):
+                expect(symbol, 'n')
+            # v0.32 uses standard HZ/tick/preemption choices, not legacy NODEF.
+            assert 'config HZ_1000_NODEF' not in (tree / 'kernel/Kconfig.hz').read_text()
+            for hz in (100, 250, 300, 500, 600, 750, 1000):
+                if f'hz-ticks-{hz}' in normalized:
+                    expect(f'HZ_{hz}', 'y')
         assert 'source "kernel/Kconfig.MuQSS"' in (tree / 'init/Kconfig').read_text()
         assert 'config SCHED_MUQSS' in (tree / 'kernel/Kconfig.MuQSS').read_text()
     if 'aufs' in enabled:

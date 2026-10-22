@@ -40,6 +40,17 @@ UPSTREAM_PACKAGES = [
 # directory entry as an automatically supported USE flag.
 VALIDATED_HIDDEN_FEATURES = {
     "7.3.0": {
+        "muqss": {
+            "external_uri": "https://github.com/ckolivas/linux/commit/4ceaa4d07af63d9d495f4cbb570547feb39d1236.patch",
+            "target": "7.3.0-r1",
+            "patterns": (
+                "muqss? (",
+                "linux-ck-4ceaa4d07af63d9d495f4cbb570547feb39d1236-muqss.patch",
+                "cachyos-sources-7.3.0-muqss-rebase.patch",
+                '-e SCHED_MUQSS -d SCHED_POC_SELECTOR',
+            ),
+            "evidence": "official standalone v0.32; two Kconfig context rebases only on cachyos-7.3.0-2 + genpatches-7.3-1; package/prepare and normalized HZ/tick/AUFS checks in both packages",
+        },
         "bmq": {
             "path": "sched/0001-prjc-cachy.patch",
             "evidence": "7.3 PRJC applies directly at fuzz=0 on cachyos-7.3.0-2 + genpatches-7.3-1; SCHED_BMQ survives olddefconfig in both packages",
@@ -284,7 +295,6 @@ VERSIONED_EXCLUSIONS = {
     "7.3.0": {
         "bmq-lfbmq": "PRJC-LFBMQ has no 7.3 patch family",
         "hardened": "upstream hardened remains on 7.2.11; no 7.3 patch/config",
-        "muqss": "7.2 MuQSS plus existing comment rebase fails on 7.3.0-2: fair.c, bio.c, init/Kconfig, cpuset and workqueue rejects",
     },
     "7.2.5": {
         "deckify": "deckify remains on 7.2.3",
@@ -407,8 +417,8 @@ def audit_hidden_patch_inventory(target_version, patch_paths, lts=False):
     errors = []
 
     for feature, details in VALIDATED_HIDDEN_FEATURES.get(clean_target, {}).items():
-        if "commits" in details:
-            # Linux commit inputs are checked by audit_feature_inventory and Manifest.
+        if "commits" in details or "external_uri" in details:
+            # External commit inputs are checked by audit_feature_inventory and Manifest.
             continue
         path = f"{details.get('series', series)}/{details['path']}"
         if path not in patch_paths:
@@ -473,7 +483,11 @@ def audit_feature_inventory(content, target_version, upstream_versions, lts=Fals
         details = VALIDATED_HIDDEN_FEATURES.get(clean_version_helper(target_version), {}).get(feature, {})
         # 7.3 PKGBUILD leaves EEVDF at the shipped config default, like LTS.
         stock_eevdf = feature == "eevdf" and (lts or clean_version_helper(target_version) == "7.3.0")
-        patterns = [] if stock_eevdf else list(AUDIT_PATTERNS[feature])
+        patterns = [] if stock_eevdf else list(details.get("patterns", AUDIT_PATTERNS[feature]))
+        if "external_uri" in details:
+            patterns.append(details["external_uri"])
+            if target_version != details["target"]:
+                errors.append(f"{feature}: external patch validated only for {details['target']}")
         patterns.extend(f"https://github.com/CachyOS/linux/commit/{commit}.patch"
                         for commit in details.get("commits", ()))
         if "series" in details:

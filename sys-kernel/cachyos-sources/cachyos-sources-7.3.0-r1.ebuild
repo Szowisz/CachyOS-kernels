@@ -70,6 +70,10 @@ SRC_URI="
 		${CACHYOS_PATCH_URI}/sched/0001-prjc-cachy.patch
 			-> ${CACHYOS_PATCH_PREFIX}-prjc.patch
 	)
+	muqss? (
+		https://github.com/ckolivas/linux/commit/4ceaa4d07af63d9d495f4cbb570547feb39d1236.patch
+			-> linux-ck-4ceaa4d07af63d9d495f4cbb570547feb39d1236-muqss.patch
+	)
 	rt? (
 		${CACHYOS_PATCH_URI}/misc/0001-rt-i915.patch
 			-> ${CACHYOS_PATCH_PREFIX}-rt-i915.patch
@@ -105,7 +109,7 @@ SRC_URI="
 LICENSE+=" kernel-builtin-zfs? ( BSD-2 CDDL GPL-3 MIT )"
 KEYWORDS="~amd64"
 IUSE="
-	+bore bmq pds rt rt-bore eevdf
+	+bore bmq pds muqss rt rt-bore eevdf
 	server deckify aufs kcfi
 	+autofdo +propeller
 	+llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none
@@ -120,9 +124,8 @@ IUSE="
 
 # PRJC-LFBMQ has no 7.3 patch family
 # upstream hardened remains on 7.2.11; no 7.3 patch/config
-# 7.2 MuQSS plus existing comment rebase fails on 7.3.0-2: fair.c, bio.c, init/Kconfig, cpuset and workqueue rejects
 REQUIRED_USE="
-	^^ ( bore bmq pds rt rt-bore eevdf )
+	^^ ( bore bmq pds muqss rt rt-bore eevdf )
 	deckify? ( bore )
 	propeller? ( !llvm-lto-full !llvm-lto-none )
 	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )
@@ -211,6 +214,10 @@ src_prepare() {
 
 	if use bore || use rt-bore || use deckify; then
 		eapply --fuzz=0 -- "${patches_prefix}-bore.patch"
+	elif use muqss; then
+		cp "${DISTDIR}/linux-ck-4ceaa4d07af63d9d495f4cbb570547feb39d1236-muqss.patch" "${T}/scheduler.patch" || die
+		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-7.3.0-muqss-rebase.patch"
+		eapply --fuzz=0 -- "${T}/scheduler.patch"
 	elif use bmq || use pds; then
 		eapply --fuzz=0 -- "${patches_prefix}-prjc.patch"
 	fi
@@ -259,6 +266,9 @@ src_prepare() {
 		scripts/config -e SCHED_ALT -e SCHED_BMQ || die
 	elif use pds; then
 		scripts/config -e SCHED_ALT -d SCHED_BMQ -e SCHED_PDS || die
+	elif use muqss; then
+		# POC is included by fair.c, which MuQSS does not build.
+		scripts/config -e SCHED_MUQSS -d SCHED_POC_SELECTOR || die
 	elif use rt; then
 		scripts/config -e PREEMPT_RT || die
 	elif use rt-bore; then
@@ -350,7 +360,7 @@ src_prepare() {
 	elif use tickrate-full; then
 		scripts/config \
 			-d HZ_PERIODIC -d NO_HZ_IDLE -d CONTEXT_TRACKING_FORCE \
-			-e NO_HZ_FULL_NODEF -e NO_HZ_FULL -e NO_HZ -e NO_HZ_COMMON \
+			-e NO_HZ_FULL -e NO_HZ -e NO_HZ_COMMON \
 			-e CONTEXT_TRACKING || die
 	fi
 

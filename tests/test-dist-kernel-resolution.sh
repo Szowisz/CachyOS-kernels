@@ -30,7 +30,21 @@ fi
 
 # 2. Run Portage emerge --pretend tests in isolated Gentoo container
 echo "--- Running emerge --pretend resolution tests in Gentoo container ---"
-docker run --rm \
+# Historical controls must survive normal package cleanup.
+fixtures=$(mktemp -d /var/tmp/cachyos-resolution.XXXXXX)
+chmod 755 "${fixtures}"
+trap 'rm -rf "${fixtures}"' EXIT
+for path in \
+  sys-kernel/cachyos-kernel/cachyos-kernel-7.2.4.ebuild \
+  sys-kernel/cachyos-kernel/cachyos-kernel-7.2.3-r2.ebuild \
+  virtual/dist-kernel/dist-kernel-7.2.4_p0.ebuild \
+  virtual/dist-kernel/dist-kernel-7.2.3_p3.ebuild; do
+  mkdir -p "${fixtures}/$(dirname "${path}")"
+  git show "99fab221:${path}" > "${fixtures}/${path}"
+done
+
+docker run --pull=never --rm \
+  -v "${fixtures}:/historical:ro" \
   -v "${REPO_ROOT}:/var/db/repos/CachyOS-kernels:ro" \
   -v /var/db/repos/gentoo:/var/db/repos/gentoo:ro \
   docker.io/gentoo/stage3:latest /bin/bash -c '
@@ -82,13 +96,32 @@ if [ "${pass_count}" -ne "${expected_count}" ]; then
   exit 1
 fi
 
+# A retained binary must resolve without pulling an unrelated newer kernel.
+mkdir -p /etc/portage/package.mask
+for pair in "7.2.11 7.2.11_p0" "7.2.9-r1 7.2.9_p1"; do
+  read -r binary provider <<< "${pair}"
+  printf "%s\n" "virtual/dist-kernel::gentoo" ">virtual/dist-kernel-${provider}" > /etc/portage/package.mask/provider
+  out=$(emerge --pretend "=sys-kernel/cachyos-kernel-bin-${binary}" 2>&1)
+  echo "${out}" | grep -q "virtual/dist-kernel-${provider}"
+  if echo "${out}" | grep -q "sys-kernel/cachyos-kernel-[0-9]"; then
+    echo "FAIL: binary pulled a source-built kernel: ${out}"
+    exit 1
+  fi
+  echo "PASS: retained binary ${binary} resolves via ${provider} without source-built kernel"
+done
+rm /etc/portage/package.mask/provider
+
 echo "=== TEST 2: Negative control for Issue #55 (7.2.4 without _p0) ==="
-temp_overlay=$(mktemp -d)
-cp -a /var/db/repos/CachyOS-kernels/. "${temp_overlay}/"
+temp_overlay=$(mktemp -d /var/tmp/cachyos-resolution.XXXXXX)
+chmod 755 "${temp_overlay}"
+for directory in metadata profiles sys-kernel virtual; do
+  cp -a "/var/db/repos/CachyOS-kernels/${directory}" "${temp_overlay}/"
+done
+cp -a /historical/. "${temp_overlay}/"
 mv "${temp_overlay}/virtual/dist-kernel/dist-kernel-7.2.4_p0.ebuild" "${temp_overlay}/virtual/dist-kernel/dist-kernel-7.2.4.ebuild"
 rm -f "${temp_overlay}/virtual/dist-kernel/dist-kernel-7.2.5_p0.ebuild"
 mkdir -p /etc/portage/package.mask
-echo "virtual/dist-kernel::gentoo" > /etc/portage/package.mask/issue55
+printf "%s\n" "virtual/dist-kernel::gentoo" ">virtual/dist-kernel-7.2.4" > /etc/portage/package.mask/issue55
 sed -i "s|location = .*|location = ${temp_overlay}|" /etc/portage/repos.conf/cachyos.conf
 
 set +e
@@ -104,6 +137,7 @@ else
 fi
 
 echo "=== TEST 3: >=p2 with p3 verification (7.2.3-r2 with 7.2.3_p3) ==="
+printf "%s\n" "virtual/dist-kernel::gentoo" ">virtual/dist-kernel-7.2.3_p3" > /etc/portage/package.mask/issue55
 emerge --pretend =sys-kernel/cachyos-kernel-7.2.3-r2 >/dev/null 2>&1
 echo "PASS: 7.2.3-r2 (>=virtual/dist-kernel-7.2.3_p2) successfully satisfied by 7.2.3_p3"
 

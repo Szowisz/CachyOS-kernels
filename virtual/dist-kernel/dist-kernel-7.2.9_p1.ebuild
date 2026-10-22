@@ -7,9 +7,4 @@ DESCRIPTION="Virtual to depend on any Distribution Kernel"
 SLOT="0/${PVR}"
 KEYWORDS="~amd64"
 
-RDEPEND="
-	|| (
-		~sys-kernel/cachyos-kernel-7.2.9
-		=sys-kernel/cachyos-kernel-bin-7.2.9-r1
-	)
-"
+RDEPEND="=sys-kernel/cachyos-kernel-bin-7.2.9-r1"

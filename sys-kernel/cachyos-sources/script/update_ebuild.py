@@ -39,6 +39,24 @@ UPSTREAM_PACKAGES = [
 # has been validated. Keep that evidence explicit instead of treating every
 # directory entry as an automatically supported USE flag.
 VALIDATED_HIDDEN_FEATURES = {
+    "7.3.0": {
+        "bmq": {
+            "path": "sched/0001-prjc-cachy.patch",
+            "evidence": "7.3 PRJC applies directly at fuzz=0 on cachyos-7.3.0-2 + genpatches-7.3-1; SCHED_BMQ survives olddefconfig in both packages",
+        },
+        "pds": {
+            "path": "sched/0001-prjc-cachy.patch",
+            "evidence": "same direct PRJC port; SCHED_PDS and included futex APIs verified after olddefconfig in both packages; no old rebases",
+        },
+        "deckify": {
+            "path": "misc/0001-handheld.patch",
+            "evidence": "7.3 handheld applies at fuzz=0 with BORE and ACPI-call; moved backlight declaration and handheld modules checked after olddefconfig in both packages",
+        },
+        "aufs": {
+            "path": "misc/0001-aufs-7.3-merge-v20260914.patch",
+            "evidence": "prepare and AUFS_FS=m after olddefconfig on cachyos-7.3.0-2 + genpatches-7.3-1 in both packages",
+        },
+    },
     "6.18.55": {
         "pds": {
             "path": "sched/0001-prjc-cachy.patch",
@@ -263,6 +281,11 @@ DOCUMENTED_EXCLUSIONS = {
 }
 
 VERSIONED_EXCLUSIONS = {
+    "7.3.0": {
+        "bmq-lfbmq": "PRJC-LFBMQ has no 7.3 patch family",
+        "hardened": "upstream hardened remains on 7.2.11; no 7.3 patch/config",
+        "muqss": "7.2 MuQSS plus existing comment rebase fails on 7.3.0-2: fair.c, bio.c, init/Kconfig, cpuset and workqueue rejects",
+    },
     "7.2.5": {
         "deckify": "deckify remains on 7.2.3",
         "bore-vanilla": "bare BORE fails 8 of 23 kernel/sched/fair.c hunks",
@@ -448,8 +471,9 @@ def audit_feature_inventory(content, target_version, upstream_versions, lts=Fals
         if lts and clean_version_helper(target_version) not in VALIDATED_HIDDEN_FEATURES:
             continue
         details = VALIDATED_HIDDEN_FEATURES.get(clean_version_helper(target_version), {}).get(feature, {})
-        # LTS EEVDF is the stock scheduler; POC selector is mainline-only.
-        patterns = [] if lts and feature == "eevdf" else list(AUDIT_PATTERNS[feature])
+        # 7.3 PKGBUILD leaves EEVDF at the shipped config default, like LTS.
+        stock_eevdf = feature == "eevdf" and (lts or clean_version_helper(target_version) == "7.3.0")
+        patterns = [] if stock_eevdf else list(AUDIT_PATTERNS[feature])
         patterns.extend(f"https://github.com/CachyOS/linux/commit/{commit}.patch"
                         for commit in details.get("commits", ()))
         if "series" in details:

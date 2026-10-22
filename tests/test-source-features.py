@@ -41,6 +41,35 @@ def check(ebuild: Path, tree: Path, overrides: str) -> None:
 
     if 'kcfi' in enabled:
         expect('CFI', 'y')
+        if vercmp(pv, '7.3.0') >= 0:
+            expect('ARCH_SUPPORTS_CFI', 'y')
+            expect('CFI_AUTO_DEFAULT', 'y')
+    if vercmp(pv, '7.3.0') >= 0:
+        normalized = {flag.replace('_', '-') for flag in enabled}
+        for flag, symbol in [
+            ('tickrate-periodic', 'HZ_PERIODIC'), ('tickrate-idle', 'NO_HZ_IDLE'),
+            ('tickrate-full', 'NO_HZ_FULL'),
+            ('llvm-lto-thin', 'LTO_CLANG_THIN'), ('llvm-lto-full', 'LTO_CLANG_FULL'),
+            ('llvm-lto-thin-dist', 'LTO_CLANG_THIN_DIST'), ('llvm-lto-none', 'LTO_NONE'),
+            ('autofdo', 'AUTOFDO_CLANG'), ('propeller', 'PROPELLER_CLANG'),
+            ('mnative', 'X86_NATIVE_CPU'), ('mzen4', 'MZEN4'),
+            ('hugepage-always', 'TRANSPARENT_HUGEPAGE_ALWAYS'),
+            ('hugepage-madvise', 'TRANSPARENT_HUGEPAGE_MADVISE'),
+            ('o3', 'CC_OPTIMIZE_FOR_PERFORMANCE_O3'), ('debug', 'CC_OPTIMIZE_FOR_SIZE'),
+        ]:
+            if flag in normalized:
+                expect(symbol, 'y')
+        if not normalized & {'rt', 'rt-bore'}:
+            expect('PREEMPT_DYNAMIC', 'y')
+            expect('PREEMPT_LAZY' if 'preempt-lazy' in normalized else 'PREEMPT', 'y')
+        for level in range(1, 5):
+            if f'mgeneric-v{level}' in normalized:
+                expect('GENERIC_CPU', 'y')
+                expect('X86_64_VERSION', str(level))
+        if 'bbr3' in enabled:
+            expect('TCP_CONG_BBR', 'm')
+            expect('TCP_CONG_BBR3', 'y')
+            expect('DEFAULT_TCP_CONG', '"bbr3"')
     if 'kernel-builtin-zfs' in enabled:
         exists('zfs/META')
         exists('kernel-build.sh')
@@ -74,8 +103,11 @@ def check(ebuild: Path, tree: Path, overrides: str) -> None:
     if enabled & {'rt', 'rt-bore'}:
         expect('PREEMPT_RT', 'y')
     if 'eevdf' in enabled and '-6.18.' not in ebuild.name:
-        expect('SCHED_POC_SELECTOR', 'y')
-        exists('kernel/sched/poc_selector.c')
+        # 7.3 follows the shipped config: PKGBUILD no longer forces POC on.
+        if vercmp(pv, '7.3.0') < 0:
+            expect('SCHED_POC_SELECTOR', 'y')
+        if config.get('SCHED_POC_SELECTOR') == 'y':
+            exists('kernel/sched/poc_selector.c')
     if 'os' in enabled:
         expect('CC_OPTIMIZE_FOR_SIZE', 'y')
         expect('CC_OPTIMIZE_FOR_PERFORMANCE', 'n')
@@ -112,8 +144,9 @@ def check(ebuild: Path, tree: Path, overrides: str) -> None:
             for name in ('steam_haptic_pulse', 'steam_haptic_rumble'):
                 assert 'hid_hw_output_report(steam->hdev' in body(name), name
             assert 'STEAM_QUIRK_WIRELESS | STEAM_QUIRK_IBEX' in body('steam_register')
-        display = (tree / 'drivers/gpu/drm/amd/display/amdgpu_dm/amdgpu_dm.c').read_text()
-        backlight = re.search(r'static void amdgpu_dm_backlight_set_level\([^;]*?\n\{(.*?)\n\}', display, re.S).group(1)
+        backlight_file = 'amdgpu_dm_backlight.c' if vercmp(pv, '7.3.0') >= 0 else 'amdgpu_dm.c'
+        display = (tree / 'drivers/gpu/drm/amd/display/amdgpu_dm' / backlight_file).read_text()
+        backlight = re.search(r'(?:static )?void amdgpu_dm_backlight_set_level\([^;]*?\n\{(.*?)\n\}', display, re.S).group(1)
         assert 'u32 prev_brightness;' in backlight, 'handheld backlight uses undeclared prev_brightness'
     if 'deckify' in enabled:
         for symbol in ['MFD_STEAMDECK', 'HID_LENOVO_GO', 'ZOTAC_ZONE_HID', 'HID_MSI']:

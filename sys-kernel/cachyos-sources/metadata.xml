@@ -17,7 +17,7 @@
     <flag name="bmq-lfbmq">Project C BMQ scheduler with the lock-free bitmap queue runqueue variant</flag>
     <flag name="rt">Select PREEMPT_RT and apply the RT i915 patch where supported</flag>
     <flag name="rt-bore">BORE scheduler with PREEMPT_RT</flag>
-    <flag name="eevdf">Linux EEVDF scheduler; includes the CachyOS POC idle CPU selector on mainline kernels</flag>
+    <flag name="eevdf">Linux EEVDF scheduler; retains the upstream config default for the CachyOS POC idle CPU selector (where available)</flag>
     <flag name="muqss">MuQSS scheduler patchset carried in CachyOS kernel-patches</flag>
     <flag name="server">Disable CONFIG_CACHY kernel tweaks; scheduler and tuning options remain independently selectable</flag>
 

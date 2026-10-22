@@ -17,7 +17,7 @@
     <flag name="bmq-lfbmq">PRJC BMQ scheduler with the LFBMQ (lock-free bitmap queue) runqueue variant from kernel-patches</flag>
     <flag name="rt">EEVDF scheduler with realtime patches for low-latency applications</flag>
     <flag name="rt-bore">BORE scheduler with realtime patches for low-latency applications</flag>
-    <flag name="eevdf">Linux EEVDF scheduler; includes the CachyOS POC idle CPU selector on mainline kernels</flag>
+    <flag name="eevdf">Linux EEVDF scheduler; retains the upstream config default for the CachyOS POC idle CPU selector (where available)</flag>
     <flag name="muqss">MuQSS scheduler patchset carried in CachyOS kernel-patches</flag>
     <flag name="server">Disable CONFIG_CACHY kernel tweaks; scheduler and tuning options remain independently selectable</flag>
 

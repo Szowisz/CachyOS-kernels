@@ -13,7 +13,7 @@ spec = spec_from_file_location("updater", ROOT / "sys-kernel/cachyos-sources/scr
 updater = module_from_spec(spec)
 spec.loader.exec_module(updater)
 
-for version in ("7.2.11", "7.2.10", "6.18.55"):
+for version in ("7.3.0", "7.2.11", "6.18.55"):
     features = updater.VALIDATED_HIDDEN_FEATURES[version]
     series = ".".join(version.split(".")[:2])
     paths = {f"{details.get('series', series)}/{details['path']}"
@@ -22,7 +22,8 @@ for version in ("7.2.11", "7.2.10", "6.18.55"):
     missing = paths - {f"{series}/sched/0001-prjc-cachy.patch"}
     assert any("pds" in error for error in updater.audit_hidden_patch_inventory(version, missing))
     for package in ("cachyos-sources", "cachyos-kernel"):
-        ebuild = ROOT / f"sys-kernel/{package}/{package}-{version}.ebuild"
+        revision = "-r1" if version == "7.3.0" else ""
+        ebuild = ROOT / f"sys-kernel/{package}/{package}-{version}{revision}.ebuild"
         source = ebuild.read_text()
         iuse = re.search(r'^IUSE="([^"]*)"', source, re.M).group(1).split()
         available = {flag.lstrip("+-") for flag in iuse}
@@ -41,11 +42,15 @@ for version in ("7.2.11", "7.2.10", "6.18.55"):
         if package != "cachyos-sources":
             continue
         upstream = {name: version for name in updater.UPSTREAM_PACKAGES}
+        if version == "7.3.0":
+            upstream["linux-cachyos-hardened"] = "7.2.11"
+            upstream["linux-cachyos-lts"] = "6.18.55"
+            assert not {"muqss", "cachyos-hardened", "bmq-lfbmq"} & available
         assert not updater.audit_feature_inventory(source, version, upstream, lts=version.startswith("6."))
         broken = source.replace("-e SCHED_ALT -d SCHED_BMQ -e SCHED_PDS", "")
         assert updater.audit_feature_inventory(broken, version, upstream, lts=version.startswith("6."))
         # Generation refuses unvalidated inherited flags/URIs instead of emitting stale wiring.
-        next_version = "7.2.12" if version.startswith("7.") else "6.18.56"
+        next_version = {"7.3.0": "7.3.1", "7.2.11": "7.2.12", "6.18.55": "6.18.56"}[version]
         with tempfile.TemporaryDirectory(prefix="cachyos-feature-test-", dir="/var/tmp") as tmp:
             target = Path(tmp) / f"cachyos-sources-{next_version}.ebuild"
             target.write_text("keep existing target\n")
@@ -55,3 +60,17 @@ for version in ("7.2.11", "7.2.10", "6.18.55"):
             assert result is None
             assert target.read_text() == "keep existing target\n"
 print("PASS: immutable feature inventory, opt-in defaults, scheduler/LLVM negatives and fail-closed generation")
+
+# Retained binary-only providers must be installable with their defaults.
+for ebuild in sorted((ROOT / "sys-kernel/cachyos-kernel-bin").glob("*.ebuild")):
+    source = ebuild.read_text()
+    flags = re.search(r'^IUSE="([^"]*)"', source, re.M).group(1).split()
+    available = {flag.lstrip("+-") for flag in flags}
+    defaults = {flag[1:] for flag in flags if flag.startswith("+")}
+    required = re.search(r'^REQUIRED_USE="([^"]*)"', source, re.M).group(1)
+    assert check_required_use(required, defaults, available.__contains__, eapi="8"), ebuild.name
+    if "hardened" in available:
+        assert "^^ ( hardened )" in required
+        assert not check_required_use(required, defaults - {"hardened"}, available.__contains__, eapi="8")
+        assert 'name="hardened"' in (ebuild.parent / "metadata.xml").read_text()
+print("PASS: retained binary default USE and hardened selector/metadata")

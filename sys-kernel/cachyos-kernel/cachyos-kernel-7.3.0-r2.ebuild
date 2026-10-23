@@ -75,12 +75,12 @@ SRC_URI="
 		${CACHYOS_CONFIG_URI}/linux-cachyos-deckify/config
 			-> ${CACHYOS_CONFIG_PREFIX}-deckify-config
 	)
+	${CACHYOS_PATCH_URI}/misc/dkms-clang.patch
+		-> ${CACHYOS_PATCH_PREFIX}-dkms-clang.patch
 	aufs? (
 		${CACHYOS_PATCH_URI}/misc/0001-aufs-7.3-merge-v20260914.patch
 			-> ${CACHYOS_PATCH_PREFIX}-aufs.patch
 	)
-	${CACHYOS_PATCH_URI}/misc/dkms-clang.patch
-		-> ${CACHYOS_PATCH_PREFIX}-dkms-clang.patch
 	kernel-builtin-zfs? (
 		https://github.com/cachyos/zfs/archive/${ZFS_COMMIT}.tar.gz
 			-> zfs-${ZFS_COMMIT}.tar.gz
@@ -257,14 +257,14 @@ src_unpack() {
 		eapply "${patches_prefix}-rt-i915.patch"
 	fi
 
-	if use aufs; then
-		eapply "${patches_prefix}-aufs.patch"
-	fi
-
 	if use deckify; then
 		eapply "${patches_prefix}-acpi-call.patch"
 
 		eapply --fuzz=0 -- "${patches_prefix}-handheld.patch"
+	fi
+
+	if use aufs; then
+		eapply "${patches_prefix}-aufs.patch"
 	fi
 
 	if use deckify; then
@@ -335,10 +335,10 @@ src_unpack() {
 
 	### Enable KCFI
 	if use kcfi; then
-		scripts/config -e CFI -e CFI_CLANG -e CFI_AUTO_DEFAULT || die
+		scripts/config -e CFI -e CFI_AUTO_DEFAULT || die
 	else
 		# https://github.com/openzfs/zfs/issues/15911
-		scripts/config -d CFI -d CFI_CLANG -e CFI_PERMISSIVE || die
+		scripts/config -d CFI -e CFI_PERMISSIVE || die
 	fi
 
 	### Select LLVM level

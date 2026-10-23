@@ -16,7 +16,7 @@ def check(ebuild: Path, tree: Path, overrides: str) -> None:
     source = ebuild.read_text()
     flags = re.search(r'^IUSE="([^"]*)"', source, re.M).group(1).split()
     available = {f.lstrip('+-') for f in flags}
-    pv = pkgsplit(ebuild.stem)[1]
+    pv, revision = pkgsplit(ebuild.stem)[1:]
     if vercmp(pv, '6.18.55' if pv.startswith('6.18.') else '7.2.10') < 0:
         print(f'SKIP: {ebuild.name}: feature audit predates this checker')
         return
@@ -45,6 +45,9 @@ def check(ebuild: Path, tree: Path, overrides: str) -> None:
             expect('ARCH_SUPPORTS_CFI', 'y')
             expect('CFI_AUTO_DEFAULT', 'y')
     if vercmp(pv, '7.3.0') >= 0:
+        expect('CFI', 'y' if 'kcfi' in enabled else 'n')
+        if vercmp(f'{pv}-{revision}', '7.3.0-r2') >= 0:
+            assert 'CFI_CLANG' not in config, 'transitional CFI_CLANG must not be emitted'
         normalized = {flag.replace('_', '-') for flag in enabled}
         for flag, symbol in [
             ('tickrate-periodic', 'HZ_PERIODIC'), ('tickrate-idle', 'NO_HZ_IDLE'),

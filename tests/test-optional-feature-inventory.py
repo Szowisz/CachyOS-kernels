@@ -83,12 +83,15 @@ upstream.update({"linux-cachyos-hardened": "7.2.11", "linux-cachyos-lts": "6.18.
 with tempfile.TemporaryDirectory(prefix="cachyos-pkgrel-test-", dir="/var/tmp") as tmp:
     with patch.object(updater, "get_zfs_commit", return_value=None), patch.object(updater, "get_genpatches_version_from_template", return_value="1"):
         generated = updater.copy_and_update_ebuild(r1, "7.3.0-r2", tmp, upstream_versions=upstream)
+        assert generated.read_bytes() == r1.read_bytes()
+        # r2 includes manual review fixes not present in the published r1 template.
+        generated = updater.copy_and_update_ebuild(r2, "7.3.0-r2", tmp, force=True, upstream_versions=upstream)
         assert generated.read_bytes() == r2.read_bytes()
         future = Path(tmp) / "cachyos-sources-7.3.0-r3.ebuild"
         future.write_text("preserve unvalidated target\n")
         assert updater.copy_and_update_ebuild(r2, "7.3.0-r3", tmp, force=True, upstream_versions=upstream) is None
         assert future.read_text() == "preserve unvalidated target\n"
-print("PASS: r2 generation matches proven ebuild; r3 generation preserves existing target on rejection")
+print("PASS: r1 generation preserves template, reviewed r2 round-trips; r3 rejection preserves target")
 
 # Retained binary-only providers must be installable with their defaults.
 for ebuild in sorted((ROOT / "sys-kernel/cachyos-kernel-bin").glob("*.ebuild")):

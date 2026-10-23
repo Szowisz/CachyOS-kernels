@@ -25,6 +25,8 @@ kernel-install_compress_modules() { compress_called=1; }
 make_fixture() {
 	mkdir -p "$h/include/linux" "$h/scripts/basic" "$h/arch/x86/include" \
 		"$b/kernel" "$WORKDIR/modprep/scripts/basic" "$WORKDIR/modprep/include/config"
+	printf 'pacman-metadata\n' > "$WORKDIR/binpkg/.PKGINFO"
+	printf 'pacman-metadata\n' > "$WORKDIR/headerspkg/.PKGINFO"
 	printf 'fixture-modules\n' > "$b/modules.order"
 	# CachyOS ships modules already zstd-compressed.
 	printf 'fixture-module\n' > "$b/kernel/fixture.ko.zst"
@@ -113,6 +115,7 @@ run_case() (
 	ROOT="$ED" eselect kernel list | grep -Fq "linux-$KV_FULL" || die 'Kernel not listed'
 	ROOT="$ED" eselect kernel set "linux-$KV_FULL"
 	[[ $(readlink "$ED/usr/src/linux") == "linux-$KV_FULL" ]] || die 'Kernel not selected'
+	[[ ! -e $ED/.PKGINFO && ! -e $ED/usr/src/linux-$KV_FULL/.PKGINFO ]] || die 'Pacman metadata leaked'
 	printf 'PASS: %s USE=%s (%s) preserves build tree and eselect selection\n' "$PF" "$USE" "$KV_FULL"
 )
 
@@ -140,6 +143,9 @@ for ebuild in "${ebuilds[@]}"; do
 		run_case plain-ko "$defaults" plain-ko
 		if $bore; then
 			run_case bore 'bore'
+		fi
+		if [[ " $IUSE " == *" bmq "* ]]; then
+			run_case bmq 'bmq'
 		fi
 	)
 done

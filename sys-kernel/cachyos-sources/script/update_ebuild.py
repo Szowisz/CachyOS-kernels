@@ -42,14 +42,14 @@ VALIDATED_HIDDEN_FEATURES = {
     "7.3.0": {
         "muqss": {
             "external_uri": "https://github.com/ckolivas/linux/commit/4ceaa4d07af63d9d495f4cbb570547feb39d1236.patch",
-            "target": "7.3.0-r1",
+            "targets": ("7.3.0-r1", "7.3.0-r2"),
             "patterns": (
                 "muqss? (",
                 "linux-ck-4ceaa4d07af63d9d495f4cbb570547feb39d1236-muqss.patch",
                 "cachyos-sources-7.3.0-muqss-rebase.patch",
                 '-e SCHED_MUQSS -d SCHED_POC_SELECTOR',
             ),
-            "evidence": "official standalone v0.32; two Kconfig context rebases only on cachyos-7.3.0-2 + genpatches-7.3-1; package/prepare and normalized HZ/tick/AUFS checks in both packages",
+            "evidence": "official standalone v0.32; two Kconfig context rebases only on cachyos-7.3.0-2 and -3 + genpatches-7.3-1; source3 package/prepare and normalized HZ/tick/AUFS checks in .ci/r2/source-cases.json",
         },
         "bmq": {
             "path": "sched/0001-prjc-cachy.patch",
@@ -486,8 +486,8 @@ def audit_feature_inventory(content, target_version, upstream_versions, lts=Fals
         patterns = [] if stock_eevdf else list(details.get("patterns", AUDIT_PATTERNS[feature]))
         if "external_uri" in details:
             patterns.append(details["external_uri"])
-            if target_version != details["target"]:
-                errors.append(f"{feature}: external patch validated only for {details['target']}")
+            if target_version not in details["targets"]:
+                errors.append(f"{feature}: external patch validated only for {details['targets']}")
         patterns.extend(f"https://github.com/CachyOS/linux/commit/{commit}.patch"
                         for commit in details.get("commits", ()))
         if "series" in details:

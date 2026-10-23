@@ -56,7 +56,10 @@ for version in ("7.3.0", "7.2.11", "6.18.55"):
         if version == "7.3.0":
             external_uri = features["muqss"]["external_uri"]
             assert updater.audit_feature_inventory(source.replace(external_uri, "https://invalid.example/muqss.patch"), target_version, upstream)
-            assert updater.audit_feature_inventory(source, "7.3.0-r2", upstream)
+            r2 = (ebuild.parent / "cachyos-sources-7.3.0-r2.ebuild").read_text()
+            assert not updater.audit_feature_inventory(r2, "7.3.0-r2", upstream)
+            for unsupported in ("7.3.0", "7.3.0-r3", "7.3.1"):
+                assert updater.audit_feature_inventory(r2, unsupported, {name: unsupported for name in upstream})
             assert "${CACHYOS_PATCH_URI}/sched/0001-muqss-cachy.patch" not in source
         broken = source.replace("-e SCHED_ALT -d SCHED_BMQ -e SCHED_PDS", "")
         assert updater.audit_feature_inventory(broken, target_version, upstream, lts=version.startswith("6."))
@@ -71,6 +74,21 @@ for version in ("7.3.0", "7.2.11", "6.18.55"):
             assert result is None
             assert target.read_text() == "keep existing target\n"
 print("PASS: immutable feature inventory, opt-in defaults, scheduler/LLVM negatives and fail-closed generation")
+
+# The newly proven source3 target is allowed, but later pkgrel stays fail-closed.
+r1 = ROOT / "sys-kernel/cachyos-sources/cachyos-sources-7.3.0-r1.ebuild"
+r2 = r1.with_name("cachyos-sources-7.3.0-r2.ebuild")
+upstream = {name: "7.3.0" for name in updater.UPSTREAM_PACKAGES}
+upstream.update({"linux-cachyos-hardened": "7.2.11", "linux-cachyos-lts": "6.18.55"})
+with tempfile.TemporaryDirectory(prefix="cachyos-pkgrel-test-", dir="/var/tmp") as tmp:
+    with patch.object(updater, "get_zfs_commit", return_value=None), patch.object(updater, "get_genpatches_version_from_template", return_value="1"):
+        generated = updater.copy_and_update_ebuild(r1, "7.3.0-r2", tmp, upstream_versions=upstream)
+        assert generated.read_bytes() == r2.read_bytes()
+        future = Path(tmp) / "cachyos-sources-7.3.0-r3.ebuild"
+        future.write_text("preserve unvalidated target\n")
+        assert updater.copy_and_update_ebuild(r2, "7.3.0-r3", tmp, force=True, upstream_versions=upstream) is None
+        assert future.read_text() == "preserve unvalidated target\n"
+print("PASS: r2 generation matches proven ebuild; r3 generation preserves existing target on rejection")
 
 # Retained binary-only providers must be installable with their defaults.
 for ebuild in sorted((ROOT / "sys-kernel/cachyos-kernel-bin").glob("*.ebuild")):

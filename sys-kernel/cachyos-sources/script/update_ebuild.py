@@ -42,14 +42,14 @@ VALIDATED_HIDDEN_FEATURES = {
     "7.3.0": {
         "muqss": {
             "external_uri": "https://github.com/ckolivas/linux/commit/4ceaa4d07af63d9d495f4cbb570547feb39d1236.patch",
-            "targets": ("7.3.0-r1", "7.3.0-r2"),
+            "targets": ("7.3.0-r1", "7.3.0-r2", "7.3.0-r3"),
             "patterns": (
                 "muqss? (",
                 "linux-ck-4ceaa4d07af63d9d495f4cbb570547feb39d1236-muqss.patch",
                 "cachyos-sources-7.3.0-muqss-rebase.patch",
                 '-e SCHED_MUQSS -d SCHED_POC_SELECTOR',
             ),
-            "evidence": "official standalone v0.32; two Kconfig context rebases only on cachyos-7.3.0-2 and -3 + genpatches-7.3-1; source3 package/prepare and normalized HZ/tick/AUFS checks in .ci/r2/source-cases.json",
+            "evidence": "official standalone v0.32; two Kconfig context rebases only on cachyos-7.3.0-2, -3 and -4 + genpatches-7.3-1; source3 package/prepare and normalized HZ/tick/AUFS checks in .ci/r2/source-cases.json; r3: ck patch + rebase applies at fuzz=0 on cachyos-7.3.0-4 (0 failed hunks, .ci/patchtest dry-run)",
         },
         "bmq": {
             "path": "sched/0001-prjc-cachy.patch",

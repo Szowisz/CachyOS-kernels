@@ -8,15 +8,15 @@ KERNEL_IUSE_GENERIC_UKI=1
 inherit flag-o-matic kernel-install toolchain-funcs
 
 # Source and binary releases follow independently mirrored compiler groups.
-CACHYOS_SOURCE_PR="3"
+CACHYOS_SOURCE_PR="4"
 CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
 
 MAIN_MY_P="cachyos-${PV}-${CACHYOS_SOURCE_PR}"
-GCC_MY_P="cachyos-${PV}-2"
-VARIANT_MY_P="${GCC_MY_P}"
+GCC_MY_P="${MAIN_MY_P}"
+VARIANT_MY_P="cachyos-${PV}-2"
 MAIN_BINPKG_VER="${PV}-${CACHYOS_BIN_PR}"
-GCC_BINPKG_VER="${PV}-2"
-VARIANT_BINPKG_VER="${GCC_BINPKG_VER}"
+GCC_BINPKG_VER="${MAIN_BINPKG_VER}"
+VARIANT_BINPKG_VER="${PV}-2"
 
 # Mirror base URLs
 MIRROR_V3="https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3"
@@ -28,7 +28,7 @@ HOMEPAGE="
 "
 
 # Source tarballs follow the matching binary group (needed for modules_prepare).
-# Default LTO uses pkgrel 3; GCC and scheduler variants retain pkgrel 2.
+# Default LTO and GCC use pkgrel 4; scheduler variants retain pkgrel 2.
 SRC_URI="
 	cachyos? (
 		gcc? ( https://github.com/CachyOS/linux/releases/download/${GCC_MY_P}/${GCC_MY_P}.tar.gz )
@@ -37,9 +37,10 @@ SRC_URI="
 	!cachyos? ( https://github.com/CachyOS/linux/releases/download/${VARIANT_MY_P}/${VARIANT_MY_P}.tar.gz )
 "
 
-# 7.3.0 ships lto sub-variants for every packaged scheduler and a gcc build
-# for the default cachyos package. No deckify or hardened build for this
-# version; hardened coverage stays on the mirrored 7.2.9-r1 ebuild.
+# 7.3.0 ships lto sub-variants for every packaged scheduler (mirrored at
+# pkgrel 2) and a gcc build at pkgrel 4 for the default cachyos package.
+# No deckify or hardened build for this version; hardened coverage stays
+# on the mirrored 7.2.9-r1 ebuild.
 SRC_URI+="
 	cachyos? (
 		lto? (

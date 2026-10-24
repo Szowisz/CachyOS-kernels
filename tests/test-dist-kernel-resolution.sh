@@ -96,15 +96,15 @@ if [ "${pass_count}" -ne "${expected_count}" ]; then
   exit 1
 fi
 
-# Unmasked new binaries must also choose p2 without a same-slot source kernel.
+# Unmasked new binaries must also choose p3 without a same-slot source kernel.
 for flags in "" "-cachyos bmq lto -gcc"; do
-  out=$(USE="${flags}" emerge --pretend =sys-kernel/cachyos-kernel-bin-7.3.0-r2 2>&1)
-  echo "${out}" | grep -q "virtual/dist-kernel-7.3.0_p2"
+  out=$(USE="${flags}" emerge --pretend =sys-kernel/cachyos-kernel-bin-7.3.0-r3 2>&1)
+  echo "${out}" | grep -q "virtual/dist-kernel-7.3.0_p3"
   if echo "${out}" | grep -q "sys-kernel/cachyos-kernel-[0-9]"; then
     echo "FAIL: unmasked binary pulled source-built kernel: ${out}"
     exit 1
   fi
-  echo "PASS: unmasked binary USE=${flags} resolves through p2 without source-built kernel"
+  echo "PASS: unmasked binary USE=${flags} resolves through p3 without source-built kernel"
 done
 # Real Portage must reject conflicting schedulers and tick modes before phases.
 for package in sources kernel; do
@@ -112,7 +112,7 @@ for package in sources kernel; do
   [[ ${package} != kernel ]] || tick=hz_ticks_100
   for flags in "muqss" "${tick}"; do
     set +e
-    out=$(USE="${flags}" emerge --pretend "=sys-kernel/cachyos-${package}-7.3.0-r2" 2>&1)
+    out=$(USE="${flags}" emerge --pretend "=sys-kernel/cachyos-${package}-7.3.0-r3" 2>&1)
     res=$?
     set -e
     if [[ ${res} -eq 0 ]] || ! grep -q "REQUIRED_USE" <<< "${out}"; then
@@ -125,7 +125,7 @@ done
 
 # A retained binary must resolve without pulling an unrelated newer kernel.
 mkdir -p /etc/portage/package.mask
-for pair in "7.3.0-r2 7.3.0_p2" "7.2.9-r1 7.2.9_p1" "6.18.55-r1 6.18.55"; do
+for pair in "7.3.0-r3 7.3.0_p3" "7.2.9-r1 7.2.9_p1" "6.18.55-r1 6.18.55"; do
   read -r binary provider <<< "${pair}"
   printf "%s\n" "virtual/dist-kernel::gentoo" ">virtual/dist-kernel-${provider}" > /etc/portage/package.mask/provider
   out=$(emerge --pretend "=sys-kernel/cachyos-kernel-bin-${binary}" 2>&1)
@@ -137,18 +137,18 @@ for pair in "7.3.0-r2 7.3.0_p2" "7.2.9-r1 7.2.9_p1" "6.18.55-r1 6.18.55"; do
   echo "PASS: retained binary ${binary} resolves via ${provider} without source-built kernel"
 done
 # BMQ must use the same binary provider, without a same-slot source kernel.
-printf "%s\n" "virtual/dist-kernel::gentoo" ">virtual/dist-kernel-7.3.0_p2" > /etc/portage/package.mask/provider
-out=$(USE="-cachyos bmq lto -gcc" emerge --pretend =sys-kernel/cachyos-kernel-bin-7.3.0-r2 2>&1)
-echo "${out}" | grep -q "virtual/dist-kernel-7.3.0_p2"
+printf "%s\n" "virtual/dist-kernel::gentoo" ">virtual/dist-kernel-7.3.0_p3" > /etc/portage/package.mask/provider
+out=$(USE="-cachyos bmq lto -gcc" emerge --pretend =sys-kernel/cachyos-kernel-bin-7.3.0-r3 2>&1)
+echo "${out}" | grep -q "virtual/dist-kernel-7.3.0_p3"
 if echo "${out}" | grep -q "sys-kernel/cachyos-kernel-[0-9]"; then
   echo "FAIL: BMQ binary pulled a source-built kernel: ${out}"
   exit 1
 fi
 echo "PASS: BMQ binary resolves without source-built kernel"
-out=$(emerge --pretend =sys-kernel/cachyos-kernel-7.3.0-r2 2>&1)
-echo "${out}" | grep -q "virtual/dist-kernel-7.3.0_p2"
-emerge --pretend =sys-kernel/cachyos-sources-7.3.0-r2 >/dev/null 2>&1
-echo "PASS: source r2 resolves; kernel r2 resolves through p2"
+out=$(emerge --pretend =sys-kernel/cachyos-kernel-7.3.0-r3 2>&1)
+echo "${out}" | grep -q "virtual/dist-kernel-7.3.0_p3"
+emerge --pretend =sys-kernel/cachyos-sources-7.3.0-r3 >/dev/null 2>&1
+echo "PASS: source r3 resolves; kernel r3 resolves through p3"
 rm /etc/portage/package.mask/provider
 
 # A source-only current provider must reproduce the same-slot binary conflict.
@@ -157,18 +157,18 @@ chmod 755 "${current_fixture}"
 for directory in metadata profiles sys-kernel virtual; do
   cp -a "/var/db/repos/CachyOS-kernels/${directory}" "${current_fixture}/"
 done
-sed -i "/=sys-kernel\/cachyos-kernel-bin-7.3.0-r2/d" "${current_fixture}/virtual/dist-kernel/dist-kernel-7.3.0_p2.ebuild"
+sed -i "/=sys-kernel\/cachyos-kernel-bin-7.3.0-r3/d" "${current_fixture}/virtual/dist-kernel/dist-kernel-7.3.0_p3.ebuild"
 sed -i "s|location = .*|location = ${current_fixture}|" /etc/portage/repos.conf/cachyos.conf
-printf "%s\n" "virtual/dist-kernel::gentoo" ">virtual/dist-kernel-7.3.0_p2" > /etc/portage/package.mask/current
+printf "%s\n" "virtual/dist-kernel::gentoo" ">virtual/dist-kernel-7.3.0_p3" > /etc/portage/package.mask/current
 set +e
-out=$(emerge --pretend =sys-kernel/cachyos-kernel-bin-7.3.0-r2 2>&1)
+out=$(emerge --pretend =sys-kernel/cachyos-kernel-bin-7.3.0-r3 2>&1)
 res=$?
 set -e
 if [[ ${res} -eq 0 ]] || ! grep -q "cannot be" <<< "${out}" || ! grep -q "sys-kernel/cachyos-kernel:7.3.0" <<< "${out}"; then
   echo "FAIL: current source-only provider did not reproduce conflict: ${out}"
   exit 1
 fi
-echo "PASS: current source-only p2 provider fails with same-slot conflict (exit ${res})"
+echo "PASS: current source-only p3 provider fails with same-slot conflict (exit ${res})"
 rm /etc/portage/package.mask/current
 rm -rf "${current_fixture}"
 sed -i "s|location = .*|location = /var/db/repos/CachyOS-kernels|" /etc/portage/repos.conf/cachyos.conf

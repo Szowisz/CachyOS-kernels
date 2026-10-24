@@ -9,7 +9,7 @@ import subprocess
 from portage.dep import check_required_use
 
 ROOT = Path(__file__).resolve().parents[1]
-EBUILD = ROOT / "sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-7.3.0-r2.ebuild"
+EBUILD = ROOT / "sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-7.3.0-r3.ebuild"
 FLAGS = ["cachyos lto", "cachyos gcc"] + [
     f"{scheduler} {lto}".strip()
     for scheduler in ("bore", "bmq", "eevdf", "rt-bore", "server")
@@ -17,7 +17,7 @@ FLAGS = ["cachyos lto", "cachyos gcc"] + [
 ]
 SHELL = '''
 inherit() { :; }; use() { [[ " $USE " == *" $1 "* ]]; }
-PV=7.3.0 PR=r2 SLOT=7.3.0 WORKDIR=unused
+PV=7.3.0 PR=r3 SLOT=7.3.0 WORKDIR=unused
 source "$1"
 _cachyos_setup_kv
 printf '%s|%s|%s|%s|%s|%s\\n' "$KV_FULL" "$KV_LOCALVERSION" \
@@ -29,7 +29,7 @@ for flags in FLAGS:
         ["bash", "-c", SHELL, "bash", str(EBUILD)],
         env=dict(os.environ, USE=flags), text=True,
     ).strip().split("|")
-    expected_pr = "3" if flags == "cachyos lto" else "2"
+    expected_pr = "4" if flags in ("cachyos lto", "cachyos gcc") else "2"
     scheduler = flags.split()[0]
     variant = "" if flags == "cachyos lto" else "gcc" if scheduler == "cachyos" else scheduler + ("-lto" if "lto" in flags.split() else "")
     suffix = "cachyos" + ("-" + variant if variant else "")

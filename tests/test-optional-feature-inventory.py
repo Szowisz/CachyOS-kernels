@@ -13,13 +13,13 @@ spec = spec_from_file_location("updater", ROOT / "sys-kernel/cachyos-sources/scr
 updater = module_from_spec(spec)
 spec.loader.exec_module(updater)
 
-for version in ("7.3.0", "7.2.11", "6.18.55"):
+for version in ("7.3.1", "7.3.0", "7.2.11", "6.18.55"):
     features = updater.VALIDATED_HIDDEN_FEATURES[version]
     series = ".".join(version.split(".")[:2])
     paths = {f"{details.get('series', series)}/{details['path']}"
              for details in features.values() if "path" in details}
     assert not updater.audit_hidden_patch_inventory(version, paths)
-    if version == "7.3.0":
+    if version.startswith("7.3."):
         assert not any("muqss" in path for path in paths)
         muqss = features["muqss"]
         assert muqss["external_uri"] == "https://github.com/ckolivas/linux/commit/4ceaa4d07af63d9d495f4cbb570547feb39d1236.patch"
@@ -46,23 +46,23 @@ for version in ("7.3.0", "7.2.11", "6.18.55"):
         if package != "cachyos-sources":
             continue
         upstream = {name: version for name in updater.UPSTREAM_PACKAGES}
-        if version == "7.3.0":
+        if version.startswith("7.3."):
             upstream["linux-cachyos-hardened"] = "7.2.11"
             upstream["linux-cachyos-lts"] = "6.18.55"
             assert "muqss" in available
             assert not {"cachyos-hardened", "bmq-lfbmq"} & available
         target_version = version + revision
         assert not updater.audit_feature_inventory(source, target_version, upstream, lts=version.startswith("6."))
-        if version == "7.3.0":
+        if version.startswith("7.3."):
             external_uri = features["muqss"]["external_uri"]
             assert updater.audit_feature_inventory(source.replace(external_uri, "https://invalid.example/muqss.patch"), target_version, upstream)
-            for unsupported in ("7.3.0", "7.3.0-r4", "7.3.1"):
+            for unsupported in {"7.3.0": ("7.3.0", "7.3.0-r4", "7.3.2"), "7.3.1": ("7.3.1-r1", "7.3.2")}[version]:
                 assert updater.audit_feature_inventory(source, unsupported, {name: unsupported for name in upstream})
             assert "${CACHYOS_PATCH_URI}/sched/0001-muqss-cachy.patch" not in source
         broken = source.replace("-e SCHED_ALT -d SCHED_BMQ -e SCHED_PDS", "")
         assert updater.audit_feature_inventory(broken, target_version, upstream, lts=version.startswith("6."))
         # Generation refuses unvalidated inherited flags/URIs instead of emitting stale wiring.
-        next_version = {"7.3.0": "7.3.1", "7.2.11": "7.2.12", "6.18.55": "6.18.56"}[version]
+        next_version = {"7.3.1": "7.3.2", "7.3.0": "7.3.2", "7.2.11": "7.2.12", "6.18.55": "6.18.56"}[version]
         with tempfile.TemporaryDirectory(prefix="cachyos-feature-test-", dir="/var/tmp") as tmp:
             target = Path(tmp) / f"cachyos-sources-{next_version}.ebuild"
             target.write_text("keep existing target\n")

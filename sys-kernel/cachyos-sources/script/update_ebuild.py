@@ -39,6 +39,35 @@ UPSTREAM_PACKAGES = [
 # has been validated. Keep that evidence explicit instead of treating every
 # directory entry as an automatically supported USE flag.
 VALIDATED_HIDDEN_FEATURES = {
+    "7.3.1": {
+        "muqss": {
+            "external_uri": "https://github.com/ckolivas/linux/commit/4ceaa4d07af63d9d495f4cbb570547feb39d1236.patch",
+            "targets": ("7.3.1",),
+            "patterns": (
+                "muqss? (",
+                "linux-ck-4ceaa4d07af63d9d495f4cbb570547feb39d1236-muqss.patch",
+                "cachyos-sources-7.3.0-muqss-rebase.patch",
+                '-e SCHED_MUQSS -d SCHED_POC_SELECTOR',
+            ),
+            "evidence": "same v0.32 patch and 7.3.0 Kconfig context rebase apply at fuzz=0 on cachyos-7.3.1-1 + genpatches-7.3-2; sources/kernel prepare, olddefconfig and feature checks for 1000 Hz full and 100 Hz periodic lazy + AUFS in .ci/7.3.1/matrix",
+        },
+        "bmq": {
+            "path": "sched/0001-prjc-cachy.patch",
+            "evidence": "7.3 PRJC applies at fuzz=0 on cachyos-7.3.1-1 + genpatches-7.3-2; SCHED_BMQ survives olddefconfig in both packages",
+        },
+        "pds": {
+            "path": "sched/0001-prjc-cachy.patch",
+            "evidence": "same PRJC patch; SCHED_PDS and futex scheduler APIs verified after olddefconfig in both packages",
+        },
+        "deckify": {
+            "path": "misc/0001-handheld.patch",
+            "evidence": "handheld applies at fuzz=0 with BORE and ACPI-call on cachyos-7.3.1-1; backlight declaration and handheld modules checked after olddefconfig in both packages",
+        },
+        "aufs": {
+            "path": "misc/0001-aufs-7.3-merge-v20260914.patch",
+            "evidence": "prepare and AUFS_FS=m after olddefconfig on cachyos-7.3.1-1 + genpatches-7.3-2 in both packages",
+        },
+    },
     "7.3.0": {
         "muqss": {
             "external_uri": "https://github.com/ckolivas/linux/commit/4ceaa4d07af63d9d495f4cbb570547feb39d1236.patch",
@@ -292,6 +321,10 @@ DOCUMENTED_EXCLUSIONS = {
 }
 
 VERSIONED_EXCLUSIONS = {
+    "7.3.1": {
+        "bmq-lfbmq": "PRJC-LFBMQ has no 7.3 patch family",
+        "hardened": "upstream hardened remains on 7.2.11; no 7.3 patch/config",
+    },
     "7.3.0": {
         "bmq-lfbmq": "PRJC-LFBMQ has no 7.3 patch family",
         "hardened": "upstream hardened remains on 7.2.11; no 7.3 patch/config",
@@ -482,7 +515,7 @@ def audit_feature_inventory(content, target_version, upstream_versions, lts=Fals
             continue
         details = VALIDATED_HIDDEN_FEATURES.get(clean_version_helper(target_version), {}).get(feature, {})
         # 7.3 PKGBUILD leaves EEVDF at the shipped config default, like LTS.
-        stock_eevdf = feature == "eevdf" and (lts or clean_version_helper(target_version) == "7.3.0")
+        stock_eevdf = feature == "eevdf" and (lts or clean_version_helper(target_version) in ("7.3.0", "7.3.1"))
         patterns = [] if stock_eevdf else list(details.get("patterns", AUDIT_PATTERNS[feature]))
         if "external_uri" in details:
             patterns.append(details["external_uri"])

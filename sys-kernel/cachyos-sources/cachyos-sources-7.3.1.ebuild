@@ -219,6 +219,10 @@ src_prepare() {
 
 	if use bore || use rt-bore || use deckify; then
 		eapply --fuzz=0 -- "${patches_prefix}-bore.patch"
+		# cachyos-7.3.1-1 reads normalized_sysctl_sched_base_slice in
+		# update_protect_slice(), which the BORE patch defines only for !SCHED_BORE.
+		# https://github.com/Szowisz/CachyOS-kernels/issues/58
+		eapply --fuzz=0 -- "${FILESDIR}/cachyos-sources-7.3.1-bore-update-protect-slice.patch"
 	elif use muqss; then
 		cp "${DISTDIR}/linux-ck-4ceaa4d07af63d9d495f4cbb570547feb39d1236-muqss.patch" "${T}/scheduler.patch" || die
 		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-7.3.0-muqss-rebase.patch"

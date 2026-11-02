@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Consume same-run dependencies, then install the actual target from source.
+# Consumers accept only cases the producer covered; they never build missing
+# dependency binaries from source (the resolver plan is checked for that).
 # Usage: ci-binpkg-consumer.sh <artifact-dir> <version> [USE flags]
 set -euo pipefail
 
@@ -11,6 +13,7 @@ if ! grep -Fxq "${VERSION}|${USE_FLAGS}" "${ARTIFACT}/cases"; then
 	echo "Case not covered by producer: ${VERSION} USE=${USE_FLAGS}" >&2
 	exit 1
 fi
+# Keep the artifact's producer case set authoritative for exactly this run.
 
 cat > /etc/portage/binrepos.conf/ci-binhost.conf <<EOF
 [ci-binhost]

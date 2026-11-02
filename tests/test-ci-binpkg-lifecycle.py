@@ -146,6 +146,33 @@ printf 'PACKAGES: 0\\n' > "$CI_BINPKG_OUT/pkgdir/Packages"
         assert len(calls.read_text().splitlines()) == 1
     print("PASS: producer replaces cases; consumers abort on source deps/resolver failure and force source target")
 
+    # A validated manual dispatch case passes through producer to consumer
+    # unchanged; uncovered manual cases still abort before any emerge.
+    calls.write_text("")
+    manual = "hugepage-always kcfi"
+    assert manual not in cases
+    result = run(["bash", str(scripts["producer"]), str(versions), "glibc",
+                  "--case", f"{version}|{manual}"], env=env)
+    assert result.returncode == 0, result.stdout
+    produced = [json.loads(line) for line in calls.read_text().splitlines()]
+    # --case restricts the producer to the validated manual case only; the
+    # unrelated matrix is not enumerated.
+    assert len(produced) == 1, produced
+    assert f"{version}|{manual}" in (artifact / "cases").read_text().splitlines()
+    calls.write_text("")
+    result = run(["bash", str(scripts["consumer"]), str(artifact), version, manual], env=env)
+    assert result.returncode == 0, result.stdout
+    assert len(calls.read_text().splitlines()) == 3
+    calls.write_text("")
+    result = run(["bash", str(scripts["consumer"]), str(artifact), version, "uncovered-flag"], env=env)
+    assert result.returncode != 0 and not calls.read_text(), result.stdout
+    print("PASS: manual case carries through producer/consumer; uncovered cases refuse to run")
+
+    # Restore the matrix artifact so the remaining consumer checks see the
+    # default case covered again.
+    result = run(["bash", str(scripts["producer"]), str(versions), "glibc"], env=env)
+    assert result.returncode == 0, result.stdout
+
     # Real emerge: verify the exact invoked plan works without a target binary,
     # and the source-dependency guard matches real Portage output, not a guess.
     fixture = temp / "portage"
@@ -225,12 +252,13 @@ const github = {rest: {actions: {
   return [
     {id:1,name:'ci-binpkgs-glibc-42-2'}, {id:2,name:'ci-binpkgs-musl-42-2'},
     {id:3,name:'ci-binpkgs-glibc-99-2'}, {id:4,name:'unrelated'},
-    {id:5,name:'ci-binpkgs-glibc-42-3'}
+    {id:5,name:'ci-binpkgs-glibc-42-3'}, {id:6,name:'ci-binpkgs-manual-42-2'},
+    {id:7,name:'kernel-build-evidence-42-2'}
   ];
 }};
 (async () => {
 '''
-    result = run(["node", "-e", fixture_js + script + "\nassert.deepEqual(deleted,[1,2]); })().catch(e => { console.error(e); process.exit(1); });"])
+    result = run(["node", "-e", fixture_js + script + "\nassert.deepEqual(deleted,[1,2,6]); })().catch(e => { console.error(e); process.exit(1); });"])
     assert result.returncode == 0, result.stdout
     print("PASS: cleanup deletes only originating run/attempt artifacts; no other runs, retries or artifacts")
 else:

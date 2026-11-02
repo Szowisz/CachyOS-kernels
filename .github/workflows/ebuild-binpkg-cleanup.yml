@@ -9,6 +9,7 @@ on:
     workflows:
       - "Ebuild Merge Test"
       - "Ebuild Merge Test (musl-llvm)"
+      - "Manual Kernel Build"
     types: [completed]
 
 permissions:
@@ -29,6 +30,7 @@ jobs:
           const names = [
             `ci-binpkgs-glibc-${runId}-${attempt}`,
             `ci-binpkgs-musl-${runId}-${attempt}`,
+            `ci-binpkgs-manual-${runId}-${attempt}`,
           ];
           const artifacts = await github.paginate(
             github.rest.actions.listWorkflowRunArtifacts,

@@ -19,7 +19,11 @@ on:
       - 'tests/ci-binpkg-consumer.sh'
       - 'tests/ci_matrix_cases.py'
       - 'tests/test-ci-binpkg-lifecycle.py'
+      - 'tests/test-ci-kernel-kbuild.py'
+      - 'tests/ci-kernel-kbuild.sh'
+      - 'tests/ci_kernel_expected.py'
       - '.github/workflows/ebuild-binpkg-cleanup.yml'
+      - '.github/workflows/ebuild-kernel-build.yml'
   pull_request:
     branches: [ main, master ]
     paths:
@@ -38,7 +42,11 @@ on:
       - 'tests/ci-binpkg-consumer.sh'
       - 'tests/ci_matrix_cases.py'
       - 'tests/test-ci-binpkg-lifecycle.py'
+      - 'tests/test-ci-kernel-kbuild.py'
+      - 'tests/ci-kernel-kbuild.sh'
+      - 'tests/ci_kernel_expected.py'
       - '.github/workflows/ebuild-binpkg-cleanup.yml'
+      - '.github/workflows/ebuild-kernel-build.yml'
   workflow_dispatch:
 
 permissions:
@@ -63,6 +71,9 @@ jobs:
     - name: Validate binary dependency lifecycle
       run: python3 tests/test-ci-binpkg-lifecycle.py
 
+    - name: Validate shared kernel Kbuild helper
+      run: python3 tests/test-ci-kernel-kbuild.py
+
     - name: Validate THP defaults and explicit overrides
       run: python3 tests/test-thp-defaults.py
 
@@ -72,8 +83,11 @@ jobs:
         set -euo pipefail
 
         # Sync Gentoo repository snapshot
-        for i in 1 2 3; do
-          emerge-webrsync -q && break || sleep 10
+        for _ in 1 2 3; do
+          if emerge-webrsync -q; then
+            break
+          fi
+          sleep 10
         done
 
         # Configure local overlay
@@ -149,23 +163,18 @@ jobs:
           BASE_SHA="HEAD~1"
         fi
         
-        # Find new or modified ebuilds
-        NEW_EBUILDS=$(git diff --no-renames --name-only --diff-filter=AM "$BASE_SHA" HEAD | \
-          grep -E "^sys-kernel/cachyos-sources/cachyos-sources-.*\.ebuild$" | \
-          grep -v "9999" | \
-          sed -E 's|^sys-kernel/cachyos-sources/cachyos-sources-(.+)\.ebuild$|\1|' | \
-          sort -V || true)
-        
-        # Also check if the workflow itself was modified
-        WORKFLOW_CHANGED=$(git diff --no-renames --name-only "$BASE_SHA" HEAD | \
-          grep -E "^(\.github/workflows/ebuild-(test(-musl-llvm)?|binpkg-cleanup)\.yml|tests/(ci-.*\.sh|ci_matrix_cases\.py|test-ci-binpkg-lifecycle\.py|test-source-features\.py))$" || true)
-        
-        if [ -z "$NEW_EBUILDS" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ -z "$WORKFLOW_CHANGED" ]; then
-          echo "::notice::No new or modified ebuilds detected, skipping tests"
+        # Map changed ebuilds, shared patches and CI helpers to the retained
+        # source versions they actually affect (tests/ci_kernel_expected.py;
+        # behavior is covered by tests/test-ci-kernel-kbuild.py).
+        NEW_EBUILDS=$(git diff --no-renames --name-only "$BASE_SHA" HEAD | \
+          python3 tests/ci_kernel_expected.py detect)
+
+        if [ -z "$NEW_EBUILDS" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+          echo "::notice::No affected ebuild versions detected, skipping tests"
           echo "versions=[]" >> "$GITHUB_OUTPUT"
         else
           if [ -z "$NEW_EBUILDS" ]; then
-            echo "Workflow changed or manual dispatch, testing latest version"
+            echo "Manual dispatch without changes, testing latest version"
             LATEST=$(find sys-kernel/cachyos-sources -name "cachyos-sources-*.ebuild" | \
               grep -v "9999" | \
               sed -E 's|.*cachyos-sources-(.+)\.ebuild$|\1|' | \
@@ -373,6 +382,7 @@ jobs:
       run: bash tests/ci-portage-setup.sh glibc "$PWD" /ci-binpkg
 
     - name: Consume binary deps and merge source ebuild
+      id: merge
       shell: bash
       run: |
         set -euo pipefail
@@ -392,9 +402,31 @@ jobs:
         done
 
         bash tests/ci-binpkg-consumer.sh /ci-binpkg "${{ matrix.version }}" "${USE_FLAGS}"
+        echo "installed=true" >> "$GITHUB_OUTPUT"
+        # C-only fast check; the manual full build provisions Rust separately.
+
+    - name: Compile installed scheduler directory
+      if: steps.merge.outputs.installed == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
         KERNEL_VERSION="${{ matrix.version }}"
         KERNEL_PV="${KERNEL_VERSION%-r*}"
-        python3 tests/test-source-features.py "${EBUILD_PATH}" \
-          "/usr/src/linux-${KERNEL_PV}-cachyos${KERNEL_VERSION#${KERNEL_PV}}" "${USE_FLAGS}"
+        TREE="/usr/src/linux-${KERNEL_PV}-cachyos${KERNEL_VERSION#"${KERNEL_PV}"}"
+        bash tests/ci-kernel-kbuild.sh sched \
+          "sys-kernel/cachyos-sources/cachyos-sources-${KERNEL_VERSION}.ebuild" \
+          "${TREE}" "${{ matrix.use_flags }}"
+
+    - name: Verify installed source features
+      if: steps.merge.outputs.installed == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        KERNEL_VERSION="${{ matrix.version }}"
+        KERNEL_PV="${KERNEL_VERSION%-r*}"
+        python3 tests/test-source-features.py \
+          "sys-kernel/cachyos-sources/cachyos-sources-${KERNEL_VERSION}.ebuild" \
+          "/usr/src/linux-${KERNEL_PV}-cachyos${KERNEL_VERSION#"${KERNEL_PV}"}" \
+          "${{ matrix.use_flags }}"
 
         echo "✓ Successfully installed cachyos-sources-${{ matrix.version }} with USE='${{ matrix.use_flags }}'"

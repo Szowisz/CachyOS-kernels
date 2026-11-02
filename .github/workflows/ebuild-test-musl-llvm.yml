@@ -5,24 +5,36 @@ on:
     branches: [ main, master ]
     paths:
       - 'sys-kernel/cachyos-sources/**'
+      - 'sys-kernel/cachyos-kernel/**'
       - '.github/workflows/ebuild-test-musl-llvm.yml'
+      - '.github/workflows/ebuild-test.yml'
       - 'tests/ci-portage-setup.sh'
       - 'tests/ci-binpkg-producer.sh'
       - 'tests/ci-binpkg-consumer.sh'
       - 'tests/ci_matrix_cases.py'
       - 'tests/test-ci-binpkg-lifecycle.py'
+      - 'tests/test-ci-kernel-kbuild.py'
+      - 'tests/ci-kernel-kbuild.sh'
+      - 'tests/ci_kernel_expected.py'
       - '.github/workflows/ebuild-binpkg-cleanup.yml'
+      - '.github/workflows/ebuild-kernel-build.yml'
   pull_request:
     branches: [ main, master ]
     paths:
       - 'sys-kernel/cachyos-sources/**'
+      - 'sys-kernel/cachyos-kernel/**'
       - '.github/workflows/ebuild-test-musl-llvm.yml'
+      - '.github/workflows/ebuild-test.yml'
       - 'tests/ci-portage-setup.sh'
       - 'tests/ci-binpkg-producer.sh'
       - 'tests/ci-binpkg-consumer.sh'
       - 'tests/ci_matrix_cases.py'
       - 'tests/test-ci-binpkg-lifecycle.py'
+      - 'tests/test-ci-kernel-kbuild.py'
+      - 'tests/ci-kernel-kbuild.sh'
+      - 'tests/ci_kernel_expected.py'
       - '.github/workflows/ebuild-binpkg-cleanup.yml'
+      - '.github/workflows/ebuild-kernel-build.yml'
   workflow_dispatch:
 
 permissions:
@@ -53,21 +65,17 @@ jobs:
           BASE_SHA="HEAD~1"
         fi
 
-        NEW_EBUILDS=$(git diff --no-renames --name-only --diff-filter=AM "$BASE_SHA" HEAD | \
-          grep -E "^sys-kernel/cachyos-sources/cachyos-sources-.*\.ebuild$" | \
-          grep -v "9999" | \
-          sed -E 's|^sys-kernel/cachyos-sources/cachyos-sources-(.+)\.ebuild$|\1|' | \
-          sort -V || true)
+        # Same shared detector as the glibc job: map changed ebuilds, files/
+        # patches and CI helpers to retained source versions only.
+        NEW_EBUILDS=$(git diff --no-renames --name-only "$BASE_SHA" HEAD | \
+          python3 tests/ci_kernel_expected.py detect)
 
-        WORKFLOW_CHANGED=$(git diff --no-renames --name-only "$BASE_SHA" HEAD | \
-          grep -E "^(\.github/workflows/ebuild-(test(-musl-llvm)?|binpkg-cleanup)\.yml|tests/(ci-.*\.sh|ci_matrix_cases\.py|test-ci-binpkg-lifecycle\.py))$" || true)
-
-        if [ -z "$NEW_EBUILDS" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ] && [ -z "$WORKFLOW_CHANGED" ]; then
-          echo "::notice::No new or modified ebuilds detected, skipping tests"
+        if [ -z "$NEW_EBUILDS" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+          echo "::notice::No affected ebuild versions detected, skipping tests"
           echo "versions=[]" >> "$GITHUB_OUTPUT"
         else
           if [ -z "$NEW_EBUILDS" ]; then
-            echo "Workflow changed or manual dispatch, testing latest version"
+            echo "Manual dispatch without changes, testing latest version"
             LATEST=$(find sys-kernel/cachyos-sources -name "cachyos-sources-*.ebuild" | \
               grep -v "9999" | \
               sed -E 's|.*cachyos-sources-(.+)\.ebuild$|\1|' | \
@@ -177,6 +185,12 @@ jobs:
 
         bash /repo/tests/ci-portage-setup.sh musl /repo /ci-binpkg
         bash /repo/tests/ci-binpkg-consumer.sh /ci-binpkg "${VERSION}" "${USE_FLAGS}"
+        # C-only fast check; do not add Rust toolchain downloads to every case.
+
+        KERNEL_PV="${VERSION%-r*}"
+        bash /repo/tests/ci-kernel-kbuild.sh sched \
+          "/repo/sys-kernel/cachyos-sources/cachyos-sources-${VERSION}.ebuild" \
+          "/usr/src/linux-${KERNEL_PV}-cachyos${VERSION#"${KERNEL_PV}"}" "${USE_FLAGS}"
 
         echo "Successfully installed cachyos-sources-${VERSION} on musl-llvm"
         '

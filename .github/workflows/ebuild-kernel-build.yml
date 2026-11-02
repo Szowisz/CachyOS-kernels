@@ -1,0 +1,215 @@
+name: Manual Kernel Build
+
+# Single-configuration full build inside the Gentoo container: installs
+# cachyos-sources through the same producer/consumer dependency lifecycle as
+# the merge tests, then runs the shared Kbuild helper for a real bzImage +
+# modules build. No scheduler matrix, no kernel install, no release artifacts.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Retained cachyos-sources version (e.g. 7.3.1 or 6.18.55)"
+        required: true
+        type: string
+      use_flags:
+        description: 'USE overrides, same syntax as the merge-test matrix; empty = ebuild defaults'
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  resolve-and-build:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Resolve immutable container image for this run
+      id: image
+      run: |
+        docker pull docker.io/gentoo/stage3:latest
+        IMAGE=$(docker image inspect --format '{{index .RepoDigests 0}}' docker.io/gentoo/stage3:latest)
+        echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+  build-binpkgs:
+    needs: resolve-and-build
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.resolve-and-build.outputs.image }}
+      options: --privileged
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Validate requested version and USE case
+      shell: bash
+      env:
+        MANUAL_VERSION: ${{ github.event.inputs.version }}
+        MANUAL_USE_FLAGS: ${{ github.event.inputs.use_flags }}
+      run: |
+        set -euo pipefail
+        # Inputs arrive through the environment, never interpolated into the
+        # script: a malicious value is data until it passes validation.
+        VERSION="${MANUAL_VERSION}"
+        USE_FLAGS="${MANUAL_USE_FLAGS}"
+        if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-r[0-9]+)?$ ]]; then
+          echo "::error::Bad version format: ${VERSION}"
+          exit 1
+        fi
+        EBUILD="sys-kernel/cachyos-sources/cachyos-sources-${VERSION}.ebuild"
+        if [[ ! -f "${EBUILD}" ]]; then
+          echo "::error::No retained ebuild for cachyos-sources-${VERSION}"
+          exit 1
+        fi
+        # One case line per record: reject line breaks/control bytes so the
+        # producer/consumer case framing cannot be split into extra cases.
+        if [[ "${USE_FLAGS}" == *[$'\n\r\t']* || "${USE_FLAGS}" == *'|'* ||
+              "${VERSION}" == *'|'* ]]; then
+          echo "::error::USE/version must be a single line without '|'"
+          exit 1
+        fi
+        # Reject anything the merge matrix cannot validate: unknown or
+        # REQUIRED_USE-violating flags fail here, before any package merge.
+        read -r -a USE_WORDS <<< "${USE_FLAGS}"
+        python3 tests/ci_kernel_expected.py validate "${EBUILD}" "${USE_WORDS[@]}"
+        printf '%s\n' "${VERSION}" > /tmp/manual-version.txt
+        printf '%s|%s\n' "${VERSION}" "${USE_FLAGS}" > /tmp/manual-case.txt
+        cat /tmp/manual-case.txt
+
+    - name: Setup Portage repository
+      shell: bash
+      run: bash tests/ci-portage-setup.sh glibc "$PWD"
+
+    - name: Build dependency binpkgs for the requested case once
+      shell: bash
+      env:
+        MANUAL_BUILD_DEPS: dev-util/ccache dev-lang/rust-bin dev-util/bindgen sys-devel/bc dev-libs/elfutils
+      run: |
+        set -euo pipefail
+        # Producer builds only the validated requested case (not the whole
+        # merge matrix) plus the genuine Kbuild prerequisites. Prereqs live
+        # in CI, not in the ebuild's RDEPEND.
+        bash tests/ci-binpkg-producer.sh /tmp/manual-version.txt glibc \
+          --case "$(cat /tmp/manual-case.txt)" \
+          --extra-deps "${MANUAL_BUILD_DEPS}"
+
+    - name: Upload local binpkg artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ci-binpkgs-manual-${{ github.run_id }}-${{ github.run_attempt }}
+        path: /ci-binpkg/
+        if-no-files-found: error
+        retention-days: 1
+        compression-level: 0
+
+  full-build:
+    needs: [resolve-and-build, build-binpkgs]
+    runs-on: ubuntu-latest
+    # Hosted jobs have a six-hour hard ceiling; bound setup, compilation,
+    # cache operations and evidence upload inside it.
+    timeout-minutes: 360
+    container:
+      image: ${{ needs.resolve-and-build.outputs.image }}
+      options: --privileged
+    env:
+      # Bounded ccache; correctness must not depend on a cache hit. Only the
+      # compiler cache is stored, never prepared source/object trees.
+      CCACHE_DIR: /ci-ccache
+      CCACHE_LIMIT: 2G
+    steps:
+    - name: Checkout repository
+      timeout-minutes: 5
+      uses: actions/checkout@v4
+
+    - name: Restore bounded compiler cache
+      timeout-minutes: 10
+      uses: actions/cache/restore@v4
+      with:
+        path: /ci-ccache
+        key: ci-kernel-ccache-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          ci-kernel-ccache-
+
+    - name: Download local binpkg artifact
+      timeout-minutes: 10
+      id: download
+      continue-on-error: true
+      uses: actions/download-artifact@v4
+      with:
+        name: ci-binpkgs-manual-${{ github.run_id }}-${{ github.run_attempt }}
+        path: /ci-binpkg
+
+    - name: Require current attempt artifact
+      timeout-minutes: 1
+      if: steps.download.outcome != 'success'
+      run: |
+        echo '::error::Dependency artifact unavailable. Artifacts are deleted after each run; use Re-run all jobs, not failed jobs only.'
+        exit 1
+
+    - name: Restore producer Portage snapshot
+      timeout-minutes: 10
+      shell: bash
+      run: bash tests/ci-portage-setup.sh glibc "$PWD" /ci-binpkg
+
+    - name: Consume binary deps and merge source ebuild
+      timeout-minutes: 30
+      shell: bash
+      env:
+        MANUAL_VERSION: ${{ github.event.inputs.version }}
+        MANUAL_USE_FLAGS: ${{ github.event.inputs.use_flags }}
+      run: |
+        set -euo pipefail
+        # Same validated case framing as the producer: one version|use line,
+        # environment-passed inputs, no re-validation against the ebuild.
+        VERSION="${MANUAL_VERSION}"
+        USE_FLAGS="${MANUAL_USE_FLAGS}"
+        bash tests/ci-binpkg-consumer.sh /ci-binpkg "${VERSION}" "${USE_FLAGS}"
+        # Build prerequisites come from the same-run artifact/binhost only:
+        # no source-build fallback. Missing binaries fail here, loudly.
+        emerge --verbose --usepkgonly \
+          dev-util/ccache dev-lang/rust-bin dev-util/bindgen \
+          sys-devel/bc dev-libs/elfutils
+
+    - name: Build bzImage and modules
+      timeout-minutes: 245
+      shell: bash
+      env:
+        MANUAL_VERSION: ${{ github.event.inputs.version }}
+        MANUAL_USE_FLAGS: ${{ github.event.inputs.use_flags }}
+      run: |
+        set -euo pipefail
+        VERSION="${MANUAL_VERSION}"
+        USE_FLAGS="${MANUAL_USE_FLAGS}"
+        KERNEL_PV="${VERSION%-r*}"
+        TREE="/usr/src/linux-${KERNEL_PV}-cachyos${VERSION#"${KERNEL_PV}"}"
+        mkdir -p /ci-evidence
+        # Explicit timeout below the job ceiling: upload/teardown keep
+        # headroom for evidence even when the build burns the full limit.
+        timeout 4h \
+          bash tests/ci-kernel-kbuild.sh full \
+          "sys-kernel/cachyos-sources/cachyos-sources-${VERSION}.ebuild" \
+          "${TREE}" "${USE_FLAGS}" /ci-evidence \
+          2>&1 | tee /ci-evidence/build.log
+
+    - name: Upload build evidence
+      timeout-minutes: 10
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernel-build-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+        path: /ci-evidence/
+        if-no-files-found: warn
+        retention-days: 7
+
+    - name: Save bounded compiler cache
+      timeout-minutes: 10
+      if: success()
+      uses: actions/cache/save@v4
+      with:
+        path: /ci-ccache
+        key: ci-kernel-ccache-${{ github.run_id }}-${{ github.run_attempt }}

@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import re
+import sys
 
 from portage.dep import check_required_use
 
@@ -10,11 +11,16 @@ from ci_matrix_cases import OPTIONAL_VARIANT_FLAGS, usable_cases
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tests"))
 workflow = (ROOT / ".github/workflows/ebuild-test.yml").read_text()
-# A checker-only change must select the latest source version, not versions=[].
-changed_pattern = re.search(r'WORKFLOW_CHANGED=.*?grep -E "([^"]+)"', workflow, re.S).group(1)
-assert re.search(changed_pattern, "tests/test-source-features.py"), "Checker change skips source tests"
-assert not re.search(changed_pattern, "README.md")
+# A checker-only change must still select source versions: the shared
+# detector maps it to every retained version (covered by
+# test-ci-kernel-kbuild.py's detector assertions).
+from ci_kernel_expected import affected_versions
+assert affected_versions(["tests/test-source-features.py"]) == affected_versions(
+    ["tests/ci_kernel_expected.py"]) == affected_versions(
+    ["tests/ci-kernel-kbuild.sh"]), "helper change must select retained versions"
+assert affected_versions(["README.md"]) == []
 # ponytail: literal quoted matrix only; use a YAML parser if expressions are added.
 matrix = workflow.split("        use_flags:\n", 1)[1].split("    container:", 1)[0]
 cases = re.findall(r'^\s+- "([^"]*)"', matrix, re.MULTILINE)

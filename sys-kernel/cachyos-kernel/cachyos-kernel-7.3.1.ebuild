@@ -10,8 +10,8 @@ LLVM_OPTIONAL=1
 inherit kernel-build toolchain-funcs llvm-r2 optfeature
 
 # Pin patch and config inputs so Manifest checks cover exact upstream bytes.
-CACHYOS_PATCHES_COMMIT="89bb22dec944d4d5b31332f2affbc740665cf0d9"
-CACHYOS_CONFIGS_COMMIT="66666177b78f29c32670ba4f78f882bc0b9cc03d"
+CACHYOS_PATCHES_COMMIT="f3770b16d069a1bce8dfa63841042137f8b43434"
+CACHYOS_CONFIGS_COMMIT="343523fffa2cbfd37e37a04e793d641cbd0fe975"
 CACHYOS_PR="$(( ${PR#r} + 1 ))"
 
 # CachyOS pre-patched tarball
@@ -250,10 +250,6 @@ src_unpack() {
 
 	if use bore || use rt-bore || use deckify; then
 		eapply --fuzz=0 -- "${patches_prefix}-bore.patch"
-		# cachyos-7.3.1-1 reads normalized_sysctl_sched_base_slice in
-		# update_protect_slice(), which the BORE patch defines only for !SCHED_BORE.
-		# https://github.com/Szowisz/CachyOS-kernels/issues/58
-		eapply --fuzz=0 -- "${FILESDIR}/cachyos-sources-7.3.1-bore-update-protect-slice.patch"
 	elif use muqss; then
 		cp "${DISTDIR}/linux-ck-4ceaa4d07af63d9d495f4cbb570547feb39d1236-muqss.patch" "${T}/scheduler.patch" || die
 		eapply --fuzz=0 -d "${T}" -- "${FILESDIR}/cachyos-sources-7.3.0-muqss-rebase.patch"

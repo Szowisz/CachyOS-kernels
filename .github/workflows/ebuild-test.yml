@@ -410,6 +410,8 @@ jobs:
       shell: bash
       run: |
         set -euo pipefail
+        # Gentoo's LLVM bin directories are only on the profile PATH.
+        PATH="${PATH}:$(. /etc/profile.env && echo "${PATH}")"
         KERNEL_VERSION="${{ matrix.version }}"
         KERNEL_PV="${KERNEL_VERSION%-r*}"
         TREE="/usr/src/linux-${KERNEL_PV}-cachyos${KERNEL_VERSION#"${KERNEL_PV}"}"

@@ -187,6 +187,8 @@ jobs:
         bash /repo/tests/ci-binpkg-consumer.sh /ci-binpkg "${VERSION}" "${USE_FLAGS}"
         # C-only fast check; do not add Rust toolchain downloads to every case.
 
+        # Gentoo LLVM bin directories are only on the profile PATH.
+        PATH="${PATH}:$(. /etc/profile.env && echo "${PATH}")"
         KERNEL_PV="${VERSION%-r*}"
         bash /repo/tests/ci-kernel-kbuild.sh sched \
           "/repo/sys-kernel/cachyos-sources/cachyos-sources-${VERSION}.ebuild" \

@@ -83,10 +83,9 @@ jobs:
         set -euo pipefail
 
         # Sync Gentoo repository snapshot
-        for _ in 1 2 3; do
-          if emerge-webrsync -q; then
-            break
-          fi
+        for attempt in 1 2 3; do
+          emerge-webrsync -q && break
+          ((attempt < 3)) || { echo 'emerge-webrsync failed 3 times' >&2; exit 1; }
           sleep 10
         done
 

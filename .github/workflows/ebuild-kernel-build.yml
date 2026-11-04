@@ -144,9 +144,25 @@ jobs:
         name: ci-binpkgs-manual-${{ github.run_id }}-${{ github.run_attempt }}
         path: /ci-binpkg
 
-    - name: Require current attempt artifact
+    # Artifact API can drop connections (ECONNRESET); retry once.
+    - name: Wait before artifact download retry
       timeout-minutes: 1
       if: steps.download.outcome != 'success'
+      run: sleep 30
+
+    - name: Retry local binpkg artifact download
+      timeout-minutes: 10
+      id: download_retry
+      if: steps.download.outcome != 'success'
+      continue-on-error: true
+      uses: actions/download-artifact@v4
+      with:
+        name: ci-binpkgs-manual-${{ github.run_id }}-${{ github.run_attempt }}
+        path: /ci-binpkg
+
+    - name: Require current attempt artifact
+      timeout-minutes: 1
+      if: steps.download.outcome != 'success' && steps.download_retry.outcome != 'success'
       run: |
         echo '::error::Dependency artifact unavailable. Artifacts are deleted after each run; use Re-run all jobs, not failed jobs only.'
         exit 1

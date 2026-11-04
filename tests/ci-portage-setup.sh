@@ -38,7 +38,12 @@ EOF
 	echo 'FETCHCOMMAND="${FETCHCOMMAND} --inet4-only --retry-on-host-error"' >> /etc/portage/make.conf
 	echo 'RESUMECOMMAND="${RESUMECOMMAND} --inet4-only --retry-on-host-error"' >> /etc/portage/make.conf
 	touch /etc/portage/package.use/zz-autounmask
-	emerge --sync -q
+	# Mirrors can serve a half-updated tree (Manifest mismatch); retry 3 times.
+	for attempt in 1 2 3; do
+		emerge --sync -q && break
+		((attempt < 3)) || { echo 'emerge --sync failed 3 times' >&2; exit 1; }
+		sleep 30
+	done
 
 	if [[ "${ABI}" == musl ]]; then
 		# Only perf 7.1/7.2 have this Rust workload; stable 6.19 does not.

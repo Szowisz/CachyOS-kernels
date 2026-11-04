@@ -160,7 +160,10 @@ RDEPEND+="
 				llvm-core/lld
 			)
 			!propeller? (
-				kcfi? ( llvm-core/clang )
+				kcfi? (
+					llvm-core/clang
+					llvm-core/lld
+				)
 			)
 		)
 	)

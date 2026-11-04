@@ -9,7 +9,7 @@ K_NOSETEXTRAVERSION="1"
 
 # Pin patch and config inputs so Manifest checks cover exact upstream bytes.
 CACHYOS_PATCHES_COMMIT="f3770b16d069a1bce8dfa63841042137f8b43434"
-CACHYOS_CONFIGS_COMMIT="343523fffa2cbfd37e37a04e793d641cbd0fe975"
+CACHYOS_CONFIGS_COMMIT="099f92d8c38de495015370490290213d72becf1a"
 CACHYOS_PR="$(( ${PR#r} + 1 ))"
 
 # Genpatches support - apply base and extras patches on top of CachyOS tarball
@@ -140,7 +140,10 @@ REQUIRED_USE="
 "
 
 RDEPEND+="
-	dev-util/pahole
+	llvm-lto-none? ( dev-util/pahole )
+	!llvm-lto-none? ( >=dev-util/pahole-1.32-r1 )
+	>=dev-util/bindgen-0.72.1
+	|| ( >=dev-lang/rust-bin-1.85.0[rust-src] >=dev-lang/rust-1.85.0[rust-src] )
 	autofdo? ( dev-util/perf[libpfm] )
 	!llvm-lto-none? (
 		llvm-core/clang
@@ -216,6 +219,7 @@ src_prepare() {
 	# SND_SOC_AMD_LEGACY_SDW_MACH selected it unconditionally.
 	# Upstream: https://git.kernel.org/broonie/sound/c/d06607bafb36
 	eapply "${FILESDIR}/cachyos-sources-7.3.0-tas2783-sdca-deps.patch"
+	eapply --fuzz=0 -- "${FILESDIR}/cachyos-sources-7.3.1-rust-btf-lto.patch"
 
 	if use bore || use rt-bore || use deckify; then
 		eapply --fuzz=0 -- "${patches_prefix}-bore.patch"
@@ -330,11 +334,9 @@ src_prepare() {
 			-e LTO_NONE || die
 	fi
 
-	if use llvm-lto-none; then
-		scripts/config --set-str DRM_PANIC_SCREEN qr_code -e DRM_PANIC_SCREEN_QR_CODE \
-			--set-str DRM_PANIC_SCREEN_QR_CODE_URL "https://panic.archlinux.org/panic_report#" \
-			--set-val DRM_PANIC_SCREEN_QR_VERSION 40 || die
-	fi
+	scripts/config --set-str DRM_PANIC_SCREEN qr_code -e DRM_PANIC_SCREEN_QR_CODE \
+		--set-str DRM_PANIC_SCREEN_QR_CODE_URL "https://panic.archlinux.org/panic_report#" \
+		--set-val DRM_PANIC_SCREEN_QR_VERSION 40 || die
 
 	if use hz-ticks-100; then
 		_set_hztick_rate 100

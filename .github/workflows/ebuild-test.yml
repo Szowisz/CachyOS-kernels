@@ -104,6 +104,8 @@ jobs:
         cat > /etc/portage/package.use/kernel <<EOF
         >=dev-util/perf-7.2 libpfm
         >=sys-kernel/installkernel-70 dracut
+        dev-lang/rust-bin rust-src
+        dev-lang/rust rust-src
         EOF
 
         echo "=== Validating sys-kernel/cachyos-kernel ebuilds ==="

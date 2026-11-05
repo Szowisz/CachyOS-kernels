@@ -151,7 +151,7 @@ jobs:
       run: sleep 30
 
     - name: Retry local binpkg artifact download
-      timeout-minutes: 10
+      timeout-minutes: 8
       id: download_retry
       if: steps.download.outcome != 'success'
       continue-on-error: true

@@ -115,7 +115,6 @@ def expected_symbols(ebuild: Path, overrides: str) -> list[tuple[str, str | None
     enabled = effective_flags(source, overrides)
     explicit = set(overrides.split())
     rt_selected = bool(enabled & {"rt", "rt-bore"})
-    version = tuple(map(int, re.search(r"-(\d+)\.(\d+)\.", ebuild.name).groups()))
     expectations: list[tuple[str, str | None]] = []
     seen: set[tuple[str, str | None]] = set()
 
@@ -138,15 +137,15 @@ def expected_symbols(ebuild: Path, overrides: str) -> list[tuple[str, str | None
         add("TRANSPARENT_HUGEPAGE", None)
     else:
         add("PREEMPT_DYNAMIC", "y")
-        # Pre-7.3 MuQSS uses its own preemption choice names.
-        suffix = "_NODEF" if version < (7, 3) and "muqss" in enabled else ""
+        # Legacy MuQSS ports use their own preemption choice names.
+        suffix = ("_NODEF" if "muqss" in enabled and "PREEMPT_LAZY_NODEF" in source
+                  else "")
         if "preempt-full" in enabled:
             add("PREEMPT" + suffix, "y")
         elif "preempt-lazy" in enabled:
             add("PREEMPT_LAZY" + suffix, "y")
     # PREEMPT_RT disables THP in mm/Kconfig; only non-RT variants inherit a mode.
-    if (version >= (7, 2) and not rt_selected
-            and not enabled & {"hugepage-always", "hugepage-madvise"}):
+    if not rt_selected and not enabled & {"hugepage-always", "hugepage-madvise"}:
         add("TRANSPARENT_HUGEPAGE_MADVISE" if "server" in enabled
             else "TRANSPARENT_HUGEPAGE_ALWAYS", "y")
     # Assert the unselected scheduler alternatives stay off.

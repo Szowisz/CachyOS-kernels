@@ -125,7 +125,7 @@ python3 ./sys-kernel/cachyos-sources/script/update_ebuild.py --dry-run
 
 The script does:
 - Creates ebuild from latest template
-- Fetches upstream config versions for USE flag availability
+- Checks that the pinned upstream PKGBUILDs still carry the expected package options
 - Pins `CACHYOS_PATCHES_COMMIT` and `CACHYOS_CONFIGS_COMMIT`
 - Regenerates the Manifest for commit-pinned GitHub `SRC_URI` patch/config files
 
@@ -422,10 +422,7 @@ pkgdev commit --signoff -m "sys-kernel: update CachyOS kernels to <V1>, <V2> and
 
 ### Version-dependent USE flags
 
-Some USE flags only exist for certain kernel versions. The `update_ebuild.py` script handles this automatically by checking upstream PKGBUILD configs (`.SRCINFO`):
-
-- `hardened`: Availability varies by upstream source/kernel config; `update_ebuild.py` checks `.SRCINFO` before keeping/restoring it
-- `bmq`: Availability varies by upstream config; `update_ebuild.py` checks `.SRCINFO` before keeping/restoring it
+Some USE flags only exist for certain kernel versions (for example `cachyos-hardened`, `bmq-lfbmq`, `deckify`). `update_ebuild.py` copies the template's USE surface unchanged; add or drop such flags by hand from the PKGBUILD/variant audit above, and let the CI merge matrix prove each exposed flag applies and compiles.
 
 When manually creating kernel ebuilds, sync USE flag changes from the corresponding `cachyos-sources` ebuild.
 

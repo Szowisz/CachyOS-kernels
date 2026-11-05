@@ -16,281 +16,8 @@ def log(message, level="INFO"):
     print(f"[{level}] {message}")
 
 
-# Official package paths are combinations of scheduler, preset, and hardware
-# layers. This inventory describes the independent capabilities represented by
-# each path; it is an audit oracle only and never rewrites an ebuild.
-OFFICIAL_PACKAGE_FEATURES = {
-    "linux-cachyos": {"eevdf"},
-    "linux-cachyos-bore": {"bore"},
-    "linux-cachyos-bmq": {"bmq"},
-    "linux-cachyos-deckify": {"bore", "deckify"},
-    "linux-cachyos-eevdf": {"eevdf"},
-    "linux-cachyos-rt-bore": {"rt", "rt-bore"},
-    "linux-cachyos-server": {"eevdf", "server"},
-}
-
-UPSTREAM_PACKAGES = [
-    *OFFICIAL_PACKAGE_FEATURES,
-    "linux-cachyos-hardened",
-    "linux-cachyos-lts",
-]
-
-# Hidden patch families are admitted only after exact-version applicability
-# has been validated. Keep that evidence explicit instead of treating every
-# directory entry as an automatically supported USE flag.
-VALIDATED_HIDDEN_FEATURES = {
-    "7.3.1": {
-        "muqss": {
-            "external_uri": "https://github.com/ckolivas/linux/commit/4ceaa4d07af63d9d495f4cbb570547feb39d1236.patch",
-            "targets": ("7.3.1",),
-            "patterns": (
-                "muqss? (",
-                "linux-ck-4ceaa4d07af63d9d495f4cbb570547feb39d1236-muqss.patch",
-                "cachyos-sources-7.3.0-muqss-rebase.patch",
-                '-e SCHED_MUQSS -d SCHED_POC_SELECTOR',
-            ),
-            "evidence": "same v0.32 patch and 7.3.0 Kconfig context rebase apply at fuzz=0 on cachyos-7.3.1-1 + genpatches-7.3-2; sources/kernel prepare, olddefconfig and feature checks for 1000 Hz full and 100 Hz periodic lazy + AUFS in .ci/7.3.1/matrix",
-        },
-        "bmq": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "7.3 PRJC applies at fuzz=0 on cachyos-7.3.1-1 + genpatches-7.3-2; SCHED_BMQ survives olddefconfig in both packages",
-        },
-        "pds": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "same PRJC patch; SCHED_PDS and futex scheduler APIs verified after olddefconfig in both packages",
-        },
-        "deckify": {
-            "path": "misc/0001-handheld.patch",
-            "evidence": "handheld applies at fuzz=0 with BORE and ACPI-call on cachyos-7.3.1-1; backlight declaration and handheld modules checked after olddefconfig in both packages",
-        },
-        "aufs": {
-            "path": "misc/0001-aufs-7.3-merge-v20260914.patch",
-            "evidence": "prepare and AUFS_FS=m after olddefconfig on cachyos-7.3.1-1 + genpatches-7.3-2 in both packages",
-        },
-    },
-    "7.3.0": {
-        "muqss": {
-            "external_uri": "https://github.com/ckolivas/linux/commit/4ceaa4d07af63d9d495f4cbb570547feb39d1236.patch",
-            "targets": ("7.3.0-r1", "7.3.0-r2", "7.3.0-r3"),
-            "patterns": (
-                "muqss? (",
-                "linux-ck-4ceaa4d07af63d9d495f4cbb570547feb39d1236-muqss.patch",
-                "cachyos-sources-7.3.0-muqss-rebase.patch",
-                '-e SCHED_MUQSS -d SCHED_POC_SELECTOR',
-            ),
-            "evidence": "official standalone v0.32; two Kconfig context rebases only on cachyos-7.3.0-2, -3 and -4 + genpatches-7.3-1; source3 package/prepare and normalized HZ/tick/AUFS checks in .ci/r2/source-cases.json; r3: ck patch + rebase applies at fuzz=0 on cachyos-7.3.0-4 (0 failed hunks, .ci/patchtest dry-run)",
-        },
-        "bmq": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "7.3 PRJC applies directly at fuzz=0 on cachyos-7.3.0-2 + genpatches-7.3-1; SCHED_BMQ survives olddefconfig in both packages",
-        },
-        "pds": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "same direct PRJC port; SCHED_PDS and included futex APIs verified after olddefconfig in both packages; no old rebases",
-        },
-        "deckify": {
-            "path": "misc/0001-handheld.patch",
-            "evidence": "7.3 handheld applies at fuzz=0 with BORE and ACPI-call; moved backlight declaration and handheld modules checked after olddefconfig in both packages",
-        },
-        "aufs": {
-            "path": "misc/0001-aufs-7.3-merge-v20260914.patch",
-            "evidence": "prepare and AUFS_FS=m after olddefconfig on cachyos-7.3.0-2 + genpatches-7.3-1 in both packages",
-        },
-    },
-    "6.18.55": {
-        "pds": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "full PRJC plus 6.18.55 context, block timestamp, futex and mm_cid backports; gcc vmlinux linked",
-        },
-        "bmq-lfbmq": {
-            "path": "sched/0001-prjc-cachy-lfbmq.patch",
-            "evidence": "full LFBMQ plus 6.18.55 context, block timestamp, futex and mm_cid backports; gcc vmlinux linked",
-        },
-        "cachyos-hardened": {
-            "path": "misc/0001-hardened.patch",
-            "evidence": "6.18.55 hardened rebase plus disabled-canary stub; gcc vmlinux linked",
-        },
-    },
-    "7.2.10": {
-        "bmq": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "same validated PRJC path as pds",
-        },
-        "deckify": {
-            "path": "misc/0001-handheld.patch",
-            "evidence": "fuzz=0 millipercent context rebase retains prev_brightness declaration; amdgpu and gcc vmlinux built",
-        },
-        "pds": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "cpuset prerequisite, context rebases and futex helpers; gcc vmlinux linked",
-        },
-        "muqss": {
-            "path": "sched/0001-muqss-cachy.patch",
-            "evidence": "applies at fuzz=0 after 7.2.10 comment rebase; no cpuset rollback",
-        },
-        "aufs": {
-            "path": "misc/0001-aufs-7.2-merge-v20260914.patch",
-            "evidence": "prepare and AUFS_FS=m checked on 7.2.10 with genpatches-7.2-11",
-        },
-        "cachyos-hardened": {
-            "path": "misc/0001-hardened.patch",
-            "evidence": "fuzz=0 namei sysctl preimage rebase for genpatches-7.2-11; gcc vmlinux linked",
-        },
-    },
-    "7.2.11": {
-        "muqss": {
-            "path": "sched/0001-muqss-cachy.patch",
-            "evidence": "all 145 sections apply at fuzz=0 on cachyos-7.2.11-1 with existing 7.2.10 comment rebase; no PRJC cpuset rollback",
-        },
-        "bmq": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "same validated PRJC path as pds",
-        },
-        "pds": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "cpuset prerequisite, 7.2.9 rebase plus 7.2.11 comment rebase and futex helpers apply at fuzz=0 on cachyos-7.2.11-1",
-        },
-        "cachyos-hardened": {
-            "path": "misc/0001-hardened.patch",
-            "evidence": "7.2.11 hardened meta-rebase adjusts fs/namei.c sysctl defaults for genpatches-7.2-12; patch applies at fuzz=0",
-        },
-        "deckify": {
-            "path": "misc/0001-handheld.patch",
-            "evidence": "official 333b9269 handheld applies directly at fuzz=0 after genpatches-7.2-12 and BORE rebase; HID API, lifetime, locking and IBEX checks pass",
-        },
-        "aufs": {
-            "path": "misc/0001-aufs-7.2-merge-v20260914.patch",
-            "evidence": "applies to cachyos-7.2.11-1 plus genpatches-7.2-12; overlay exception retained per existing-overlay-flags policy",
-        },
-    },
-    "7.2.2": {
-        "muqss": {
-            "path": "sched/0001-muqss-cachy.patch",
-            "evidence": "applies to 7.2.2 after genpatches-7.2-3; MuQSS.o compiles",
-        },
-    },
-    "7.2.3": {
-        "muqss": {
-            "path": "sched/0001-muqss-cachy.patch",
-            "evidence": "applies to 7.2.3 after genpatches-7.2-4; clean prepare with muqss passes",
-        },
-    },
-    "7.2.4": {
-        "muqss": {
-            "path": "sched/0001-muqss-cachy.patch",
-            "evidence": "applies to 7.2.4 after genpatches-7.2-5; clean prepare with muqss passes",
-        },
-    },
-    "7.2.5": {
-        "aufs": {
-            "path": "misc/0001-aufs-7.2-merge-v20260907.patch",
-            "evidence": "applies to 7.2.5 after genpatches-7.2-6; clean prepare with aufs passes",
-        },
-        "muqss": {
-            "path": "sched/0001-muqss-cachy.patch",
-            "evidence": "applies to 7.2.5 after genpatches-7.2-6; clean prepare with muqss passes",
-        },
-        "pds": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "applies to 7.2.5 after genpatches-7.2-6; clean prepare with pds passes",
-        },
-    },
-    "7.2.6": {
-        "aufs": {
-            "path": "misc/0001-aufs-7.2-merge-v20260907.patch",
-            "evidence": "applies to 7.2.6 after genpatches-7.2-7; clean prepare with aufs passes",
-        },
-        "muqss": {
-            "path": "sched/0001-muqss-cachy.patch",
-            "evidence": "applies to 7.2.6 with the SCHED_CLASS_EXT prerequisite; clean prepare with muqss passes",
-        },
-        "pds": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "applies to 7.2.6 with the SCHED_CLASS_EXT prerequisite; clean prepare with pds passes",
-        },
-    },
-    "7.2.7": {
-        "aufs": {
-            "path": "misc/0001-aufs-7.2-merge-v20260907.patch",
-            "evidence": "applies to cachyos-7.2.7-1 at fuzz=0 in a clean dry-run",
-        },
-        "muqss": {
-            "path": "sched/0001-muqss-cachy.patch",
-            "evidence": "applies to 7.2.7 after prjc-muqss-prereq + SCHED_CLASS_EXT prereqs; fuzz=2 dry-run clean",
-        },
-        "pds": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "applies to 7.2.7 after prjc-muqss-prereq + SCHED_CLASS_EXT prereqs; fuzz=2 dry-run clean",
-        },
-        "bmq": {
-            "path": "sched/0001-prjc-cachy.patch",
-            "evidence": "applies to 7.2.7 after prjc-muqss-prereq + SCHED_CLASS_EXT prereqs; fuzz=2 dry-run clean",
-        },
-        "deckify": {
-            "path": "misc/0001-handheld.patch",
-            "evidence": "acpi-call + handheld + bore-cachy apply to cachyos-7.2.7-1 at fuzz=0 (handheld refreshed in kernel-patches edb006d5)",
-        },
-    },
-}
-
-AUDIT_PATTERNS = {
-    "eevdf": (
-        "SCHED_POC_SELECTOR",
-    ),
-    "bore": (
-        "sched/0001-bore-cachy.patch",
-        "-e SCHED_BORE",
-    ),
-    "bmq": (
-        "sched/0001-prjc-cachy.patch",
-        "-e SCHED_ALT -e SCHED_BMQ",
-    ),
-    "pds": (
-        "pds? (",
-        "sched/0001-prjc-cachy.patch",
-        "-e SCHED_ALT -d SCHED_BMQ -e SCHED_PDS",
-    ),
-    "muqss": (
-        "sched/0001-muqss-cachy.patch",
-        "-e SCHED_MUQSS -e MUQSS_IOTIME",
-        "HZ_1000_NODEF",
-        "PREEMPT_LAZY_NODEF",
-        "HZ_PERIODIC_NODEF",
-        "NO_HZ_IDLE_NODEF",
-    ),
-    "bmq-lfbmq": ("sched/0001-prjc-cachy-lfbmq.patch", "use bmq-lfbmq", "-e SCHED_BMQ"),
-    "aufs": (
-        "misc/0001-aufs-",
-        "if use aufs; then",
-        "-m AUFS_FS",
-    ),
-    "rt": (
-        "misc/0001-rt-i915.patch",
-        "-e PREEMPT_RT",
-    ),
-    "rt-bore": (
-        "rt-bore? (",
-        "-e SCHED_BORE -e PREEMPT_RT",
-    ),
-    "server": (
-        "if use server; then",
-        "-d CACHY",
-        "-e CACHY",
-    ),
-    "deckify": (
-        "misc/0001-acpi-call.patch",
-        "misc/0001-handheld.patch",
-        "if use deckify; then",
-        "HID_LENOVO_GO",
-    ),
-    "cachyos-hardened": (
-        "cachyos-hardened? (",
-        "misc/0001-hardened.patch",
-        "-hardened.patch",
-        "if use cachyos-hardened; then",
-    ),
-}
-
+# PKGBUILD option patterns each official package must still carry. A mismatch
+# means upstream packaging changed and the ebuild USE surface needs review.
 OFFICIAL_PACKAGE_PATTERNS = {
     "linux-cachyos": ("_cpusched:=cachyos",),
     "linux-cachyos-bore": ("_cpusched:=bore", "sched/0001-bore-cachy.patch"),
@@ -316,44 +43,11 @@ OFFICIAL_PACKAGE_PATTERNS = {
     ),
 }
 
-DOCUMENTED_EXCLUSIONS = {
-    "bmq-lfbmq": "PRJC-LFBMQ has no 7.2 patch family",
-}
-
-VERSIONED_EXCLUSIONS = {
-    "7.3.1": {
-        "bmq-lfbmq": "PRJC-LFBMQ has no 7.3 patch family",
-        "hardened": "upstream hardened remains on 7.2.11; no 7.3 patch/config",
-    },
-    "7.3.0": {
-        "bmq-lfbmq": "PRJC-LFBMQ has no 7.3 patch family",
-        "hardened": "upstream hardened remains on 7.2.11; no 7.3 patch/config",
-    },
-    "7.2.5": {
-        "deckify": "deckify remains on 7.2.3",
-        "bore-vanilla": "bare BORE fails 8 of 23 kernel/sched/fair.c hunks",
-    },
-    "7.2.6": {
-        "deckify": "deckify remains upstream, but its handheld patch does not apply to 7.2.6",
-        "bore-vanilla": (
-            "bare BORE fails 10 of 23 kernel/sched/fair.c hunks on "
-            "cachyos-7.2.6-1"
-        ),
-        "hardened": "hardened remains on 7.1.8",
-    },
-    "7.2.7": {
-        "hardened": (
-            "7.2/misc/0001-hardened.patch applies to the pristine cachyos-7.2.7-1 "
-            "tree at fuzz=0, but 116 hunks conflict with genpatches-7.2-8; "
-            "the upstream hardened build does not apply genpatches, so it needs "
-            "a downstream rebase before it can be exposed"
-        ),
-        "bore-vanilla": (
-            "bare BORE fails 9 hunks on cachyos-7.2.7-1; only the "
-            "bore-cachy variant is wired"
-        ),
-    },
-}
+UPSTREAM_PACKAGES = [
+    *OFFICIAL_PACKAGE_PATTERNS,
+    "linux-cachyos-hardened",
+    "linux-cachyos-lts",
+]
 
 
 def parse_srcinfo_pkgver(content):
@@ -418,152 +112,6 @@ def audit_official_package_inventory(
             if pattern not in pkgbuild:
                 errors.append(f"{package}: upstream no longer matches: {pattern}")
 
-    if (upstream_versions.get("linux-cachyos-hardened") == clean_target
-            and "cachyos-hardened" not in VALIDATED_HIDDEN_FEATURES.get(clean_target, {})):
-        errors.append(
-            "linux-cachyos-hardened now targets this version; audit applicability "
-            "and add it to the explicit layered inventory or document exclusion"
-        )
-
-    return errors
-
-
-def get_kernel_patch_paths(patches_commit):
-    """Fetch paths in the pinned kernel-patches tree."""
-    url = (
-        "https://api.github.com/repos/CachyOS/kernel-patches/git/trees/"
-        f"{patches_commit}?recursive=1"
-    )
-    try:
-        with urlopen(url) as response:
-            data = json.loads(response.read().decode("utf-8"))
-        return {entry["path"] for entry in data.get("tree", []) if "path" in entry}
-    except Exception as e:
-        log(f"Could not inspect kernel-patches tree: {e}", "ERROR")
-        return None
-
-
-def audit_hidden_patch_inventory(target_version, patch_paths, lts=False):
-    """Ensure every validated hidden feature still exists at its evidenced path."""
-    clean_target = clean_version_helper(target_version)
-    series = ".".join(clean_target.split(".")[:2])
-    errors = []
-
-    for feature, details in VALIDATED_HIDDEN_FEATURES.get(clean_target, {}).items():
-        if "commits" in details or "external_uri" in details:
-            # External commit inputs are checked by audit_feature_inventory and Manifest.
-            continue
-        path = f"{details.get('series', series)}/{details['path']}"
-        if path not in patch_paths:
-            errors.append(f"{feature}: validated hidden patch disappeared: {path}")
-
-    for feature, basename in {
-        "cachyos-hardened": "0001-hardened.patch",
-        "bmq-lfbmq": "lfbmq",
-    }.items():
-        if feature in VALIDATED_HIDDEN_FEATURES.get(clean_target, {}):
-            continue
-        if any(
-            path.startswith(f"{series}/") and basename in path
-            for path in patch_paths
-        ):
-            errors.append(
-                f"{feature}: candidate patch appeared for {series}; validate exact-version "
-                "applicability, then expose it or update the documented exclusion"
-            )
-
-    return errors
-
-
-def extract_iuse_flags(content):
-    """Return normalized USE flags declared in the first IUSE block."""
-    match = re.search(r'IUSE="([^"]*)"', content, re.DOTALL)
-    if not match:
-        return set()
-    return {flag.lstrip("+") for flag in match.group(1).split()}
-
-
-def get_expected_features(target_version, upstream_versions, lts=False):
-    """Return explicit official and validated hidden features for the target."""
-    clean_target = clean_version_helper(target_version)
-    expected = set(VALIDATED_HIDDEN_FEATURES.get(clean_target, {}))
-
-    if lts:
-        if upstream_versions.get("linux-cachyos-lts") == clean_target:
-            expected.update({"eevdf", "bore", "bmq", "rt", "rt-bore", "cachyos-hardened"})
-        return expected
-
-    for package, features in OFFICIAL_PACKAGE_FEATURES.items():
-        if upstream_versions.get(package) == clean_target:
-            expected.update(features)
-
-    expected.update(VALIDATED_HIDDEN_FEATURES.get(clean_target, {}))
-    return expected
-
-
-def audit_feature_inventory(content, target_version, upstream_versions, lts=False):
-    """Read-only gate for expected feature declarations and implementation wiring."""
-    declared = extract_iuse_flags(content)
-    expected = get_expected_features(target_version, upstream_versions, lts)
-    errors = []
-
-    for feature in sorted(expected):
-        if feature not in declared:
-            errors.append(f"missing IUSE flag: {feature}")
-            continue
-        if lts and clean_version_helper(target_version) not in VALIDATED_HIDDEN_FEATURES:
-            continue
-        details = VALIDATED_HIDDEN_FEATURES.get(clean_version_helper(target_version), {}).get(feature, {})
-        # 7.3 PKGBUILD leaves EEVDF at the shipped config default, like LTS.
-        stock_eevdf = feature == "eevdf" and (lts or clean_version_helper(target_version) in ("7.3.0", "7.3.1"))
-        patterns = [] if stock_eevdf else list(details.get("patterns", AUDIT_PATTERNS[feature]))
-        if "external_uri" in details:
-            patterns.append(details["external_uri"])
-            if target_version not in details["targets"]:
-                errors.append(f"{feature}: external patch validated only for {details['targets']}")
-        patterns.extend(f"https://github.com/CachyOS/linux/commit/{commit}.patch"
-                        for commit in details.get("commits", ()))
-        if "series" in details:
-            patterns.extend((f"/${{CACHYOS_PATCHES_COMMIT}}/{details['series']}",
-                             f"cachyos-kernel-patches-${{CACHYOS_PATCHES_COMMIT}}-{details['series']}"))
-        for pattern in patterns:
-            if pattern not in content:
-                errors.append(f"{feature}: missing wiring pattern: {pattern}")
-
-    if "cachyos" in declared:
-        errors.append("cachyos must not be a separate scheduler USE flag")
-
-    validated_hidden = set(VALIDATED_HIDDEN_FEATURES.get(
-        clean_version_helper(target_version), {}
-    ))
-    hidden_features = {
-        feature
-        for features in VALIDATED_HIDDEN_FEATURES.values()
-        for feature in features
-    }
-    official_features = set()
-    if lts:
-        official_features.update({"eevdf", "bore", "bmq", "rt", "rt-bore", "cachyos-hardened"})
-    else:
-        for package, features in OFFICIAL_PACKAGE_FEATURES.items():
-            if upstream_versions.get(package) == clean_version_helper(target_version):
-                official_features.update(features)
-    for feature in sorted((declared & hidden_features) - validated_hidden - official_features):
-        errors.append(
-            f"{feature}: declared without exact-version applicability evidence"
-        )
-
-    if lts:
-        return errors
-
-    exclusions = {
-        **DOCUMENTED_EXCLUSIONS,
-        **VERSIONED_EXCLUSIONS.get(clean_version_helper(target_version), {}),
-    }
-    for feature, exclusion in exclusions.items():
-        if feature not in declared and exclusion not in content:
-            errors.append(f"{feature}: missing documented exclusion: {exclusion}")
-
     return errors
 
 
@@ -571,7 +119,7 @@ def report_feature_audit(errors, prefix=""):
     """Log deterministic feature audit results."""
     label = f"{prefix}: " if prefix else ""
     if not errors:
-        log(f"{label}layered feature inventory is complete")
+        log(f"{label}PKGBUILD options match")
         return True
     for error in errors:
         log(f"{label}{error}", "ERROR")
@@ -634,30 +182,6 @@ def clean_version_helper(version):
     # Extract only the numeric version part (e.g. "6.17.0" from "6.17.0-r3")
     match = re.match(r'^(\d+\.\d+\.\d+(?:\.\d+)?)', version)
     return match.group(1) if match else version
-
-
-def update_versioned_exclusion_text(content, template_version, target_version):
-    """Carry explicit technical exclusions from the template to the target."""
-    template_exclusions = VERSIONED_EXCLUSIONS.get(
-        clean_version_helper(template_version), {}
-    )
-    target_exclusions = VERSIONED_EXCLUSIONS.get(
-        clean_version_helper(target_version), {}
-    )
-
-    for feature, old_text in template_exclusions.items():
-        new_text = target_exclusions.get(feature)
-        if new_text:
-            content = content.replace(old_text, new_text, 1)
-        else:
-            content = content.replace(f"# - {old_text}\n", "", 1)
-
-    marker = 'REQUIRED_USE="\n'
-    for new_text in target_exclusions.values():
-        if new_text not in content and marker in content:
-            content = content.replace(marker, f"# - {new_text}\n{marker}", 1)
-
-    return content
 
 
 def get_genpatches_version_from_template(
@@ -904,8 +428,7 @@ def extract_version_from_ebuild_name(ebuild_path):
 
 
 def copy_and_update_ebuild(
-    template_path, new_version, ebuild_dir, dry_run=False, force=False, lts=False,
-    skip_version_check=False, upstream_versions=None
+    template_path, new_version, ebuild_dir, dry_run=False, force=False, lts=False
 ):
     """Copy and update ebuild for new version"""
     new_ebuild_name = f"cachyos-sources-{new_version}.ebuild"
@@ -933,33 +456,14 @@ def copy_and_update_ebuild(
             f"DRY RUN: Would generate an ebuild with genpatches version {genpatches_version}",
             "INFO",
         )
-        if not skip_version_check and upstream_versions:
-            template_content = update_versioned_exclusion_text(
-                Path(template_path).read_text(), template_version, new_version
-            )
-            errors = audit_feature_inventory(
-                template_content, new_version, upstream_versions, lts
-            )
-            if errors:
-                report_feature_audit(errors, "DRY RUN")
-                log(
-                    "DRY RUN: Generation would stop before writing an ebuild",
-                    "ERROR",
-                )
-                return False
-            report_feature_audit(errors, "DRY RUN")
-
         return new_ebuild_path
 
-    # Build the candidate entirely in memory. The omission gate is read-only:
-    # an existing --force target must remain byte-for-byte intact on failure.
+    # Build the candidate entirely in memory; an existing --force target stays
+    # intact if any transformation fails.
     content = Path(template_path).read_text()
 
     # Extract template version for comparison
     template_version = extract_version_from_ebuild_name(template_path)
-    content = update_versioned_exclusion_text(
-        content, template_version, new_version
-    )
 
     # CachyOS pkgrel is encoded by the Gentoo revision.
     content, count = re.subn(
@@ -1002,17 +506,7 @@ def copy_and_update_ebuild(
         )
         log(f"Updated ZFS_COMMIT to: {zfs_commit[:12]}...")
 
-    # Audit only. Package paths represent layered combinations, and hidden
-    # scheduler families require explicit applicability evidence; never infer
-    # mutations from package names or silently add/delete implementation paths.
-    if not skip_version_check and upstream_versions:
-        errors = audit_feature_inventory(
-            content, new_version, upstream_versions, lts
-        )
-        if not report_feature_audit(errors):
-            return None
-
-    # Write only after every transformation and omission audit succeeds.
+    # Write only after every transformation succeeds.
     with open(new_ebuild_path, "w") as f:
         f.write(content)
 
@@ -1097,7 +591,7 @@ def main():
     parser.add_argument(
         "--skip-version-check",
         action="store_true",
-        help="Skip the layered upstream feature audit"
+        help="Skip the upstream PKGBUILD option check"
     )
     args = parser.parse_args()
 
@@ -1154,34 +648,24 @@ def main():
         log("Could not determine pinned upstream commits", "ERROR")
         sys.exit(1)
 
-    upstream_versions = None
     if not args.skip_version_check:
-        log("Auditing layered upstream feature inventory...")
+        log("Checking upstream PKGBUILD options...")
         upstream_versions, pkgbuilds = fetch_upstream_package_data(configs_commit)
         if len(upstream_versions) != len(UPSTREAM_PACKAGES):
             missing = sorted(set(UPSTREAM_PACKAGES) - set(upstream_versions))
             log("Could not fetch upstream packages: " + ", ".join(missing), "ERROR")
             sys.exit(1)
 
-        patch_paths = get_kernel_patch_paths(patches_commit)
-        if patch_paths is None:
-            sys.exit(1)
-
         upstream_errors = audit_official_package_inventory(
             target_version, upstream_versions, pkgbuilds, args.lts
-        )
-        upstream_errors.extend(
-            audit_hidden_patch_inventory(target_version, patch_paths, args.lts)
         )
         if not report_feature_audit(upstream_errors, "UPSTREAM"):
             sys.exit(1)
     else:
-        log("Skipping layered upstream feature audit (--skip-version-check)")
+        log("Skipping upstream PKGBUILD option check (--skip-version-check)")
 
-    # Copy and update ebuild only after the read-only omission gate passes.
     new_ebuild_path = copy_and_update_ebuild(
-        template_ebuild, target_version, ebuild_dir, args.dry_run, args.force, args.lts,
-        args.skip_version_check, upstream_versions
+        template_ebuild, target_version, ebuild_dir, args.dry_run, args.force, args.lts
     )
 
     if not new_ebuild_path:

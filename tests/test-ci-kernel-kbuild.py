@@ -3,8 +3,8 @@
 
 Stub `make`/`clang`/`rustc`/`bindgen` binaries record invocations and emulate
 olddefconfig feature loss, so argument/toolchain/preservation/failure
-assertions run with no host clang and no real kernel tree. Checks use the
-newest retained source ebuild and never name a concrete kernel version.
+assertions run with no host clang and no real kernel tree. Helper checks use
+a frozen synthetic fixture ebuild, never a real version-specific one.
 """
 
 import json
@@ -23,8 +23,45 @@ import ci_kernel_expected as expected_module  # noqa: E402
 
 HELPER = ROOT / "tests/ci-kernel-kbuild.sh"
 RETAINED = expected_module.retained_versions()
-LATEST = RETAINED[-1]
-EBUILD = ROOT / f"sys-kernel/cachyos-sources/cachyos-sources-{LATEST}.ebuild"
+
+# Frozen fixture overlay: helper/workflow behavior is checked against this
+# synthetic ebuild, never against a real (version-specific) one. `tests`
+# links back to the real helpers so workflow bodies run unchanged.
+FIXTURE_VERSION = "1.0.0"
+_fixture_dir = tempfile.TemporaryDirectory(prefix="ci-kbuild-fixture-", dir="/var/tmp")
+FIXTURE_ROOT = Path(_fixture_dir.name)
+(FIXTURE_ROOT / "tests").symlink_to(ROOT / "tests")
+EBUILD = FIXTURE_ROOT / f"sys-kernel/cachyos-sources/cachyos-sources-{FIXTURE_VERSION}.ebuild"
+EBUILD.parent.mkdir(parents=True)
+EBUILD.write_text("""EAPI=8
+IUSE="
+	+bore bmq pds muqss rt rt-bore eevdf
+	server deckify aufs kcfi
+	+autofdo +propeller
+	+llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none
+	kernel-builtin-zfs
+	hz-ticks-100 hz-ticks-250 hz-ticks-300 hz-ticks-500 hz-ticks-600 hz-ticks-750 +hz-ticks-1000
+	+per-gov tickrate-periodic tickrate-idle +tickrate-full +preempt-full preempt-lazy
+	+o3 os debug +bbr3
+	hugepage-always hugepage-madvise
+	mgeneric mgeneric-v1 mgeneric-v2 mgeneric-v3 mgeneric-v4
+	+mnative mzen4
+"
+REQUIRED_USE="
+	^^ ( bore bmq pds muqss rt rt-bore eevdf )
+	deckify? ( bore )
+	propeller? ( !llvm-lto-full !llvm-lto-none )
+	autofdo? ( || ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist ) )
+	kernel-builtin-zfs? ( !kcfi )
+	^^ ( llvm-lto-thin llvm-lto-full llvm-lto-thin-dist llvm-lto-none )
+	^^ ( hz-ticks-100 hz-ticks-250 hz-ticks-300 hz-ticks-500 hz-ticks-600 hz-ticks-750 hz-ticks-1000 )
+	^^ ( tickrate-periodic tickrate-idle tickrate-full )
+	^^ ( preempt-full preempt-lazy )
+	?? ( o3 os debug )
+	?? ( hugepage-always hugepage-madvise )
+	?? ( mgeneric mgeneric-v1 mgeneric-v2 mgeneric-v3 mgeneric-v4 mnative mzen4 )
+"
+""")
 
 
 def run(args, **kwargs):
@@ -357,13 +394,10 @@ fi
 exec "$REAL_PYTHON" "$@"''')
     names = ("Consume binary deps and merge source ebuild",
              "Compile installed scheduler directory", "Verify installed source features")
-    from ci_matrix_cases import OPTIONAL_VARIANT_FLAGS
-    latest_iuse = {flag.lstrip("+-") for flag in expected_module.parse_iuse(EBUILD.read_text())}
-    unsupported = [flag for flag in OPTIONAL_VARIANT_FLAGS if flag not in latest_iuse]
-    workflow_cases = [(f"{flag} -bore -eevdf", True, 0, []) for flag in unsupported[:1]]
-    workflow_cases += [("bore -eevdf", False, 0, ["consumer", "kbuild", "verify"]),
-                       ("bore -eevdf", True, 2, ["consumer", "kbuild"])]
-    for flags, missing, wanted_status, wanted_calls in workflow_cases:
+    for flags, missing, wanted_status, wanted_calls in (
+            ("bmq-lfbmq -bore -eevdf", True, 0, []),  # absent from the fixture
+            ("bore -eevdf", False, 0, ["consumer", "kbuild", "verify"]),
+            ("bore -eevdf", True, 2, ["consumer", "kbuild"])):
         calls.write_text("")
         output.write_text("")
         status = 0
@@ -374,10 +408,10 @@ exec "$REAL_PYTHON" "$@"''')
                 assert condition[1] == "steps.merge.outputs.installed == 'true'", condition[1]
                 if "installed=true" not in output.read_text().splitlines():
                     continue
-            body = body.replace("${{ matrix.version }}", LATEST) \
+            body = body.replace("${{ matrix.version }}", FIXTURE_VERSION) \
                 .replace("${{ matrix.use_flags }}", flags) \
                 .replace("/usr/src/", str(scratch / "usr-src") + "/")
-            result = run(["/bin/bash", "-c", body], cwd=ROOT,
+            result = run(["/bin/bash", "-c", body], cwd=FIXTURE_ROOT,
                          env=dict(env, MISSING_TREE=str(int(missing))))
             status = result.returncode
             if status:
@@ -442,31 +476,31 @@ print("PASS: manual workflow env-inputs, validated case, binary-only prereqs, bo
 # Validation must reject malicious/multiline inputs before any package call.
 validation_files = tempfile.TemporaryDirectory(prefix="ci-manual-inputs-", dir="/var/tmp")
 input_root = Path(validation_files.name)
-evil = [f'{LATEST}$(touch {input_root / "pwned"})', f'{LATEST}`id`', f'{LATEST};id',
-        f'{LATEST}\nkcfi', f'{LATEST} || true']
+evil = [f'{FIXTURE_VERSION}$(touch {input_root / "pwned"})', f'{FIXTURE_VERSION}`id`',
+        f'{FIXTURE_VERSION};id', f'{FIXTURE_VERSION}\nkcfi', f'{FIXTURE_VERSION} || true']
 validation = manual.split("Validate requested version and USE case", 1)[1] \
     .split("- name:", 1)[0]
 script = validation.split("run: |", 1)[1]
 script = "\n".join(line[8:] for line in script.splitlines() if line.strip())
 script = script.replace("/tmp/manual-", str(input_root / "manual-"))
 for bad in evil:
-    result = run(["bash", "-c", script], cwd=ROOT,
+    result = run(["bash", "-c", script], cwd=FIXTURE_ROOT,
                  env=dict(os.environ, MANUAL_VERSION=bad, MANUAL_USE_FLAGS="bore"))
     assert result.returncode != 0, (bad, result.stdout)
     assert not (input_root / "pwned").exists()
-    result = run(["bash", "-c", script], cwd=ROOT,
-                 env=dict(os.environ, MANUAL_VERSION=LATEST, MANUAL_USE_FLAGS=bad))
+    result = run(["bash", "-c", script], cwd=FIXTURE_ROOT,
+                 env=dict(os.environ, MANUAL_VERSION=FIXTURE_VERSION, MANUAL_USE_FLAGS=bad))
     assert result.returncode != 0, (bad, result.stdout)
-multiline = run(["bash", "-c", script], cwd=ROOT,
-                env=dict(os.environ, MANUAL_VERSION=LATEST,
+multiline = run(["bash", "-c", script], cwd=FIXTURE_ROOT,
+                env=dict(os.environ, MANUAL_VERSION=FIXTURE_VERSION,
                          MANUAL_USE_FLAGS="bore\nkcfi"))
 assert multiline.returncode != 0
-good = run(["bash", "-c", script], cwd=ROOT,
-           env=dict(os.environ, MANUAL_VERSION=LATEST, MANUAL_USE_FLAGS="bore o3"))
+good = run(["bash", "-c", script], cwd=FIXTURE_ROOT,
+           env=dict(os.environ, MANUAL_VERSION=FIXTURE_VERSION, MANUAL_USE_FLAGS="bore o3"))
 assert good.returncode == 0, good.stdout
-assert (input_root / "manual-case.txt").read_text().strip() == f"{LATEST}|bore o3"
-bad_flag = run(["bash", "-c", script], cwd=ROOT,
-               env=dict(os.environ, MANUAL_VERSION=LATEST, MANUAL_USE_FLAGS="bore fakeflag"))
+assert (input_root / "manual-case.txt").read_text().strip() == f"{FIXTURE_VERSION}|bore o3"
+bad_flag = run(["bash", "-c", script], cwd=FIXTURE_ROOT,
+               env=dict(os.environ, MANUAL_VERSION=FIXTURE_VERSION, MANUAL_USE_FLAGS="bore fakeflag"))
 assert bad_flag.returncode != 0
 validation_files.cleanup()
 print("PASS: manual input executes nothing before validation; multiline/unknown rejected")

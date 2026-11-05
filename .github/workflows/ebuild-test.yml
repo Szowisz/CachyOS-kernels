@@ -52,6 +52,7 @@ permissions:
 
 jobs:
   validate-dist-kernel-links:
+    needs: detect-versions
     runs-on: ubuntu-latest
     container:
       image: docker.io/gentoo/stage3:latest
@@ -60,13 +61,17 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    # CI self-tests only run when CI code itself changed.
     - name: Validate CI USE matrix against ebuild requirements
+      if: needs.detect-versions.outputs.selftest == 'true'
       run: python3 tests/test-ci-use-matrix.py
 
     - name: Validate binary dependency lifecycle
+      if: needs.detect-versions.outputs.selftest == 'true'
       run: python3 tests/test-ci-binpkg-lifecycle.py
 
     - name: Validate shared kernel Kbuild helper
+      if: needs.detect-versions.outputs.selftest == 'true'
       run: python3 tests/test-ci-kernel-kbuild.py
 
     - name: Validate THP defaults and explicit overrides
@@ -74,6 +79,8 @@ jobs:
 
     - name: Validate dist-kernel dependency resolution with emerge --pretend
       shell: bash
+      env:
+        ATOMS: ${{ needs.detect-versions.outputs.atoms }}
       run: |
         set -euo pipefail
 
@@ -102,25 +109,11 @@ jobs:
         dev-lang/rust rust-src
         EOF
 
-        echo "=== Validating sys-kernel/cachyos-kernel ebuilds ==="
-        for ebuild in /var/db/repos/cachyos-overlay/sys-kernel/cachyos-kernel/cachyos-kernel-*.ebuild; do
-          pkg=$(basename "$ebuild" .ebuild)
-          echo "Testing dependency resolution for =sys-kernel/${pkg}"
-          emerge --pretend --verbose "=sys-kernel/${pkg}"
-        done
-
-        echo "=== Validating virtual/dist-kernel ebuilds ==="
-        for ebuild in /var/db/repos/cachyos-overlay/virtual/dist-kernel/dist-kernel-*.ebuild; do
-          pkg=$(basename "$ebuild" .ebuild)
-          echo "Testing dependency resolution for =virtual/${pkg}"
-          emerge --pretend --verbose "=virtual/${pkg}"
-        done
-
-        echo "=== Validating sys-kernel/cachyos-kernel-bin ebuilds ==="
-        for ebuild in /var/db/repos/cachyos-overlay/sys-kernel/cachyos-kernel-bin/cachyos-kernel-bin-*.ebuild; do
-          pkg=$(basename "$ebuild" .ebuild)
-          echo "Testing dependency resolution for =sys-kernel/${pkg}"
-          emerge --pretend --verbose "=sys-kernel/${pkg}"
+        # Only the changed kernel/bin/virtual ebuilds (all of them when CI changed).
+        [ -n "${ATOMS}" ] || echo "::notice::No changed dist-kernel ebuilds to resolve"
+        for atom in ${ATOMS}; do
+          echo "Testing dependency resolution for ${atom}"
+          emerge --pretend --verbose "${atom}"
         done
 
     - name: Issue 57 regression - bin kernel installs real build tree
@@ -139,6 +132,8 @@ jobs:
     outputs:
       versions: ${{ steps.detect.outputs.versions }}
       image: ${{ steps.image.outputs.image }}
+      atoms: ${{ steps.changes.outputs.atoms }}
+      selftest: ${{ steps.changes.outputs.selftest }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -158,6 +153,7 @@ jobs:
         else
           BASE_SHA="HEAD~1"
         fi
+        echo "base=${BASE_SHA}" >> "$GITHUB_OUTPUT"
         
         # Map changed ebuilds, shared patches and CI helpers to the retained
         # source versions they actually affect (tests/ci_kernel_expected.py;
@@ -194,6 +190,30 @@ jobs:
           echo "Versions to test: $VERSIONS_JSON"
           echo "versions=$VERSIONS_JSON" >> "$GITHUB_OUTPUT"
         fi
+
+    - name: Detect changed dist-kernel ebuilds and CI files
+      id: changes
+      env:
+        BASE_SHA: ${{ steps.detect.outputs.base }}
+        EVENT_NAME: ${{ github.event_name }}
+      run: |
+        set -euo pipefail
+        CHANGED=$(git diff --no-renames --name-only "$BASE_SHA" HEAD)
+        if [ "$EVENT_NAME" = workflow_dispatch ] ||
+           grep -Eq '^(tests/|\.github/workflows/)' <<< "$CHANGED"; then
+          SELFTEST=true
+          EBUILDS=$(git ls-files 'sys-kernel/cachyos-kernel/*.ebuild' \
+            'sys-kernel/cachyos-kernel-bin/*.ebuild' 'virtual/dist-kernel/*.ebuild')
+        else
+          SELFTEST=false
+          EBUILDS=$(git diff --no-renames --name-only --diff-filter=AM "$BASE_SHA" HEAD | \
+            grep -E '^(sys-kernel/cachyos-kernel|sys-kernel/cachyos-kernel-bin|virtual/dist-kernel)/[^/]+\.ebuild$' || true)
+        fi
+        ATOMS=$(sed -nE 's#^(sys-kernel|virtual)/[^/]+/([^/]+)\.ebuild$#=\1/\2#p' <<< "$EBUILDS" | \
+          { grep -v 9999 || true; } | xargs)
+        echo "selftest=${SELFTEST}" >> "$GITHUB_OUTPUT"
+        echo "atoms=${ATOMS}" >> "$GITHUB_OUTPUT"
+        echo "selftest=${SELFTEST} atoms=${ATOMS}"
 
     - name: Resolve immutable container image for this run
       id: image

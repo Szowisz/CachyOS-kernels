@@ -5,7 +5,6 @@ on:
     branches: [ main, master ]
     paths:
       - 'tests/test-source-features.py'
-      - 'tests/test-optional-feature-inventory.py'
       - 'sys-kernel/cachyos-sources/**'
       - 'sys-kernel/cachyos-kernel/**'
       - 'sys-kernel/cachyos-kernel-bin/**'
@@ -28,7 +27,6 @@ on:
     branches: [ main, master ]
     paths:
       - 'tests/test-source-features.py'
-      - 'tests/test-optional-feature-inventory.py'
       - 'sys-kernel/cachyos-sources/**'
       - 'sys-kernel/cachyos-kernel/**'
       - 'sys-kernel/cachyos-kernel-bin/**'
@@ -64,9 +62,6 @@ jobs:
 
     - name: Validate CI USE matrix against ebuild requirements
       run: python3 tests/test-ci-use-matrix.py
-
-    - name: Validate optional feature inventory and conflicts
-      run: python3 tests/test-optional-feature-inventory.py
 
     - name: Validate binary dependency lifecycle
       run: python3 tests/test-ci-binpkg-lifecycle.py

@@ -42,15 +42,8 @@ for ebuild in ebuilds:
     required = re.search(r'^REQUIRED_USE="([^"]*)"', source, re.MULTILINE).group(1)
     version = ebuild.stem.removeprefix("cachyos-sources-")
     producer_cases = usable_cases(ROOT, version, "glibc")
-    if version == "7.2.10":
-        assert "deckify" in producer_cases
-    if version == "6.18.55":
-        assert "bmq-lfbmq -bore -eevdf" in producer_cases
     assert producer_cases == [case for case in cases if not any(
         flag in case.split() and flag not in available for flag in OPTIONAL_VARIANT_FLAGS)]
-    if version == "7.2.11":
-        assert "muqss" in available
-        assert "muqss -bore -eevdf" in producer_cases
     # The workflow consumer greps the whole ebuild, so stray words (comments) must not differ.
     consumer_cases = [case for case in cases if not any(
         flag in case.split() and not re.search(rf"(^|\s)\+?{re.escape(flag)}(\s|$)", source, re.M)

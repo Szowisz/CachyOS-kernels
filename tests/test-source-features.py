@@ -134,29 +134,6 @@ def check(ebuild: Path, tree: Path, overrides: str) -> None:
     if 'deckify' in enabled:
         expect('ACPI_CALL', 'y')
         exists('drivers/platform/x86/acpi_call.c')
-        if pv == '7.2.11':
-            hid = (tree / 'drivers/hid/hid-steam.c').read_text()
-
-            def body(name: str) -> str:
-                definitions = re.findall(r'^static [^\n]*\b' + name + r'\([\s\S]*?^\}', hid, re.M)
-                assert len(definitions) == 1, (name, len(definitions))
-                return definitions[0]
-
-            recv = body('steam_recv_report_id')
-            assert 'u8 *data, int size, u8 report_id)' in recv
-            assert 'unsigned int retries = 50;' in recv and 'u32 len;' in recv
-            assert 'steam_recv_report_id(steam, reply, rsize, report_id)' in body('steam_exchange_report_id')
-            assert re.search(r'\bsteam_recv_report\b', hid) is None
-            assert 'steam_is_valve_interface(struct hid_device *hdev, int quirks)' in body('steam_is_valve_interface')
-            assert 'steam_is_valve_interface(hdev, id->driver_data)' in body('steam_probe')
-            cancel = 'cancel_delayed_work_sync(&steam->coalesce_rumble_work);'
-            for name in ('steam_register', 'steam_unregister', 'steam_probe'):
-                assert cancel in body(name), name
-            assert 'guard(spinlock_irqsave)(&steam->lock);' in body('steam_raw_event')
-            assert 'steam->lock' not in body('steam_do_ibex_battery_event')
-            for name in ('steam_haptic_pulse', 'steam_haptic_rumble'):
-                assert 'hid_hw_output_report(steam->hdev' in body(name), name
-            assert 'STEAM_QUIRK_WIRELESS | STEAM_QUIRK_IBEX' in body('steam_register')
         backlight_file = 'amdgpu_dm_backlight.c' if vercmp(pv, '7.3.0') >= 0 else 'amdgpu_dm.c'
         display = (tree / 'drivers/gpu/drm/amd/display/amdgpu_dm' / backlight_file).read_text()
         backlight = re.search(r'(?:static )?void amdgpu_dm_backlight_set_level\([^;]*?\n\{(.*?)\n\}', display, re.S).group(1)

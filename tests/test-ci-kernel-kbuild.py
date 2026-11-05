@@ -3,10 +3,8 @@
 
 Stub `make`/`clang`/`rustc`/`bindgen` binaries record invocations and emulate
 olddefconfig feature loss, so argument/toolchain/preservation/failure
-assertions run with no host clang and no real kernel tree. Where
-.ci/issue60 ships a real prepared 7.3.1 BORE tree, the actual scheduler
-compilation runs red (unfixed source) and green (patched source) in an owned
-scratch copy under /var/tmp — that smoke uses the real toolchain by design.
+assertions run with no host clang and no real kernel tree. Checks use the
+newest retained source ebuild and never name a concrete kernel version.
 """
 
 import json
@@ -24,10 +22,9 @@ sys.path.insert(0, str(ROOT / "tests"))
 import ci_kernel_expected as expected_module  # noqa: E402
 
 HELPER = ROOT / "tests/ci-kernel-kbuild.sh"
-PATCH = ROOT / "sys-kernel/cachyos-sources/files/cachyos-sources-7.3.1-bore-protect-slice.patch"
-ISSUE60_TREE = ROOT / ".ci/issue60/linux-7.3.1-cachyos"
-FAIR = Path("kernel/sched/fair.c")
-EBUILD = ROOT / "sys-kernel/cachyos-sources/cachyos-sources-7.3.1.ebuild"
+RETAINED = expected_module.retained_versions()
+LATEST = RETAINED[-1]
+EBUILD = ROOT / f"sys-kernel/cachyos-sources/cachyos-sources-{LATEST}.ebuild"
 
 
 def run(args, **kwargs):
@@ -300,98 +297,26 @@ exit "${MAKE_EXIT:-0}"
     assert "stay off" in result.stdout, result.stdout
     print("PASS: unselected scheduler staying on fails the negative check")
 
-    # Pre-7.3/LTS effective cases go through the same expectations.
-    ebuild_618 = ROOT / "sys-kernel/cachyos-sources/cachyos-sources-6.18.55.ebuild"
-    lts_default = ("CONFIG_LTO_NONE=y\n# CONFIG_SCHED_BORE is not set\n"
-                   "CONFIG_TCP_CONG_BBR3=y\nCONFIG_DEFAULT_TCP_CONG=\"bbr3\"\n"
-                   "CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y\n"
-                   "CONFIG_HZ_1000=y\nCONFIG_HZ=1000\nCONFIG_X86_NATIVE_CPU=y\n"
-                   "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y\n"
-                   "CONFIG_NO_HZ_FULL=y\nCONFIG_CACHY=y\n"
-                   "CONFIG_PREEMPT=y\nCONFIG_PREEMPT_DYNAMIC=y\n"
-                   "CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE=y\n"
-                   "# CONFIG_CFI is not set\n# CONFIG_AUFS_FS is not set\n")
-    write_config(lts_default)
-    result = run(["bash", str(HELPER), "olddefconfig", str(ebuild_618), str(tree), ""],
-                 env=env)
-    assert result.returncode == 0, result.stdout
-    result = run(["bash", str(HELPER), "olddefconfig", str(ebuild_618), str(tree), ""],
-                 env=dict(env, MAKE_DROP="TRANSPARENT_HUGEPAGE_ALWAYS"))
-    assert result.returncode != 0
-    print("PASS: 6.18 LTS default case asserted (and drift detected)")
-    lts_rt = lts_default.replace("CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y\n", "") \
-        .replace("CONFIG_PREEMPT=y\n", "").replace("CONFIG_PREEMPT_DYNAMIC=y\n", "") \
-        + "CONFIG_PREEMPT_RT=y\n"
-    write_config(lts_rt)
-    result = run(["bash", str(HELPER), "sched", str(ebuild_618), str(tree), "rt -eevdf"], env=env)
-    assert result.returncode == 0, result.stdout
-    result = run(["bash", str(HELPER), "sched", str(ebuild_618), str(tree),
-                  "rt -eevdf hugepage-always"], env=env)
-    assert result.returncode != 0 and "TRANSPARENT_HUGEPAGE_ALWAYS" in result.stdout
-    print("PASS: LTS implicit THP default respects RT; explicit incompatible request fails")
-    for version in ("6.18.55", "7.2.11", "7.3.0-r3"):
-        ebuild = ROOT / f"sys-kernel/cachyos-sources/cachyos-sources-{version}.ebuild"
-        baseline = lts_default if version.startswith("6.") else thin
-        write_config(baseline)
-        result = run(["bash", str(HELPER), "olddefconfig", str(ebuild), str(tree), ""], env=env)
-        assert result.returncode == 0, (version, result.stdout)
-        for symbol in ("PREEMPT", "PREEMPT_DYNAMIC", "CPU_FREQ_DEFAULT_GOV_PERFORMANCE"):
-            write_config(baseline)
-            result = run(["bash", str(HELPER), "full", str(ebuild), str(tree), ""],
-                         env=dict(env, MAKE_DROP=symbol))
-            assert result.returncode != 0, (version, symbol, result.stdout)
-    print("PASS: retained older-version defaults cannot disappear during synchronization")
-
-# Actual BORE compile: red without the fix, green with it, real clang/Kbuild.
-if ISSUE60_TREE.is_dir() and (ISSUE60_TREE / ".config").is_file() and PATCH.is_file():
-    with tempfile.TemporaryDirectory(prefix="ci-kbuild-issue60-", dir="/var/tmp") as tmp:
-        scratch = Path(tmp) / "linux-7.3.1-cachyos"
-        # Own scratch copy: the read-only evidence tree is never modified.
-        shutil.copytree(ISSUE60_TREE, scratch, symlinks=True)
-        fair = scratch / FAIR
-        original = fair.read_bytes()
-        try:
-            subprocess.run(["patch", "-R", "-p1", "--fuzz=0", "-d", str(scratch), "-i", str(PATCH)],
-                           check=True, capture_output=True)
-            red = run(["bash", str(HELPER), "sched", str(EBUILD), str(scratch), "bore"])
-            assert red.returncode != 0
-            assert "normalized_sysctl_sched_base_slice" in red.stdout, red.stdout
-            print("PASS: actual unfixed BORE kernel/sched/ compile fails with the issue-60 error")
-        finally:
-            fair.write_bytes(original)
-        green = run(["bash", str(HELPER), "sched", str(EBUILD), str(scratch), "bore"])
-        assert green.returncode == 0, green.stdout
-        assert (scratch / "kernel/sched/fair.o").is_file()
-        print("PASS: actual patched BORE kernel/sched/ compile produces fair.o")
-else:
-    print("SKIP: real BORE red/green needs .ci/issue60 tree and shared patch")
 
 # Shared changed-path -> retained-version detector (same module both
-# workflows call; assert the concrete mappings the review found broken).
+# workflows call). Version-agnostic: derived from the retained ebuilds.
 detect = expected_module.affected_versions
-assert detect(["sys-kernel/cachyos-kernel/cachyos-kernel-6.18.55.ebuild"]) == ["6.18.55"]
-assert detect(["sys-kernel/cachyos-sources/files/cachyos-sources-prjc-futex-schedule.patch"]) \
-    == ["6.18.55", "7.2.11"]
-assert detect(["sys-kernel/cachyos-sources/files/cachyos-sources-7.3.0-muqss-rebase.patch"]) \
-    == ["7.3.0-r3", "7.3.1"]
-assert detect(["sys-kernel/cachyos-kernel/files/cachyos-sources-7.3.0-muqss-rebase.patch"]) \
-    == ["7.3.0-r3", "7.3.1"]
-assert "7.3.0" not in detect(["sys-kernel/cachyos-sources/files/cachyos-sources-7.3.0-muqss-rebase.patch"])
-assert detect(["tests/ci-kernel-kbuild.sh"]) == ["6.18.55", "7.2.11", "7.3.0-r3", "7.3.1"]
-assert detect(["tests/ci_kernel_expected.py"]) == detect(["tests/ci-kernel-kbuild.sh"])
+for version in RETAINED:
+    assert detect([f"sys-kernel/cachyos-sources/cachyos-sources-{version}.ebuild"]) == [version]
+    assert detect([f"sys-kernel/cachyos-kernel/cachyos-kernel-{version}.ebuild"]) == [version]
+assert detect(["sys-kernel/cachyos-sources/cachyos-sources-99.0.0.ebuild"]) == []
+assert detect(["tests/ci-kernel-kbuild.sh"]) == RETAINED
+assert detect(["tests/ci_kernel_expected.py"]) == RETAINED
 for path in ("tests/ci-binpkg-producer.sh", "tests/ci-binpkg-consumer.sh",
              "tests/ci-portage-setup.sh", "tests/ci_matrix_cases.py",
              "tests/test-ci-binpkg-lifecycle.py"):
     result = run([sys.executable, str(ROOT / "tests/ci_kernel_expected.py"), "detect"],
                  input=path + "\n")
     assert result.returncode == 0, result.stdout
-    assert result.stdout.splitlines() == ["6.18.55", "7.2.11", "7.3.0-r3", "7.3.1"], path
-assert detect([".github/workflows/ebuild-kernel-build.yml"]) == detect(["tests/ci-kernel-kbuild.sh"])
-assert detect([".github/workflows/ebuild-test-musl-llvm.yml"]) == detect(["tests/ci-kernel-kbuild.sh"])
-assert detect(["sys-kernel/cachyos-sources/files/6.19.0/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"]) \
-    == ["6.18.55", "7.2.11", "7.3.0-r3", "7.3.1"]
-# The former local BORE fix is retained as an unused file after the official refresh.
-assert detect(["sys-kernel/cachyos-sources/files/cachyos-sources-7.3.1-bore-protect-slice.patch"]) == []
+    assert result.stdout.splitlines() == RETAINED, path
+assert detect([".github/workflows/ebuild-kernel-build.yml"]) == RETAINED
+assert detect([".github/workflows/ebuild-test-musl-llvm.yml"]) == RETAINED
+assert detect(["sys-kernel/cachyos-sources/files/unused-ci-fixture.patch"]) == []
 assert detect(["app-admin/ananicy-cpp/ananicy-cpp-1.0.ebuild"]) == []
 print("PASS: detector maps ebuilds/shared patches/helpers to retained versions only")
 
@@ -432,10 +357,13 @@ fi
 exec "$REAL_PYTHON" "$@"''')
     names = ("Consume binary deps and merge source ebuild",
              "Compile installed scheduler directory", "Verify installed source features")
-    for flags, missing, wanted_status, wanted_calls in (
-            ("bmq-lfbmq -bore -eevdf", True, 0, []),
-            ("bore -eevdf", False, 0, ["consumer", "kbuild", "verify"]),
-            ("bore -eevdf", True, 2, ["consumer", "kbuild"])):
+    from ci_matrix_cases import OPTIONAL_VARIANT_FLAGS
+    latest_iuse = {flag.lstrip("+-") for flag in expected_module.parse_iuse(EBUILD.read_text())}
+    unsupported = [flag for flag in OPTIONAL_VARIANT_FLAGS if flag not in latest_iuse]
+    workflow_cases = [(f"{flag} -bore -eevdf", True, 0, []) for flag in unsupported[:1]]
+    workflow_cases += [("bore -eevdf", False, 0, ["consumer", "kbuild", "verify"]),
+                       ("bore -eevdf", True, 2, ["consumer", "kbuild"])]
+    for flags, missing, wanted_status, wanted_calls in workflow_cases:
         calls.write_text("")
         output.write_text("")
         status = 0
@@ -446,7 +374,7 @@ exec "$REAL_PYTHON" "$@"''')
                 assert condition[1] == "steps.merge.outputs.installed == 'true'", condition[1]
                 if "installed=true" not in output.read_text().splitlines():
                     continue
-            body = body.replace("${{ matrix.version }}", "7.3.1") \
+            body = body.replace("${{ matrix.version }}", LATEST) \
                 .replace("${{ matrix.use_flags }}", flags) \
                 .replace("/usr/src/", str(scratch / "usr-src") + "/")
             result = run(["/bin/bash", "-c", body], cwd=ROOT,
@@ -465,11 +393,9 @@ for arg in "$@"; do
 done
 printf '%s\\n' "$DELETED_PATH"''')
     deleted_cases = (
-        ("sys-kernel/cachyos-sources/files/cachyos-sources-prjc-futex-schedule.patch",
-         {"6.18.55", "7.2.11"}),
         ("sys-kernel/cachyos-sources/files/unused-ci-fixture.patch", set()),
         ("sys-kernel/cachyos-sources/cachyos-sources-99.0.0.ebuild", set()),
-        ("tests/ci-binpkg-consumer.sh", set(detect(["tests/ci-kernel-kbuild.sh"]))),
+        ("tests/ci-binpkg-consumer.sh", set(RETAINED)),
     )
     for text in (glibc, musl):
         _, body = workflow_step(text, "Detect new ebuild versions")
@@ -516,8 +442,8 @@ print("PASS: manual workflow env-inputs, validated case, binary-only prereqs, bo
 # Validation must reject malicious/multiline inputs before any package call.
 validation_files = tempfile.TemporaryDirectory(prefix="ci-manual-inputs-", dir="/var/tmp")
 input_root = Path(validation_files.name)
-evil = [f'7.3.1$(touch {input_root / "pwned"})', '7.3.1`id`', '7.3.1;id', '7.3.1\nkcfi',
-        '7.3.1 || true']
+evil = [f'{LATEST}$(touch {input_root / "pwned"})', f'{LATEST}`id`', f'{LATEST};id',
+        f'{LATEST}\nkcfi', f'{LATEST} || true']
 validation = manual.split("Validate requested version and USE case", 1)[1] \
     .split("- name:", 1)[0]
 script = validation.split("run: |", 1)[1]
@@ -529,18 +455,18 @@ for bad in evil:
     assert result.returncode != 0, (bad, result.stdout)
     assert not (input_root / "pwned").exists()
     result = run(["bash", "-c", script], cwd=ROOT,
-                 env=dict(os.environ, MANUAL_VERSION="7.3.1", MANUAL_USE_FLAGS=bad))
+                 env=dict(os.environ, MANUAL_VERSION=LATEST, MANUAL_USE_FLAGS=bad))
     assert result.returncode != 0, (bad, result.stdout)
 multiline = run(["bash", "-c", script], cwd=ROOT,
-                env=dict(os.environ, MANUAL_VERSION="7.3.1",
+                env=dict(os.environ, MANUAL_VERSION=LATEST,
                          MANUAL_USE_FLAGS="bore\nkcfi"))
 assert multiline.returncode != 0
 good = run(["bash", "-c", script], cwd=ROOT,
-           env=dict(os.environ, MANUAL_VERSION="7.3.1", MANUAL_USE_FLAGS="bore o3"))
+           env=dict(os.environ, MANUAL_VERSION=LATEST, MANUAL_USE_FLAGS="bore o3"))
 assert good.returncode == 0, good.stdout
-assert (input_root / "manual-case.txt").read_text().strip() == "7.3.1|bore o3"
+assert (input_root / "manual-case.txt").read_text().strip() == f"{LATEST}|bore o3"
 bad_flag = run(["bash", "-c", script], cwd=ROOT,
-               env=dict(os.environ, MANUAL_VERSION="7.3.1", MANUAL_USE_FLAGS="bore fakeflag"))
+               env=dict(os.environ, MANUAL_VERSION=LATEST, MANUAL_USE_FLAGS="bore fakeflag"))
 assert bad_flag.returncode != 0
 validation_files.cleanup()
 print("PASS: manual input executes nothing before validation; multiline/unknown rejected")

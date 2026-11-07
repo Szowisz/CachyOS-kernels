@@ -144,7 +144,7 @@ BDEPEND="
 	|| ( >=dev-lang/rust-bin-1.85.0[rust-src] >=dev-lang/rust-1.85.0[rust-src] )
 "
 PDEPEND="
-	>=virtual/dist-kernel-${PV}_p${PR#r}
+	>=virtual/dist-kernel-${PV}
 "
 
 QA_FLAGS_IGNORED="

@@ -145,7 +145,7 @@ BDEPEND="
 	)
 "
 PDEPEND="
-	>=virtual/dist-kernel-${PV}_p${PR#r}
+	>=virtual/dist-kernel-${PV}
 "
 
 QA_FLAGS_IGNORED="

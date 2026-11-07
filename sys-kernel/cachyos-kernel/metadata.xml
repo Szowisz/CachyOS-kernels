@@ -31,6 +31,7 @@
     <!-- Security features -->
     <flag name="cachyos-hardened">Enable the CachyOS hardened kernel variant and patchset</flag>
     <flag name="kcfi">Enable kCFI (Kernel Control Flow Integrity) for additional security protection (requires clang)</flag>
+    <flag name="rust">Enable Rust support (CONFIG_RUST) and the DRM panic QR code screen; requires the Rust kernel toolchain</flag>
 
     <!-- Optimization features -->
     <flag name="autofdo">Enable Clang AutoFDO (Automatic Feedback-Directed Optimization) support for profile-guided optimization</flag>

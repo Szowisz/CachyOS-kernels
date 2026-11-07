@@ -115,7 +115,11 @@ Common changes to port:
 
 ### Step 5: Update virtual/dist-kernel
 
-If a new kernel **minor** version is added (e.g., 6.20.x when only 6.19.x existed):
+The virtual follows the official Gentoo style: a `|| ( ... )` provider list
+(CachyOS providers first, official dist-kernel providers as fallback), never
+a hard pin on a single package. Plain `dist-kernel-<VER>.ebuild` for a `-r0`
+kernel; `dist-kernel-<VER>_p<N>.ebuild` only when the kernel ebuild is
+`<VER>-r<N>`. The ebuild body is version-independent:
 
 ```bash
 cp virtual/dist-kernel/dist-kernel-<OLD_VERSION>.ebuild \
@@ -132,7 +136,7 @@ still create the virtual to ensure the version exists.
 cd /path/to/overlay
 ebuild sys-kernel/cachyos-kernel/cachyos-kernel-<VERSION>.ebuild manifest
 
-# Also update virtual manifest if changed
+# Also regenerate manifest; the virtual itself has no SRC_URI (no entries)
 ebuild virtual/dist-kernel/dist-kernel-<VERSION>.ebuild manifest
 ```
 

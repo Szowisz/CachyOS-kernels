@@ -145,10 +145,7 @@ RDEPEND+="
 		|| ( >=dev-lang/rust-bin-1.85.0[rust-src] >=dev-lang/rust-1.85.0[rust-src] )
 	)
 	llvm-lto-none? ( dev-util/pahole )
-	!llvm-lto-none? (
-		rust? ( >=dev-util/pahole-1.32-r1 )
-		!rust? ( dev-util/pahole )
-	)
+	!llvm-lto-none? ( dev-util/pahole-cachyos )
 	autofdo? ( dev-util/perf[libpfm] )
 	!llvm-lto-none? (
 		llvm-core/clang
@@ -227,6 +224,10 @@ src_prepare() {
 	# SND_SOC_AMD_LEGACY_SDW_MACH selected it unconditionally.
 	# Upstream: https://git.kernel.org/broonie/sound/c/d06607bafb36
 	eapply "${FILESDIR}/cachyos-sources-7.3.0-tas2783-sdca-deps.patch"
+
+	# Point the kernel build at dev-util/pahole-cachyos (merged-CU
+	# --lang_exclude fixes for Rust + LTO + BTF).
+	eapply "${FILESDIR}/cachyos-sources-pahole-cachyos.patch"
 
 	if use bore || use rt-bore || use deckify; then
 		eapply --fuzz=0 -- "${patches_prefix}-bore.patch"

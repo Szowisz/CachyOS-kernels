@@ -134,7 +134,7 @@ REQUIRED_USE="
 "
 
 RDEPEND+="
-	dev-util/pahole
+	dev-util/pahole-cachyos
 	autofdo? ( dev-util/perf[libpfm] )
 	!llvm-lto-none? (
 		llvm-core/clang
@@ -208,6 +208,10 @@ src_prepare() {
 	# Fix suggested by marioroy: https://discourse.llvm.org/t/rfc-distributed-thinlto-build-for-kernel/85934/5
 	# https://github.com/Szowisz/CachyOS-kernels/issues/35
 	eapply "${FILESDIR}/6.19.0/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
+
+	# Point the kernel build at dev-util/pahole-cachyos (merged-CU
+	# --lang_exclude fixes for Rust + LTO + BTF).
+	eapply "${FILESDIR}/cachyos-sources-pahole-cachyos.patch"
 
 	if use bore || use rt-bore || use cachyos-hardened; then
 		cp "${patches_prefix}-bore.patch" "${T}/bore.patch" || die

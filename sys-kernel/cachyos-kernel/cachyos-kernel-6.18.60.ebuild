@@ -133,7 +133,7 @@ BDEPEND="
 			llvm-core/lld:${LLVM_SLOT}
 		')
 	)
-	dev-util/pahole
+	dev-util/pahole-cachyos
 "
 PDEPEND="
 	>=virtual/dist-kernel-${PV}
@@ -230,6 +230,10 @@ src_prepare() {
 
 	# Fix AutoFDO/Propeller support for LTO_CLANG_THIN_DIST
 	eapply "${FILESDIR}/6.19.0/misc/0002-fix-autofdo-propeller-lto-thin-dist.patch"
+
+	# Point the kernel build at dev-util/pahole-cachyos (merged-CU
+	# --lang_exclude fixes for Rust + LTO + BTF).
+	eapply "${FILESDIR}/cachyos-sources-pahole-cachyos.patch"
 
 	if use bore || use rt-bore || use cachyos-hardened; then
 		cp "${patches_prefix}-bore.patch" "${T}/bore.patch" || die

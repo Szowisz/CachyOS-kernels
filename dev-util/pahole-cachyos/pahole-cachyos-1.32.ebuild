@@ -8,18 +8,12 @@ VERIFY_SIG_OPENPGP_KEY_PATH=/usr/share/openpgp-keys/arnaldocarvalhodemelo.asc
 inherit cmake python-single-r1 verify-sig
 
 MY_P="dwarves-${PV}"
-PAHOLE_PATCHES_COMMIT="4235eec8e257993ea4d5d0016d2f0845014d2ee8"
-PAHOLE_PATCH_URI="https://raw.githubusercontent.com/CachyOS/CachyOS-PKGBUILDs/${PAHOLE_PATCHES_COMMIT}/pahole"
 
-DESCRIPTION="pahole (Poke-a-Hole) and other DWARF utilities"
+DESCRIPTION="pahole (Poke-a-Hole) and other DWARF utilities, with the CachyOS merged-CU lang_exclude fixes needed by Rust + LTO + BTF kernels"
 HOMEPAGE="https://git.kernel.org/cgit/devel/pahole/pahole.git/"
 SRC_URI="
 	http://fedorapeople.org/~acme/dwarves/${MY_P}.tar.xz
 	verify-sig? ( http://fedorapeople.org/~acme/dwarves/${MY_P}.tar.sign )
-	${PAHOLE_PATCH_URI}/0002-dwarf_loader-Take-the-merged-CU-language-from-a-CU-t.patch
-		-> pahole-${PAHOLE_PATCHES_COMMIT}-merged-cu-language.patch
-	${PAHOLE_PATCH_URI}/0003-dwarf_loader-Load-types-that-kept-CUs-use-from-exclu.patch
-		-> pahole-${PAHOLE_PATCHES_COMMIT}-excluded-cu-types.patch
 "
 S="${WORKDIR}/${MY_P}"
 
@@ -43,8 +37,7 @@ BDEPEND="verify-sig? ( sec-keys/openpgp-keys-arnaldocarvalhodemelo )"
 DOCS=( README README.ctracer NEWS )
 PATCHES=(
 	"${FILESDIR}/${PN}-1.10-python-import.patch"
-	"${DISTDIR}/pahole-${PAHOLE_PATCHES_COMMIT}-merged-cu-language.patch"
-	"${DISTDIR}/pahole-${PAHOLE_PATCHES_COMMIT}-excluded-cu-types.patch"
+	"${FILESDIR}/${PN}-1.32-lang-exclude-merged-cu.patch"
 )
 
 src_unpack() {
@@ -64,6 +57,16 @@ src_prepare() {
 		tests/test_lib.sh || die
 }
 
+src_configure() {
+	local mycmakeargs=(
+		# Install under a private prefix: this package coexists with
+		# sys-kernel/cachyos-*'s in-kernel pahole shim instead of
+		# competing for /usr/bin/pahole with dev-util/pahole.
+		-DCMAKE_INSTALL_PREFIX=/usr/libexec/pahole-cachyos
+	)
+	cmake_src_configure
+}
+
 src_test() {
 	local -x PATH="${BUILD_DIR}:${PATH}" TMPDIR="${T}"
 	local regression rc
@@ -77,4 +80,12 @@ src_test() {
 			die "${regression} failed"
 		fi
 	done
+}
+
+pkg_postinst() {
+	elog "This pahole lives in /usr/libexec/pahole-cachyos/bin and is not on PATH."
+	elog "sys-kernel/cachyos-sources and cachyos-kernel patch the kernel Makefile"
+	elog "to call it directly (PAHOLE = /usr/libexec/pahole-cachyos/bin/pahole),"
+	elog "so Rust + LTO + BTF kernels and their external modules get the"
+	elog "merged-CU --lang_exclude fixes without touching dev-util/pahole."
 }

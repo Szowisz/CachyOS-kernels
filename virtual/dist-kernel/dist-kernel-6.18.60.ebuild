@@ -7,4 +7,13 @@ DESCRIPTION="Virtual to depend on any Distribution Kernel"
 SLOT="0/${PVR}"
 KEYWORDS="~amd64"
 
-RDEPEND="~sys-kernel/cachyos-kernel-6.18.60"
+RDEPEND="
+	|| (
+		~sys-kernel/cachyos-kernel-${PV}
+		=sys-kernel/cachyos-kernel-bin-${PV}*
+		~sys-kernel/gentoo-kernel-${PV}
+		~sys-kernel/gentoo-kernel-bin-${PV}
+		~sys-kernel/vanilla-kernel-${PV%_p*}
+		~sys-kernel/gentoo-kernel-modprep-${PV}
+	)
+"

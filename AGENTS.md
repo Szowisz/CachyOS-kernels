@@ -207,12 +207,36 @@ Typical IUSE per version:
 
 ### 4. virtual/dist-kernel
 
-```bash
-cp virtual/dist-kernel/dist-kernel-<OLD_VER>.ebuild virtual/dist-kernel/dist-kernel-<NEW_VER>.ebuild
-ebuild virtual/dist-kernel/dist-kernel-<VERSION>.ebuild manifest
+Maintained in the official Gentoo style (`virtual/dist-kernel` from the gentoo
+repo): a `|| ( ... )` provider list, never a hard pin on a single package.
+CachyOS providers come first, official dist-kernel providers follow as
+fallback so mixed systems can keep using gentoo-kernel/gentoo-kernel-bin:
+
+```ebuild
+RDEPEND="
+	|| (
+		~sys-kernel/cachyos-kernel-${PV}
+		=sys-kernel/cachyos-kernel-bin-${PV}*
+		~sys-kernel/gentoo-kernel-${PV}
+		~sys-kernel/gentoo-kernel-bin-${PV}
+		~sys-kernel/vanilla-kernel-${PV%_p*}
+		~sys-kernel/gentoo-kernel-modprep-${PV}
+	)
+"
 ```
 
-The virtual simply depends on `>=sys-kernel/cachyos-sources-${PV}` for source packages and `>=sys-kernel/cachyos-kernel-${PV}` through the dist-kernel eclass.
+Versioning rules (match upstream gentoo practice):
+
+- Plain `dist-kernel-<KERNEL_VER>.ebuild` when the kernel ebuild carries no
+  Gentoo revision (`-r0`); use `dist-kernel-<KERNEL_VER>_p<N>.ebuild` only when
+  the kernel ebuild is `<KERNEL_VER>-r<N>`. Never emit empty `_p0` suffixes.
+- `cachyos-kernel` PDEPEND stays `>=virtual/dist-kernel-${PV}` (official
+  form); do not append `_p${PR#r}`.
+- The virtual has no SRC_URI, so no Manifest entries are needed
+  (`pkgdev manifest` reports up to date).
+
+Copy the newest existing ebuild for a new version and update nothing but the
+version in the filename; the body is version-independent.
 
 ### 5. app-admin/cachyos-settings (check every update pass)
 

@@ -32,20 +32,8 @@ DEPEND="
 	sys-auth/rtkit
 "
 
-src_prepare() {
-	default
-
-	# GCC 16 no longer exposes getpid() transitively via unrelated headers.
-	# Upstream still misses the direct include in v1.2.0.
-	sed -i '/#include <string_view>/a #include <unistd.h>' \
-		src/platform/linux/debug.cpp || die
-	sed -i '/#include <thread>/a #include <unistd.h>' \
-		src/platform/linux/process.cpp || die
-	sed -i '/#include <systemd\/sd-login.h>/a #include <unistd.h>' \
-		src/platform/systemd/service.cpp || die
-
-	cmake_prepare
-}
+# https://gitlab.com/ananicy-cpp/ananicy-cpp/-/merge_requests/43
+PATCHES=( "${FILESDIR}/${PN}-1.2.0-gcc16-includes.patch" )
 
 src_configure() {
 	local mycmakeargs=(

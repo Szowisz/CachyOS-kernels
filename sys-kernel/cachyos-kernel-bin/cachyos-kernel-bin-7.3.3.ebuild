@@ -7,7 +7,7 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit flag-o-matic kernel-install toolchain-funcs
 
-# CachyOS source and binary packages are both at pkgrel 1 for 7.3.1.
+# CachyOS source and binary packages are both at pkgrel 1 for 7.3.3.
 CACHYOS_SOURCE_PR="1"
 CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
 
@@ -28,10 +28,9 @@ SRC_URI="
 	https://github.com/CachyOS/linux/releases/download/${MY_P}/${MY_P}.tar.gz
 "
 
-# 7.3.1 ships lto sub-variants for bmq, eevdf and server, plus lto and gcc
-# builds of the default cachyos package. BORE and RT-BORE are still mirrored
-# only at 7.3.0-2 (see 7.3.0-r3). No deckify or hardened build for this
-# version; hardened coverage stays on the mirrored 7.2.9-r1 ebuild.
+# 7.3.3 ships lto and non-lto builds of every scheduler variant, plus lto
+# and gcc builds of the default cachyos package. No hardened build for this
+# version; hardened coverage stays on the mirrored 7.2.11-r1 ebuild.
 SRC_URI+="
 	cachyos? (
 		lto? (
@@ -41,6 +40,16 @@ SRC_URI+="
 		gcc? (
 			${MIRROR_V3}/linux-cachyos-gcc-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 			${MIRROR_V3}/linux-cachyos-gcc-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+	)
+	bore? (
+		lto? (
+			${MIRROR_V3}/linux-cachyos-bore-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bore-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-bore-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bore-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
 	bmq? (
@@ -63,6 +72,16 @@ SRC_URI+="
 			${MIRROR_V3}/linux-cachyos-eevdf-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
+	rt-bore? (
+		lto? (
+			${MIRROR_V3}/linux-cachyos-rt-bore-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-rt-bore-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-rt-bore-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-rt-bore-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+	)
 	server? (
 		lto? (
 			${MIRROR_V3}/linux-cachyos-server-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
@@ -73,15 +92,25 @@ SRC_URI+="
 			${MIRROR_V3}/linux-cachyos-server-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 		)
 	)
+	deckify? (
+		lto? (
+			${MIRROR_V3}/linux-cachyos-deckify-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+		!lto? (
+			${MIRROR_V3}/linux-cachyos-deckify-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-deckify-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		)
+	)
 "
 
 S="${WORKDIR}"
 
 LICENSE="GPL-2"
 KEYWORDS="~amd64"
-IUSE="+cachyos bmq eevdf server +lto gcc debug"
+IUSE="+cachyos bore bmq eevdf rt-bore server deckify +lto gcc debug"
 REQUIRED_USE="
-	^^ ( cachyos bmq eevdf server )
+	^^ ( cachyos bore bmq eevdf rt-bore server deckify )
 	?? ( lto gcc )
 	cachyos? ( || ( lto gcc ) )
 	gcc? ( cachyos )
@@ -115,12 +144,18 @@ _cachyos_pkg_variant() {
 
 	if use cachyos; then
 		use gcc && variant="gcc"
+	elif use bore; then
+		variant="bore"
 	elif use bmq; then
 		variant="bmq"
 	elif use eevdf; then
 		variant="eevdf"
+	elif use rt-bore; then
+		variant="rt-bore"
 	elif use server; then
 		variant="server"
+	elif use deckify; then
+		variant="deckify"
 
 	fi
 

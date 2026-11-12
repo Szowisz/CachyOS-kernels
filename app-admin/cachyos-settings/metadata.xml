@@ -5,6 +5,9 @@
     <email>szowisz.gentoo@gmail.com</email>
     <name>Jakub Wroński</name>
   </maintainer>
+  <use>
+    <flag name="zram">Install zram-generator configuration and optional xswap integration</flag>
+  </use>
   <upstream>
     <remote-id type="github">CachyOS/CachyOS-Settings</remote-id>
     <bugs-to>https://github.com/CachyOS/CachyOS-Settings/issues</bugs-to>

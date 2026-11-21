@@ -10,7 +10,7 @@ inherit flag-o-matic kernel-install toolchain-funcs
 # Hardened-only coverage: upstream hardened stays on 7.2.11 while mainline
 # moved to 7.3, so this ebuild keeps the latest mirrored hardened binaries.
 # The 7.2.11 source release is pkgrel 1 and the binary pkgrel follows the
-# Gentoo revision (7.2.11-r1 -> pkgrel 2).
+# Gentoo revision (7.2.11-r2 -> pkgrel 3).
 CACHYOS_SOURCE_PR="1"
 CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
 
@@ -32,7 +32,7 @@ SRC_URI="
 "
 
 # Binary packages per variant (x86_64_v3 only for this version)
-# 7.2.11 hardened only: hardened + hardened-lto at pkgrel 2
+# 7.2.11 hardened only: hardened + hardened-lto at pkgrel 3
 SRC_URI+="
 	hardened? (
 		lto? (

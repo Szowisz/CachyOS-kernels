@@ -7,8 +7,8 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit flag-o-matic kernel-install toolchain-funcs
 
-# CachyOS source and binary packages are both at pkgrel 1 for 7.3.4.
-CACHYOS_SOURCE_PR="1"
+# CachyOS source and binary packages are both at pkgrel 2 for 7.3.5.
+CACHYOS_SOURCE_PR="2"
 CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
 
 MY_P="cachyos-${PV}-${CACHYOS_SOURCE_PR}"
@@ -28,9 +28,8 @@ SRC_URI="
 	https://github.com/CachyOS/linux/releases/download/${MY_P}/${MY_P}.tar.gz
 "
 
-# 7.3.4 ships lto and non-lto builds of every scheduler variant, plus lto
-# and gcc builds of the default cachyos package. No hardened build for this
-# version; hardened coverage stays on the mirrored 7.2.11-r1 ebuild.
+# 7.3.5 ships lto and non-lto builds of every listed scheduler variant, plus
+# lto and GCC builds of the default package. Hardened stays on 7.2.11.
 SRC_URI+="
 	cachyos? (
 		lto? (

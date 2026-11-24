@@ -63,6 +63,9 @@ src_configure() {
 		# sys-kernel/cachyos-*'s in-kernel pahole shim instead of
 		# competing for /usr/bin/pahole with dev-util/pahole.
 		-DCMAKE_INSTALL_PREFIX=/usr/libexec/pahole-cachyos
+		# The private libdir is not on the loader path; without an RPATH
+		# pahole cannot load libdwarves and kbuild's PAHOLE probe fails.
+		-DCMAKE_INSTALL_RPATH="${EPREFIX}/usr/libexec/pahole-cachyos/$(get_libdir)"
 	)
 	cmake_src_configure
 }

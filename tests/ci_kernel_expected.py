@@ -59,7 +59,7 @@ SELECTOR_CONFIG = {
     "bore": [("SCHED_BORE", "y")],
     "rt-bore": [("SCHED_BORE", "y"), ("PREEMPT_RT", "y")],
     "cachyos-hardened": [("SCHED_BORE", "y")],
-    "deckify": [("SCHED_BORE", "y"), ("ACPI_CALL", "y")],
+    "deckify": [("ACPI_CALL", "y")],
     "bmq": [("SCHED_ALT", "y"), ("SCHED_BMQ", "y")],
     "bmq-lfbmq": [("SCHED_ALT", "y"), ("SCHED_BMQ", "y")],
     "pds": [("SCHED_ALT", "y"), ("SCHED_BMQ", None), ("SCHED_PDS", "y")],

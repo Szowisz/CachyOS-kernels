@@ -22,7 +22,7 @@
     <flag name="server">Disable CONFIG_CACHY kernel tweaks; scheduler and tuning options remain independently selectable</flag>
 
     <!-- Hardware-specific patches -->
-    <flag name="deckify">Apply the CachyOS handheld configuration and patches with the BORE scheduler</flag>
+    <flag name="deckify">Apply the CachyOS handheld configuration and patches with the selected CPU scheduler</flag>
     <flag name="aufs">Enable the AUFS union filesystem as a module</flag>
 
     <!-- Toolchain -->

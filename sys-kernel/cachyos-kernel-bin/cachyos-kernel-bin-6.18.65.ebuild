@@ -7,8 +7,7 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit kernel-install toolchain-funcs
 
-# CachyOS source package is at pkgrel 1; the LTS binary pkgrel follows the
-# Gentoo revision (6.18.60-r2 -> pkgrel 3).
+# Source pkgrel is independent of the mirror's binary pkgrel.
 CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
 
 # CachyOS pre-patched source tarball (needed for modules_prepare)
@@ -33,7 +32,7 @@ SRC_URI="
 "
 
 # Binary packages per variant (x86_64_v3 only for this version)
-# 6.18.60 LTS only: linux-cachyos-lts (no scheduler variants, no lto)
+# The mirror provides only linux-cachyos-lts, without an LTO variant.
 SRC_URI+="
 	lts? (
 		${MIRROR_V3}/linux-cachyos-lts-${BINPKG_VER}-x86_64_v3.pkg.tar.zst

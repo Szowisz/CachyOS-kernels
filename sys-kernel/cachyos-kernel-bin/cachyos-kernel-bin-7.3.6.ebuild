@@ -7,8 +7,8 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit flag-o-matic kernel-install toolchain-funcs
 
-# CachyOS source and binary packages are both at pkgrel 2 for 7.3.5.
-CACHYOS_SOURCE_PR="2"
+# Match the 7.3.6-1 source to the binaries currently on the v3 mirror.
+CACHYOS_SOURCE_PR="1"
 CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
 
 MY_P="cachyos-${PV}-${CACHYOS_SOURCE_PR}"
@@ -28,8 +28,7 @@ SRC_URI="
 	https://github.com/CachyOS/linux/releases/download/${MY_P}/${MY_P}.tar.gz
 "
 
-# 7.3.5 ships lto and non-lto builds of every listed scheduler variant, plus
-# lto and GCC builds of the default package. Hardened stays on 7.2.11.
+# Deckify is available only with LTO; Hardened stays on 7.2.11.
 SRC_URI+="
 	cachyos? (
 		lto? (
@@ -92,14 +91,8 @@ SRC_URI+="
 		)
 	)
 	deckify? (
-		lto? (
-			${MIRROR_V3}/linux-cachyos-deckify-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
-		!lto? (
-			${MIRROR_V3}/linux-cachyos-deckify-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-deckify-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		)
+		${MIRROR_V3}/linux-cachyos-deckify-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
 	)
 "
 
@@ -113,6 +106,7 @@ REQUIRED_USE="
 	?? ( lto gcc )
 	cachyos? ( || ( lto gcc ) )
 	gcc? ( cachyos )
+	deckify? ( lto )
 "
 
 RDEPEND="
@@ -155,7 +149,6 @@ _cachyos_pkg_variant() {
 		variant="server"
 	elif use deckify; then
 		variant="deckify"
-
 	fi
 
 	if [[ -n ${variant} && ${variant} != gcc ]] && use lto; then

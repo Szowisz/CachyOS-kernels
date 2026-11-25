@@ -164,6 +164,11 @@ _set_hztick_rate() {
 }
 
 pkg_setup() {
+	if use muqss; then
+		ewarn "USE=muqss disables sched_ext (CONFIG_SCHED_CLASS_EXT)."
+		ewarn "SCX schedulers cannot take over, even if the loader reports them as running."
+	fi
+
 	if use clang; then
 		llvm-r2_pkg_setup
 		local llvm_bindir

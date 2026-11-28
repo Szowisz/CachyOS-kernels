@@ -7,12 +7,16 @@ KERNEL_IUSE_GENERIC_UKI=1
 
 inherit flag-o-matic kernel-install toolchain-funcs
 
-# Match the 7.3.6-1 source to the binaries currently on the v3 mirror.
-CACHYOS_SOURCE_PR="1"
-CACHYOS_BIN_PR="$(( ${PR#r} + 1 ))"
+# Mirror state for 7.3.6: the default linux-cachyos package (and its
+# headers) is published only at pkgrel 3; every other variant, including
+# linux-cachyos-gcc, remains at pkgrel 1.
+CACHYOS_SOURCE_PR="3"
+CACHYOS_BIN_PR_DEFAULT="3"
+CACHYOS_BIN_PR_VARIANT="1"
 
 MY_P="cachyos-${PV}-${CACHYOS_SOURCE_PR}"
-BINPKG_VER="${PV}-${CACHYOS_BIN_PR}"
+BINPKG_VER_DEFAULT="${PV}-${CACHYOS_BIN_PR_DEFAULT}"
+BINPKG_VER_VARIANT="${PV}-${CACHYOS_BIN_PR_VARIANT}"
 
 # Mirror base URLs
 MIRROR_V3="https://mirror.cachyos.org/repo/x86_64_v3/cachyos-v3"
@@ -32,67 +36,67 @@ SRC_URI="
 SRC_URI+="
 	cachyos? (
 		lto? (
-			${MIRROR_V3}/linux-cachyos-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-${BINPKG_VER_DEFAULT}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-headers-${BINPKG_VER_DEFAULT}-x86_64_v3.pkg.tar.zst
 		)
 		gcc? (
-			${MIRROR_V3}/linux-cachyos-gcc-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-gcc-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-gcc-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-gcc-headers-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
 		)
 	)
 	bore? (
 		lto? (
-			${MIRROR_V3}/linux-cachyos-bore-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-bore-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bore-lto-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bore-lto-headers-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
 		)
 		!lto? (
-			${MIRROR_V3}/linux-cachyos-bore-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-bore-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bore-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bore-headers-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
 		)
 	)
 	bmq? (
 		lto? (
-			${MIRROR_V3}/linux-cachyos-bmq-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-bmq-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bmq-lto-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bmq-lto-headers-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
 		)
 		!lto? (
-			${MIRROR_V3}/linux-cachyos-bmq-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-bmq-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bmq-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-bmq-headers-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
 		)
 	)
 	eevdf? (
 		lto? (
-			${MIRROR_V3}/linux-cachyos-eevdf-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-eevdf-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-eevdf-lto-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-eevdf-lto-headers-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
 		)
 		!lto? (
-			${MIRROR_V3}/linux-cachyos-eevdf-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-eevdf-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-eevdf-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-eevdf-headers-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
 		)
 	)
 	rt-bore? (
 		lto? (
-			${MIRROR_V3}/linux-cachyos-rt-bore-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-rt-bore-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-rt-bore-lto-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-rt-bore-lto-headers-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
 		)
 		!lto? (
-			${MIRROR_V3}/linux-cachyos-rt-bore-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-rt-bore-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-rt-bore-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-rt-bore-headers-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
 		)
 	)
 	server? (
 		lto? (
-			${MIRROR_V3}/linux-cachyos-server-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-server-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-server-lto-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-server-lto-headers-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
 		)
 		!lto? (
-			${MIRROR_V3}/linux-cachyos-server-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-			${MIRROR_V3}/linux-cachyos-server-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-server-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
+			${MIRROR_V3}/linux-cachyos-server-headers-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
 		)
 	)
 	deckify? (
-		${MIRROR_V3}/linux-cachyos-deckify-lto-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
-		${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${BINPKG_VER}-x86_64_v3.pkg.tar.zst
+		${MIRROR_V3}/linux-cachyos-deckify-lto-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
+		${MIRROR_V3}/linux-cachyos-deckify-lto-headers-${BINPKG_VER_VARIANT}-x86_64_v3.pkg.tar.zst
 	)
 "
 
@@ -190,7 +194,11 @@ _cachyos_source_pkg() {
 }
 
 _cachyos_binpkg_ver() {
-	echo "${BINPKG_VER}"
+	# The default linux-cachyos package is mirrored at pkgrel 3, while every
+	# other variant (including linux-cachyos-gcc) remains at pkgrel 1.
+	local pr="${CACHYOS_BIN_PR_VARIANT}"
+	[[ -z $(_cachyos_pkg_variant) ]] && pr="${CACHYOS_BIN_PR_DEFAULT}"
+	echo "${PV}-${pr}"
 }
 
 # Compute distfile name for the binary kernel package
